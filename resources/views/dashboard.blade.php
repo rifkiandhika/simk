@@ -1,4 +1,4 @@
-@extends('layouts.admin')
+@extends('layouts.app')
 
 @section('title', 'Dashboard')
 
@@ -7,15 +7,7 @@
 @endsection
 
 @section('page-actions')
-    <div class="d-flex flex-row gap-1 day-sorting">
-        <button class="btn btn-sm btn-primary">Today</button>
-        <button class="btn btn-sm">7d</button>
-        <button class="btn btn-sm">2w</button>
-        <button class="btn btn-sm">1m</button>
-        <button class="btn btn-sm">3m</button>
-        <button class="btn btn-sm">6m</button>
-        <button class="btn btn-sm">1y</button>
-    </div>
+    
 @endsection
 
 @section('content')

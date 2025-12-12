@@ -1,0 +1,112 @@
+/* Background full page */
+body.login-bg {
+    background: url("/assets/images/login-bg.jpg") center/cover no-repeat;
+    height: 90vh;
+    margin: 0;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Wrapper pusat */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 20px;
+}
+
+/* Card Login Modern */
+.auth-box {
+    width: 100%;
+    max-width: 400px;
+    background: rgba(255, 255, 255, 0.88);
+    padding: 35px 32px;
+    border-radius: 18px;
+    backdrop-filter: blur(12px);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.25);
+    animation: fadeUp 0.5s ease;
+}
+
+/* Animasi smooth */
+@keyframes fadeUp {
+    from {
+        opacity: 0;
+        transform: translateY(25px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Logo */
+.auth-logo img {
+    width: 45px;
+    height: 45px;
+    margin-right: 10px;
+}
+
+.auth-logo {
+    display: flex;
+    align-items: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: #333;
+    text-decoration: none;
+}
+
+/* Input styling */
+.form-control {
+    padding: 12px 14px;
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.15);
+}
+
+/* Eye button */
+.input-group .btn {
+    border-radius: 12px;
+}
+
+/* Buttons */
+.btn-primary,
+.btn-secondary {
+    height: 46px;
+    font-weight: 600;
+    border-radius: 12px;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    border: none;
+}
+
+/* Hover effect */
+.btn-primary:hover {
+    opacity: 0.9;
+}
+
+.btn-secondary:hover {
+    opacity: 0.9;
+}
+
+/* Link */
+a {
+    font-size: 14px;
+    color: #0d6efd;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+    .auth-box {
+        padding: 28px 22px;
+    }
+}
