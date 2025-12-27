@@ -81,7 +81,7 @@
             </div>
 
             {{-- ===== TEMPAT 1: BUTTON KONFIRMASI PENERIMAAN ===== --}}
-            @if($po->tipe_po === 'internal' && $po->status === 'selesai' && !$po->tanggal_diterima)
+            @if($po->tipe_po === 'internal' && $po->status === 'diterima' && !$po->tanggal_diterima)
             <!-- Confirmation Receipt Card -->
             <div class="card shadow-sm border-0 mb-4 border-warning" style="border-width: 2px !important;">
                 <div class="card-header bg-warning py-3">
@@ -130,7 +130,7 @@
             @endif
 
             {{-- Status jika sudah diterima --}}
-            @if($po->tipe_po === 'internal' && $po->status === 'diterima')
+            @if($po->tipe_po === 'internal' && $po->status === 'selesai')
             <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
                 <div class="d-flex align-items-start">
                     <i class="ri-check-double-line me-3 fs-3"></i>
@@ -158,7 +158,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             @endif
-            @if($po->tipe_po === 'eksternal' && $po->needsReceiptConfirmation())
+            @if($po->tipe_po === 'eksternal' && $po->status === 'diterima' )
                 <!-- Confirmation Receipt Card for External PO -->
                 <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
                     <div class="card-header bg-success text-white py-3">
@@ -208,7 +208,7 @@
                                 @endif
                             </div>
                             <div class="col-md-4 text-end">
-                                <a href="{{ route('po.show-confirmation', $po->id_po) }}" class="btn btn-success btn-lg w-100">
+                                <a href="{{ route('po.showex-confirmation', $po->id_po) }}" class="btn btn-success btn-lg w-100">
                                     <i class="ri-checkbox-multiple-line me-2"></i>
                                     Konfirmasi Penerimaan
                                 </a>
@@ -219,7 +219,7 @@
                 @endif
 
                 {{-- Status jika sudah diterima (EKSTERNAL) --}}
-                @if($po->tipe_po === 'eksternal' && $po->status === 'diterima')
+                @if($po->tipe_po === 'eksternal' && $po->status === 'selesai')
                 <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
                     <div class="d-flex align-items-start">
                         <i class="ri-check-double-line me-3 fs-3"></i>
@@ -300,12 +300,13 @@
                     {{-- ===== STATUS JIKA SUDAH ADA INVOICE ===== --}}
                     @if($po->hasInvoice())
                     <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
-                        <div class="card-header bg-success text-white py-3">
+                        <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
                             <h5 class="mb-0">
                                 <i class="ri-file-check-line me-2"></i>Invoice/Faktur Supplier
                             </h5>
+
                             <a href="{{ route('po.print-invoice', $po->id_po) }}" 
-                            class="btn btn-light btn-sm" 
+                            class="btn btn-light btn-sm"
                             target="_blank">
                                 <i class="ri-printer-line me-1"></i> Print Invoice
                             </a>

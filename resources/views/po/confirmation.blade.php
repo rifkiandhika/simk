@@ -23,7 +23,7 @@
         </div>
     @endif
 
-    <form action="{{ route('po.confirm-receipt', $po->id_po) }}" method="POST" id="formConfirm">
+    <form action="{{ route('po.confirmex-receipt', $po->id_po) }}" method="POST" id="formConfirm">
         @csrf
         
         <div class="row">

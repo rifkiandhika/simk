@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\api\ApiController;
 use App\Http\Controllers\api\ObatMasterController;
+use App\Http\Controllers\backend\NotificationController;
 use App\Http\Controllers\backend\PurchaseOrderController;
 use App\Http\Controllers\backend\ReceivingController;
 use App\Http\Controllers\backend\ShippingController;

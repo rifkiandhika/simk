@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Str;
 
@@ -15,6 +16,7 @@ class PurchaseOrder extends Model
 
     protected $casts = [
         'tanggal_permintaan' => 'date',
+        'tanggal_jatuh_tempo' => 'date',
         'tanggal_approval_kepala_gudang' => 'datetime',
         'tanggal_approval_kasir' => 'datetime',
         'tanggal_dikirim_ke_supplier' => 'datetime',
@@ -127,8 +129,123 @@ class PurchaseOrder extends Model
     // Method untuk cek apakah perlu input invoice (sudah diterima tapi belum ada invoice)
     public function needsInvoice()
     {
-        return $this->status === 'diterima'
+        return $this->status === 'selesai'
             && $this->tipe_po === 'eksternal'
             && empty($this->no_invoice);
+    }
+
+    public function tagihan()
+    {
+        return $this->hasOne(TagihanPo::class, 'id_po', 'id_po');
+    }
+
+    /**
+     * Check apakah PO sudah punya tagihan
+     */
+    public function hasTagihan()
+    {
+        return $this->tagihan()->exists();
+    }
+
+    /**
+     * Get status tagihan
+     */
+    public function getStatusTagihanAttribute()
+    {
+        if (!$this->hasTagihan()) {
+            return 'Belum Ada Tagihan';
+        }
+
+        return $this->tagihan->status;
+    }
+
+    public function isPendingApproval(): bool
+    {
+        return in_array($this->status, [
+            'menunggu_persetujuan_kepala_gudang',
+            'menunggu_persetujuan_kasir'
+        ]);
+    }
+
+    /**
+     * Get hours left before auto-cancel
+     */
+    public function hoursLeftBeforeCancel(): ?int
+    {
+        if (!$this->isPendingApproval()) {
+            return null;
+        }
+
+        $referenceDate = $this->status === 'menunggu_persetujuan_kepala_gudang'
+            ? $this->created_at
+            : $this->tanggal_approval_kepala_gudang;
+
+        if (!$referenceDate) {
+            return null;
+        }
+
+        $deadline = Carbon::parse($referenceDate)->addDay();
+        $hoursLeft = now()->diffInHours($deadline, false);
+
+        return $hoursLeft > 0 ? (int)$hoursLeft : 0;
+    }
+
+    /**
+     * Check if PO will be auto-cancelled soon (< 6 hours)
+     */
+    public function isNearDeadline(): bool
+    {
+        $hoursLeft = $this->hoursLeftBeforeCancel();
+        return $hoursLeft !== null && $hoursLeft > 0 && $hoursLeft < 6;
+    }
+
+    /**
+     * Get deadline timestamp
+     */
+    public function getDeadlineAttribute(): ?Carbon
+    {
+        if (!$this->isPendingApproval()) {
+            return null;
+        }
+
+        $referenceDate = $this->status === 'menunggu_persetujuan_kepala_gudang'
+            ? $this->created_at
+            : $this->tanggal_approval_kepala_gudang;
+
+        return $referenceDate ? Carbon::parse($referenceDate)->addDay() : null;
+    }
+
+    /**
+     * Scope untuk PO yang perlu approval kepala gudang
+     */
+    public function scopePendingKepalaGudang($query)
+    {
+        return $query->where('status', 'menunggu_persetujuan_kepala_gudang')
+            ->where('created_at', '>', Carbon::now()->subDay());
+    }
+
+    /**
+     * Scope untuk PO yang perlu approval kasir
+     */
+    public function scopePendingKasir($query)
+    {
+        return $query->where('status', 'menunggu_persetujuan_kasir')
+            ->where('tanggal_approval_kepala_gudang', '>', Carbon::now()->subDay());
+    }
+
+    /**
+     * Scope untuk PO yang akan di-auto-cancel
+     */
+    public function scopeToBeAutoCancelled($query)
+    {
+        $oneDayAgo = Carbon::now()->subDay();
+
+        return $query->where(function ($q) use ($oneDayAgo) {
+            $q->where('status', 'menunggu_persetujuan_kepala_gudang')
+                ->where('created_at', '<=', $oneDayAgo);
+        })->orWhere(function ($q) use ($oneDayAgo) {
+            $q->where('status', 'menunggu_persetujuan_kasir')
+                ->where('tanggal_approval_kepala_gudang', '<=', $oneDayAgo);
+        });
     }
 }

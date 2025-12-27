@@ -7,6 +7,36 @@
     <li class="breadcrumb-item text-primary" aria-current="page">Buat PO {{ ucfirst($type) }}</li>
 @endsection
 
+@push('styles')
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<style>
+    .select2-container--bootstrap-5 .select2-selection {
+        min-height: 38px;
+    }
+    .select2-container {
+        width: 100% !important;
+    }
+    .batch-info {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    .stock-badge {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.5rem;
+    }
+    .item-row {
+        animation: fadeIn 0.3s;
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(-10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+</style>
+@endpush
+
 @section('content')
 <div class="app-body">
     {{-- Alert Messages --}}
@@ -260,11 +290,12 @@
                         <ul class="small mb-0">
                             <li class="mb-2">Pastikan semua item yang dipilih sudah benar</li>
                             <li class="mb-2">Quantity yang diisi adalah jumlah yang diminta</li>
-                            <li class="mb-2">Harga akan otomatis terisi dari master data produk</li>
                             @if($type === 'internal')
+                                <li class="mb-2"><strong class="text-success">Produk ditampilkan per batch dengan stock gudang</strong></li>
                                 <li class="mb-2 text-success"><strong>PO Internal hanya memerlukan approval Kepala Gudang</strong></li>
                                 <li class="mb-2 text-success"><strong>Stok otomatis ditransfer dari Gudang ke Apotik</strong></li>
                             @else
+                                <li class="mb-2">Harga akan otomatis terisi dari master data produk</li>
                                 <li class="mb-2">PO Eksternal memerlukan approval dari Kepala Gudang dan Kasir</li>
                             @endif
                             <li>PIN diperlukan untuk keamanan transaksi</li>
@@ -277,32 +308,15 @@
 </div>
 @endsection
 
-@push('styles')
-<style>
-    .table-hover tbody tr:hover {
-        background-color: #f8f9fa;
-    }
-    
-    .position-sticky {
-        position: sticky;
-        z-index: 10;
-    }
-
-    .item-row {
-        animation: fadeIn 0.3s;
-    }
-
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(-10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-</style>
-@endpush
-
 @push('scripts')
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <script>
     let itemCounter = 0;
     const produkData = @json($produkList);
+    const isInternal = {{ $type === 'internal' ? 'true' : 'false' }};
 
     // Filter produk by supplier if eksternal
     @if($type === 'eksternal')
@@ -334,6 +348,11 @@
         }
         @endif
 
+        if (filteredProduk.length === 0) {
+            Swal.fire('Perhatian', 'Tidak ada produk tersedia di gudang', 'warning');
+            return;
+        }
+
         itemCounter++;
         const tbody = document.getElementById('itemTableBody');
         const row = document.createElement('tr');
@@ -343,17 +362,13 @@
         row.innerHTML = `
             <td class="text-center">${itemCounter}</td>
             <td>
-                <select class="form-select form-select-sm" name="items[${itemCounter}][id_produk]" 
+                <select class="form-select form-select-sm select2-produk" 
+                        name="items[${itemCounter}][id_produk]" 
+                        id="produk-${itemCounter}"
                         onchange="updatePrice(${itemCounter})" required>
                     <option value="">-- Pilih Produk --</option>
-                    ${filteredProduk.map(p => `
-                        <option value="${p.id}" 
-                                data-harga="${p.harga_beli}"
-                                data-nama="${p.nama}">
-                            ${p.nama} - ${p.merk || ''} (${p.satuan})
-                        </option>
-                    `).join('')}
                 </select>
+                <div class="batch-info" id="batch-info-${itemCounter}"></div>
             </td>
             <td>
                 <input type="text" class="form-control form-control-sm text-end" 
@@ -366,6 +381,7 @@
                        id="qty-${itemCounter}"
                        min="1" value="1" 
                        onchange="calculateSubtotal(${itemCounter})" required>
+                <small class="text-muted" id="max-qty-${itemCounter}"></small>
             </td>
             <td class="text-end">
                 <strong id="subtotal-${itemCounter}">Rp 0</strong>
@@ -379,15 +395,122 @@
         `;
 
         tbody.appendChild(row);
+
+        // Initialize Select2 for this item
+        initializeSelect2(itemCounter);
+    }
+
+    function initializeSelect2(itemId) {
+        const selectElement = $(`#produk-${itemId}`);
+        
+        // Populate options
+        filteredProduk.forEach(p => {
+            let optionText = '';
+            let optionHtml = '';
+            
+            if (isInternal) {
+                // Internal: Show batch info
+                optionText = `${p.nama} - Batch: ${p.no_batch} (Stock: ${p.stock_gudang})`;
+                optionHtml = `
+                    <div>
+                        <strong>${p.nama}</strong> ${p.merk ? `- ${p.merk}` : ''}
+                        <br>
+                        <small class="text-muted">
+                            <span class="badge bg-info stock-badge">Batch: ${p.no_batch}</span>
+                            <span class="badge bg-success stock-badge">Stock: ${p.stock_gudang}</span>
+                            <span class="badge bg-warning stock-badge text-dark">Exp: ${p.tanggal_kadaluarsa}</span>
+                        </small>
+                    </div>
+                `;
+            } else {
+                // External: Standard display
+                optionText = `${p.nama} - ${p.merk || ''} (${p.satuan})`;
+                optionHtml = `<div><strong>${p.nama}</strong> - ${p.merk || ''} (${p.satuan})</div>`;
+            }
+            
+            const newOption = new Option(optionText, p.id, false, false);
+            $(newOption).data('produk', p);
+            selectElement.append(newOption);
+        });
+
+        // Initialize Select2
+        selectElement.select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: '-- Pilih Produk --',
+            allowClear: true,
+            templateResult: formatProduk,
+            templateSelection: formatProdukSelection
+        });
+    }
+
+    function formatProduk(produk) {
+        if (!produk.id) return produk.text;
+        
+        const data = $(produk.element).data('produk');
+        if (!data) return produk.text;
+
+        if (isInternal) {
+            return $(`
+                <div>
+                    <strong>${data.nama}</strong> ${data.merk ? `- ${data.merk}` : ''}
+                    <br>
+                    <small class="text-muted">
+                        <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
+                        <span class="badge bg-success stock-badge">Stock: ${data.stock_gudang}</span>
+                        <span class="badge bg-warning stock-badge text-dark">Exp: ${data.tanggal_kadaluarsa}</span>
+                    </small>
+                </div>
+            `);
+        } else {
+            return $(`<div><strong>${data.nama}</strong> - ${data.merk || ''} (${data.satuan})</div>`);
+        }
+    }
+
+    function formatProdukSelection(produk) {
+        if (!produk.id) return produk.text;
+        const data = $(produk.element).data('produk');
+        if (!data) return produk.text;
+        return `${data.nama} ${isInternal ? `- Batch: ${data.no_batch}` : ''}`;
     }
 
     function updatePrice(itemId) {
-        const select = document.querySelector(`select[name="items[${itemId}][id_produk]"]`);
-        const selectedOption = select.options[select.selectedIndex];
-        const harga = parseFloat(selectedOption.dataset.harga || 0);
+        const selectElement = $(`#produk-${itemId}`);
+        const selectedOption = selectElement.find(':selected');
+        const data = selectedOption.data('produk');
+        
+        if (!data) {
+            document.getElementById(`harga-${itemId}`).value = '0';
+            document.getElementById(`harga-val-${itemId}`).value = '0';
+            document.getElementById(`batch-info-${itemId}`).innerHTML = '';
+            document.getElementById(`max-qty-${itemId}`).textContent = '';
+            calculateSubtotal(itemId);
+            return;
+        }
 
+        const harga = parseFloat(data.harga_beli || 0);
         document.getElementById(`harga-${itemId}`).value = formatRupiah(harga);
         document.getElementById(`harga-val-${itemId}`).value = harga;
+
+        // Show batch info for internal PO
+        if (isInternal) {
+            const batchInfo = document.getElementById(`batch-info-${itemId}`);
+            batchInfo.innerHTML = `
+                <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
+                <span class="badge bg-success stock-badge">Stock Tersedia: ${data.stock_gudang}</span>
+                <span class="badge bg-warning stock-badge text-dark">Exp: ${data.tanggal_kadaluarsa}</span>
+            `;
+            
+            // Set max quantity
+            const qtyInput = document.getElementById(`qty-${itemId}`);
+            qtyInput.max = data.stock_gudang;
+            document.getElementById(`max-qty-${itemId}`).textContent = `Max: ${data.stock_gudang}`;
+            
+            // Validate current quantity
+            if (parseInt(qtyInput.value) > data.stock_gudang) {
+                qtyInput.value = data.stock_gudang;
+            }
+        }
 
         calculateSubtotal(itemId);
     }
@@ -395,6 +518,25 @@
     function calculateSubtotal(itemId) {
         const harga = parseFloat(document.getElementById(`harga-val-${itemId}`).value || 0);
         const qty = parseInt(document.getElementById(`qty-${itemId}`).value || 0);
+        
+        // Validate quantity for internal PO
+        if (isInternal) {
+            const selectElement = $(`#produk-${itemId}`);
+            const selectedOption = selectElement.find(':selected');
+            const data = selectedOption.data('produk');
+            
+            if (data && qty > data.stock_gudang) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Quantity Melebihi Stock',
+                    text: `Stock tersedia: ${data.stock_gudang}`,
+                    confirmButtonText: 'OK'
+                });
+                document.getElementById(`qty-${itemId}`).value = data.stock_gudang;
+                return calculateSubtotal(itemId);
+            }
+        }
+        
         const subtotal = harga * qty;
 
         document.getElementById(`subtotal-${itemId}`).textContent = 'Rp ' + formatRupiah(subtotal);
@@ -404,10 +546,21 @@
     }
 
     function removeItem(itemId) {
-        const row = document.getElementById(`item-${itemId}`);
-        row.remove();
-        calculateTotal();
-        renumberRows();
+        Swal.fire({
+            title: 'Hapus Item?',
+            text: 'Item akan dihapus dari PO',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Hapus',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const row = document.getElementById(`item-${itemId}`);
+                row.remove();
+                calculateTotal();
+                renumberRows();
+            }
+        });
     }
 
     function renumberRows() {
@@ -428,7 +581,6 @@
                 total += parseFloat(input.value || 0);
                 itemCount++;
                 
-                // Get qty for this item
                 const itemId = input.id.split('-')[2];
                 const qtyInput = document.getElementById(`qty-${itemId}`);
                 if (qtyInput) {
@@ -463,7 +615,7 @@
 
     // Event listener for pajak
     @if($type === 'eksternal')
-    document.getElementById('pajak').addEventListener('input', calculateTotal);
+    document.getElementById('pajak')?.addEventListener('input', calculateTotal);
     @endif
 
     // Form validation

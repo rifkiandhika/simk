@@ -15,6 +15,7 @@ use App\Models\StockApotik;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
@@ -29,33 +30,49 @@ class PoConfirmationController extends Controller
         ])->findOrFail($id_po);
 
         // Only PO Internal that has been approved by Kepala Gudang
-        if ($po->tipe_po !== 'internal' || $po->status !== 'selesai') {
+        if ($po->tipe_po !== 'internal' || $po->status !== 'diterima') {
             return redirect()->route('po.show', $id_po)
                 ->with('error', 'PO ini tidak memerlukan konfirmasi penerimaan');
         }
+
+        Log::info('Show Confirmation Page:', [
+            'po_id' => $id_po,
+            'no_po' => $po->no_po,
+            'tipe' => $po->tipe_po,
+            'status' => $po->status,
+            'items_count' => $po->items->count()
+        ]);
 
         return view('po.confirm-receipt', compact('po'));
     }
 
     /**
-     * Confirm receipt of goods and update stock apotik
+     * Confirm receipt of goods and update stock apotik (PO INTERNAL ONLY)
      */
     public function confirmReceipt(Request $request, $id_po)
     {
+        Log::info('=== START CONFIRM RECEIPT ===', [
+            'po_id' => $id_po,
+            'user_id' => Auth::user()->id_karyawan,
+            'request_data' => $request->except('pin')
+        ]);
+
         $validator = Validator::make($request->all(), [
             'pin' => 'required|size:6',
             'items' => 'required|array|min:1',
-            'items.*.id_po_item' => 'required|uuid',  // ← UBAH DARI id_item
+            'items.*.id_po_item' => 'required|uuid',
             'items.*.qty_diterima' => 'required|integer|min:0',
             'items.*.kondisi' => 'required|in:baik,rusak,kadaluarsa',
             'items.*.catatan' => 'nullable|string',
             'catatan_penerima' => 'nullable|string',
         ], [
-            'items.*.id_po_item.required' => 'ID item tidak ditemukan. Mohon refresh halaman.',  // ← UBAH
-            'items.*.id_po_item.uuid' => 'Format ID item tidak valid.',  // ← UBAH
+            'items.*.id_po_item.required' => 'ID item tidak ditemukan. Mohon refresh halaman.',
+            'items.*.id_po_item.uuid' => 'Format ID item tidak valid.',
         ]);
 
         if ($validator->fails()) {
+            Log::error('Validation Failed:', $validator->errors()->toArray());
+
             if ($request->wantsJson()) {
                 return response()->json(['errors' => $validator->errors()], 422);
             }
@@ -68,6 +85,8 @@ class PoConfirmationController extends Controller
             ->first();
 
         if (!$karyawan) {
+            Log::warning('Invalid PIN', ['user_id' => Auth::user()->id_karyawan]);
+
             if ($request->wantsJson()) {
                 return response()->json(['error' => 'PIN tidak valid'], 403);
             }
@@ -78,9 +97,21 @@ class PoConfirmationController extends Controller
         try {
             $po = PurchaseOrder::with('items')->findOrFail($id_po);
 
+            Log::info('PO Loaded:', [
+                'po_id' => $po->id_po,
+                'no_po' => $po->no_po,
+                'tipe_po' => $po->tipe_po,
+                'status' => $po->status,
+                'items_count' => $po->items->count()
+            ]);
+
             // Validate PO status
-            if ($po->tipe_po !== 'internal' || $po->status !== 'selesai') {
-                throw new \Exception('PO ini tidak dapat dikonfirmasi');
+            if ($po->tipe_po !== 'internal') {
+                throw new \Exception('Hanya PO Internal yang dapat dikonfirmasi melalui halaman ini');
+            }
+
+            if ($po->status !== 'diterima') {
+                throw new \Exception('PO ini belum disetujui atau sudah dikonfirmasi sebelumnya. Status: ' . $po->status);
             }
 
             $dataBefore = $po->toArray();
@@ -88,124 +119,144 @@ class PoConfirmationController extends Controller
             // Get gudang
             $gudang = Gudang::first();
             if (!$gudang) {
-                throw new \Exception('Gudang tidak ditemukan');
+                throw new \Exception('Gudang tidak ditemukan di sistem');
             }
 
-            // Create or get stock apotik transaction
-            $stockApotik = StockApotik::create([
-                'id' => (string) Str::uuid(),
-                'gudang_id' => $gudang->id,
-                'kode_transaksi' => 'APO-CONF-' . date('YmdHis') . '-' . substr($po->no_po, -3),
-                'tanggal_penerimaan' => now(),
-                'keterangan' => 'Konfirmasi Penerimaan PO: ' . $po->no_po . ($request->catatan_penerima ? ' - ' . $request->catatan_penerima : ''),
-            ]);
+            Log::info('Gudang Found:', ['gudang_id' => $gudang->id, 'nama' => $gudang->nama_gudang ?? 'N/A']);
 
             $totalDiterima = 0;
             $totalRusak = 0;
             $itemsProcessed = [];
 
             foreach ($request->items as $itemData) {
+                Log::info('Processing Item:', $itemData);
+
                 $poItem = PurchaseOrderItem::findOrFail($itemData['id_po_item']);
+
+                Log::info('PO Item Found:', [
+                    'id_po_item' => $poItem->id_po_item,
+                    'id_produk' => $poItem->id_produk,
+                    'nama_produk' => $poItem->nama_produk,
+                    'qty_diminta' => $poItem->qty_diminta
+                ]);
+
                 $produk = DetailSupplier::find($poItem->id_produk);
 
                 if (!$produk) {
-                    throw new \Exception("Produk dengan ID {$poItem->id_produk} tidak ditemukan");
+                    Log::error('Produk Not Found', ['id_produk' => $poItem->id_produk]);
+                    throw new \Exception("Produk dengan ID {$poItem->id_produk} tidak ditemukan di master data");
                 }
+
+                Log::info('Produk Found:', [
+                    'id' => $produk->id,
+                    'nama' => $produk->nama,
+                    'harga_beli' => $produk->harga_beli
+                ]);
 
                 $qtyDiterima = (int) $itemData['qty_diterima'];
                 $kondisi = $itemData['kondisi'];
                 $catatan = $itemData['catatan'] ?? null;
 
-                // Get detail gudang for batch info
+                // Skip if qty = 0
+                if ($qtyDiterima == 0) {
+                    Log::info('Skipping item with qty = 0', ['id_po_item' => $poItem->id_po_item]);
+                    continue;
+                }
+
+                // Cari detail gudang
                 $detailGudang = DetailGudang::where('barang_id', $poItem->id_produk)
                     ->where('gudang_id', $gudang->id)
+                    ->where('stock_gudang', '>', 0)
+                    ->orderBy('tanggal_kadaluarsa', 'asc')
                     ->first();
 
-                // Update PO Item with actual received quantity
-                $poItem->update([
-                    'qty_diterima' => $qtyDiterima,
-                    'kondisi_barang' => $kondisi,
-                    'catatan_penerimaan' => $catatan,
+                if (!$detailGudang) {
+                    Log::error('Detail Gudang Not Found', [
+                        'barang_id' => $poItem->id_produk,
+                        'gudang_id' => $gudang->id
+                    ]);
+                    throw new \Exception("Produk {$produk->nama} tidak ditemukan di gudang atau stock habis");
+                }
+
+                Log::info('Detail Gudang Found:', [
+                    'id' => $detailGudang->id,
+                    'no_batch' => $detailGudang->no_batch,
+                    'stock_gudang' => $detailGudang->stock_gudang,
+                    'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa
                 ]);
 
-                // Process based on condition
-                if ($kondisi === 'baik' && $qtyDiterima > 0) {
-                    // Check if product already exists in apotik
-                    $existingDetail = DetailstockApotik::where('obat_id', $poItem->id_produk)
-                        ->where('stock_apotik_id', $stockApotik->id)
-                        ->first();
+                // Validasi stock
+                if ($detailGudang->stock_gudang < $qtyDiterima) {
+                    Log::error('Insufficient Stock', [
+                        'available' => $detailGudang->stock_gudang,
+                        'requested' => $qtyDiterima
+                    ]);
+                    throw new \Exception("Stock {$produk->nama} (Batch: {$detailGudang->no_batch}) tidak mencukupi. Tersedia: {$detailGudang->stock_gudang}, Diminta: {$qtyDiterima}");
+                }
 
-                    if ($existingDetail) {
-                        // Update existing stock - ADD to current stock
-                        $existingDetail->increment('stock_apotik', $qtyDiterima);
+                // Update PO Item
+                $poItem->update([
+                    'qty_diterima' => $qtyDiterima,
+                    'qty_disetujui' => $qtyDiterima,
+                    'kondisi_barang' => $kondisi,
+                    'catatan_penerimaan' => $catatan,
+                    'batch_number' => $detailGudang->no_batch,
+                    'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
+                ]);
 
-                        $itemsProcessed[] = [
-                            'action' => 'updated',
-                            'product' => $produk->nama,
-                            'qty' => $qtyDiterima,
-                            'previous_stock' => $existingDetail->stock_apotik - $qtyDiterima,
-                            'new_stock' => $existingDetail->stock_apotik,
-                        ];
-                    } else {
-                        // Create new stock entry
-                        $newDetail = DetailstockApotik::create([
-                            'id' => (string) Str::uuid(),
-                            'stock_apotik_id' => $stockApotik->id,
-                            'obat_id' => $poItem->id_produk,
-                            'no_batch' => $detailGudang->no_batch ?? 'BATCH-' . date('Ymd'),
-                            'stock_apotik' => $qtyDiterima,
-                            'min_persediaan' => $produk->min_persediaan ?? 0,
-                            'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa ?? null,
-                        ]);
+                Log::info('PO Item Updated', ['id_po_item' => $poItem->id_po_item]);
 
-                        $itemsProcessed[] = [
-                            'action' => 'created',
-                            'product' => $produk->nama,
-                            'qty' => $qtyDiterima,
-                            'new_stock' => $qtyDiterima,
-                        ];
-                    }
+                // KURANGI STOCK GUDANG
+                $stockBefore = $detailGudang->stock_gudang;
+                $detailGudang->decrement('stock_gudang', $qtyDiterima);
+                $detailGudang->refresh();
 
+                Log::info('Stock Gudang Updated:', [
+                    'stock_before' => $stockBefore,
+                    'decrement' => $qtyDiterima,
+                    'stock_after' => $detailGudang->stock_gudang
+                ]);
+
+                // Proses berdasarkan kondisi
+                if ($kondisi === 'baik') {
+                    Log::info('Processing BAIK item...');
+                    $this->addToStockApotik($gudang, $poItem, $detailGudang, $qtyDiterima, $produk, $po);
                     $totalDiterima += $qtyDiterima;
+
+                    $itemsProcessed[] = [
+                        'action' => 'received',
+                        'product' => $produk->nama,
+                        'batch' => $detailGudang->no_batch,
+                        'qty' => $qtyDiterima,
+                        'kondisi' => 'baik',
+                    ];
                 } elseif (in_array($kondisi, ['rusak', 'kadaluarsa'])) {
-                    // Record as retur
-                    $existingDetail = DetailstockApotik::where('obat_id', $poItem->id_produk)
-                        ->where('stock_apotik_id', $stockApotik->id)
-                        ->first();
-
-                    if ($existingDetail) {
-                        $existingDetail->increment('retur', $qtyDiterima);
-                    } else {
-                        DetailstockApotik::create([
-                            'id' => (string) Str::uuid(),
-                            'stock_apotik_id' => $stockApotik->id,
-                            'obat_id' => $poItem->id_produk,
-                            'no_batch' => $detailGudang->no_batch ?? 'BATCH-' . date('Ymd'),
-                            'stock_apotik' => 0,
-                            'retur' => $qtyDiterima,
-                            'min_persediaan' => $produk->min_persediaan ?? 0,
-                            'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa ?? null,
-                        ]);
-                    }
-
+                    Log::info('Processing RUSAK/KADALUARSA item...');
+                    $this->addToRetur($gudang, $poItem, $detailGudang, $qtyDiterima, $produk, $po);
                     $totalRusak += $qtyDiterima;
 
                     $itemsProcessed[] = [
                         'action' => 'retur',
                         'product' => $produk->nama,
+                        'batch' => $detailGudang->no_batch,
                         'qty' => $qtyDiterima,
-                        'reason' => $kondisi,
+                        'kondisi' => $kondisi,
                     ];
                 }
             }
 
+            $noGr = $po->no_gr ?? $this->generateNoGr();
+
             // Update PO status
             $po->update([
-                'status' => 'diterima',
+                'no_gr' => $noGr,
+                'status' => 'selesai',
                 'tanggal_diterima' => now(),
                 'id_penerima' => Auth::user()->id_karyawan,
                 'catatan_penerima' => $request->catatan_penerima,
             ]);
+
+            Log::info('PO Status Updated to DITERIMA');
 
             // Audit Trail
             PoAuditTrail::create([
@@ -213,22 +264,32 @@ class PoConfirmationController extends Controller
                 'id_karyawan' => Auth::user()->id_karyawan,
                 'pin_karyawan' => $request->pin,
                 'aksi' => 'konfirmasi_penerimaan',
-                'deskripsi_aksi' => "Konfirmasi penerimaan barang - Total diterima: {$totalDiterima}, Total rusak/kadaluarsa: {$totalRusak}",
+                'deskripsi_aksi' => "Konfirmasi penerimaan barang - Diterima: {$totalDiterima}, Retur: {$totalRusak}",
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
 
             DB::commit();
 
-            $message = "Konfirmasi penerimaan berhasil! Total {$totalDiterima} item masuk ke apotik";
+            Log::info('=== CONFIRM RECEIPT SUCCESS ===', [
+                'po_id' => $po->id_po,
+                'total_diterima' => $totalDiterima,
+                'total_rusak' => $totalRusak,
+                'items_processed' => count($itemsProcessed)
+            ]);
+
+            $message = "✓ Konfirmasi penerimaan berhasil!";
+            if ($totalDiterima > 0) {
+                $message .= " {$totalDiterima} unit masuk ke stock apotik.";
+            }
             if ($totalRusak > 0) {
-                $message .= ", {$totalRusak} item ditandai sebagai retur";
+                $message .= " {$totalRusak} unit ditandai sebagai retur.";
             }
 
             if ($request->wantsJson()) {
                 return response()->json([
                     'message' => $message,
-                    'data' => $po->fresh(),
+                    'data' => $po->fresh()->load('items'),
                     'items_processed' => $itemsProcessed,
                 ], 200);
             }
@@ -238,11 +299,165 @@ class PoConfirmationController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
 
+            Log::error('=== CONFIRM RECEIPT ERROR ===', [
+                'po_id' => $id_po,
+                'error' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             if ($request->wantsJson()) {
                 return response()->json(['error' => 'Gagal konfirmasi: ' . $e->getMessage()], 500);
             }
 
             return back()->withErrors(['error' => 'Gagal konfirmasi: ' . $e->getMessage()])->withInput();
         }
+    }
+
+    /**
+     * Add item to stock apotik (barang baik)
+     */
+    private function addToStockApotik($gudang, $poItem, $detailGudang, $qty, $produk, $po)
+    {
+        Log::info('Adding to Stock Apotik...', [
+            'produk' => $produk->nama,
+            'batch' => $detailGudang->no_batch,
+            'qty' => $qty
+        ]);
+
+        // Cari stock_apotik header
+        $stockApotik = StockApotik::where('gudang_id', $gudang->id)
+            ->whereDate('tanggal_penerimaan', now()->toDateString())
+            ->where('keterangan', 'like', '%PO Internal%')
+            ->first();
+
+        if (!$stockApotik) {
+            $stockApotik = StockApotik::create([
+                'id' => (string) Str::uuid(),
+                'gudang_id' => $gudang->id,
+                'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
+                'tanggal_penerimaan' => now(),
+                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
+            ]);
+
+            Log::info('StockApotik Header Created', ['id' => $stockApotik->id]);
+        } else {
+            Log::info('Using Existing StockApotik Header', ['id' => $stockApotik->id]);
+        }
+
+        // Cek existing detail
+        $existingDetail = DetailstockApotik::where('obat_id', $poItem->id_produk)
+            ->where('no_batch', $detailGudang->no_batch)
+            ->first();
+
+        if ($existingDetail) {
+            $stockBefore = $existingDetail->stock_apotik;
+            $existingDetail->increment('stock_apotik', $qty);
+            $existingDetail->refresh();
+
+            Log::info('Stock Apotik UPDATED (Increment)', [
+                'id' => $existingDetail->id,
+                'stock_before' => $stockBefore,
+                'increment' => $qty,
+                'stock_after' => $existingDetail->stock_apotik
+            ]);
+        } else {
+            $newDetail = DetailstockApotik::create([
+                'id' => (string) Str::uuid(),
+                'stock_apotik_id' => $stockApotik->id,
+                'obat_id' => $poItem->id_produk,
+                'no_batch' => $detailGudang->no_batch,
+                'stock_apotik' => $qty,
+                'min_persediaan' => $produk->min_persediaan ?? 0,
+                'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
+            ]);
+
+            Log::info('Stock Apotik CREATED', [
+                'id' => $newDetail->id,
+                'stock_apotik' => $qty,
+                'batch' => $detailGudang->no_batch
+            ]);
+        }
+    }
+
+    /**
+     * Add item to retur
+     */
+    private function addToRetur($gudang, $poItem, $detailGudang, $qty, $produk, $po)
+    {
+        Log::info('Adding to Retur...', [
+            'produk' => $produk->nama,
+            'batch' => $detailGudang->no_batch,
+            'qty' => $qty
+        ]);
+
+        $stockApotik = StockApotik::where('gudang_id', $gudang->id)
+            ->whereDate('tanggal_penerimaan', now()->toDateString())
+            ->where('keterangan', 'like', '%PO Internal%')
+            ->first();
+
+        if (!$stockApotik) {
+            $stockApotik = StockApotik::create([
+                'id' => (string) Str::uuid(),
+                'gudang_id' => $gudang->id,
+                'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
+                'tanggal_penerimaan' => now(),
+                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
+            ]);
+
+            Log::info('StockApotik Header Created for Retur', ['id' => $stockApotik->id]);
+        }
+
+        $existingRetur = DetailstockApotik::where('obat_id', $poItem->id_produk)
+            ->where('stock_apotik_id', $stockApotik->id)
+            ->where('no_batch', $detailGudang->no_batch)
+            ->first();
+
+        if ($existingRetur) {
+            $returBefore = $existingRetur->retur ?? 0;
+            $existingRetur->increment('retur', $qty);
+            $existingRetur->refresh();
+
+            Log::info('Retur UPDATED (Increment)', [
+                'id' => $existingRetur->id,
+                'retur_before' => $returBefore,
+                'increment' => $qty,
+                'retur_after' => $existingRetur->retur
+            ]);
+        } else {
+            $newRetur = DetailstockApotik::create([
+                'id' => (string) Str::uuid(),
+                'stock_apotik_id' => $stockApotik->id,
+                'obat_id' => $poItem->id_produk,
+                'no_batch' => $detailGudang->no_batch,
+                'stock_apotik' => 0,
+                'retur' => $qty,
+                'min_persediaan' => $produk->min_persediaan ?? 0,
+                'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
+            ]);
+
+            Log::info('Retur CREATED', [
+                'id' => $newRetur->id,
+                'retur' => $qty,
+                'batch' => $detailGudang->no_batch
+            ]);
+        }
+    }
+    private function generateNoGr()
+    {
+        $lastGr = PurchaseOrder::whereNotNull('no_gr')
+            ->where('no_gr', 'like', 'PO-GR-%')
+            ->orderBy('no_gr', 'desc')
+            ->value('no_gr');
+
+        if (!$lastGr) {
+            return 'PO-GR-000001';
+        }
+
+        $lastNumber = (int) substr($lastGr, -6);
+        $newNumber = $lastNumber + 1;
+
+        return 'PO-GR-' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 }

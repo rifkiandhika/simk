@@ -55,7 +55,7 @@ return new class extends Migration
             'update_shipping',
             'terima_barang',
             'batalkan_po',
-            'hapus_po'
+            'hapus_po',
         ) NOT NULL");
 
         Schema::table('po_audit_trails', function (Blueprint $table) {

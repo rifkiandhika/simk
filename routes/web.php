@@ -9,6 +9,7 @@ use App\Http\Controllers\backend\GudangController;
 use App\Http\Controllers\backend\JenisController;
 use App\Http\Controllers\backend\KaryawanController;
 use App\Http\Controllers\backend\LoginController;
+use App\Http\Controllers\backend\NotificationController;
 use App\Http\Controllers\backend\ObatMasterController;
 use App\Http\Controllers\backend\ObatrsController;
 use App\Http\Controllers\backend\PermintaanController;
@@ -22,6 +23,7 @@ use App\Http\Controllers\backend\SatuanController;
 use App\Http\Controllers\backend\ShippingController;
 use App\Http\Controllers\backend\StockapotikController;
 use App\Http\Controllers\backend\SupplierController;
+use App\Http\Controllers\backend\TagihanPoController;
 use App\Http\Controllers\backend\UserController;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
@@ -72,6 +74,17 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('users', UserController::class);
     Route::patch('users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::patch('users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
+
+    // Notifications
+
+    Route::get('/notifications', [NotificationController::class, 'getNotifications']);
+
+    // Mark as read
+    Route::post('/notifications/read', [NotificationController::class, 'markAsRead']);
+
+    // Trigger auto-cancel manually (for testing)
+    Route::post('/notifications/auto-cancel', [NotificationController::class, 'autoCancelPendingPO']);
+
 
     // Role & Permission Management
     Route::resource('role-permissions', RolePermissionController::class);
@@ -157,20 +170,39 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/po/{id_po}/print-invoice', [PurchaseOrderController::class, 'printInvoice'])->name('print-invoice');
 
         // Internal
-        Route::get('{id_po}/confirm-receipt', [PoConfirmationController::class, 'showConfirmation'])
+        Route::get('{id_po}/confirm-receipt-internal', [PoConfirmationController::class, 'showConfirmation'])
             ->name('show-confirmation');
-        Route::post('{id_po}/confirm-receipt', [PoConfirmationController::class, 'confirmReceipt'])
+        Route::post('{id_po}/confirm-receipt-internal', [PoConfirmationController::class, 'confirmReceipt'])
             ->name('confirm-receipt');
         // External
-        Route::get('{id_po}/confirm-receipt', [PoexConfirmationController::class, 'showConfirmation'])
-            ->name('show-confirmation');
-        Route::post('{id_po}/confirm-receipt', [PoexConfirmationController::class, 'confirmReceipt'])
-            ->name('confirm-receipt');
+        Route::get('{id_po}/confirm-receipt-external', [PoexConfirmationController::class, 'showConfirmation'])
+            ->name('showex-confirmation');
+        Route::post('{id_po}/confirm-receipt-external', [PoexConfirmationController::class, 'confirmReceipt'])
+            ->name('confirmex-receipt');
         Route::get('/po/{id_po}/invoice-form', [PoexConfirmationController::class, 'showInvoiceForm'])
             ->name('invoice-form');
 
         Route::post('/po/{id_po}/store-invoice', [PoexConfirmationController::class, 'storeInvoice'])
             ->name('store-invoice');
+    });
+
+
+    Route::prefix('tagihan')->name('tagihan.')->middleware(['auth'])->group(function () {
+        // List & Detail
+        Route::get('/', [TagihanPoController::class, 'index'])->name('index');
+        Route::get('/{id_tagihan}', [TagihanPoController::class, 'show'])->name('show');
+
+        // Payment
+        Route::get('/{id_tagihan}/payment', [TagihanPoController::class, 'showPaymentForm'])->name('payment.form');
+        Route::post('/{id_tagihan}/payment', [TagihanPoController::class, 'processPayment'])->name('payment.process');
+        Route::get('/{id_tagihan}/payment-history', [TagihanPoController::class, 'paymentHistory'])->name('payment.history');
+
+        // Verify Payment (Manager/Supervisor)
+        Route::post('/payment/{id_pembayaran}/verify', [TagihanPoController::class, 'verifyPayment'])->name('payment.verify');
+
+        // Download & Print
+        Route::get('/payment/{id_pembayaran}/download', [TagihanPoController::class, 'downloadBukti'])->name('payment.download');
+        Route::get('/{id_tagihan}/print', [TagihanPoController::class, 'print'])->name('print');
     });
 
 

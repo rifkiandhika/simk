@@ -85,13 +85,16 @@
       </a>
       <ul class="treeview-menu">
         <li class="{{ Request::is('gudangs') ? 'active' : '' }}">
-          <a href="{{ route('gudangs.index') }}">Gudang</a>
+          <a href="{{ route('gudangs.index') }}">Gudang <span class="badge bg-danger">1</span></a>
         </li>
         <li class="{{ Request::is('permintaans') && request('from') == 'gudang' ? 'active' : '' }}">
           <a href="{{ route('permintaans.index', ['from' => 'gudang']) }}">Permintaan</a>
         </li>
         <li class="{{ Request::is('purchase-orders')}}">
           <a href="{{ route('po.index') }}">PO</a>
+        </li>
+        <li class="{{ Request::is('tagihans')}}">
+          <a href="{{ route('tagihan.index') }}">Tagihan</a>
         </li>
       </ul>
     </li>

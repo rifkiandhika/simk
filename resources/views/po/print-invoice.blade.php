@@ -475,7 +475,7 @@
         <!-- Header -->
         <div class="header">
             <div class="company-info">
-                <h1>NAMA PERUSAHAAN ANDA</h1>
+                <h1>RUMAH SAKIT MUSLIMAT</h1>
                 <p>
                     Jl. Alamat Perusahaan No. 123<br>
                     Kota, Provinsi 12345<br>

@@ -156,7 +156,7 @@
                 <!-- App body ends -->
 
                 <!-- Include Footer Component -->
-                @include('components.footer')
+                {{-- @include('components.footer') --}}
 
             </div>
             <!-- App container ends -->
@@ -166,6 +166,8 @@
 
     </div>
     <!-- Page wrapper ends -->
+
+    @include('components.notification')
 
     <!-- JavaScript Files -->
     <script src="{{ asset('assets/js/jquery.min.js') }}"></script>

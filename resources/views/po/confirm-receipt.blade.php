@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Konfirmasi Penerimaan Barang')
+@section('title', 'Konfirmasi Penerimaan')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('po.index') }}">Purchase Order</a></li>
@@ -50,7 +50,7 @@
                                     </tr>
                                     <tr>
                                         <td><strong>Pemohon</strong></td>
-                                        <td>: {{ $po->karyawanPemohon->nama ?? '-' }}</td>
+                                        <td>: {{ $po->karyawanPemohon->nama_lengkap ?? '-' }}</td>
                                     </tr>
                                 </table>
                             </div>
@@ -58,7 +58,7 @@
                                 <table class="table table-sm table-borderless">
                                     <tr>
                                         <td width="120"><strong>Disetujui Oleh</strong></td>
-                                        <td>: {{ $po->kepalaGudang->nama ?? '-' }}</td>
+                                        <td>: {{ $po->kepalaGudang->nama_lengkap ?? '-' }}</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Tgl Disetujui</strong></td>
@@ -88,7 +88,6 @@
                                 <thead class="table-light">
                                     <tr>
                                         <th width="40">No</th>
-                                        <th width="5"></th>
                                         <th>Produk</th>
                                         <th width="100">Qty Diminta</th>
                                         <th width="120">Qty Diterima <span class="text-danger">*</span></th>
@@ -98,21 +97,26 @@
                                 </thead>
                                 <tbody>
                                     @foreach($po->items as $index => $item)
-                                    <tr>
-                                        
+                                    <tr id="row-{{ $index }}">
                                         <td class="text-center">
-                                            <p class="hidden">{{ $index + 1 }}</p>
-                                            {{-- PERBAIKAN: Ganti id_item menjadi id_po_item --}}
+                                            {{ $index + 1 }}
+                                            {{-- ✅ PERBAIKAN: Hidden input harus di luar <td> atau di dalam <td> yang benar --}}
+                                            {{-- Hidden input untuk id_po_item --}}
                                             <input type="hidden" 
-                                                    name="items[{{ $index }}][id_po_item]" 
-                                                    value="{{ $item->id_po_item }}"
-                                                    class="item-id-input">
+                                                   name="items[{{ $index }}][id_po_item]" 
+                                                   value="{{ $item->id_po_item }}"
+                                                   data-item-id="{{ $item->id_po_item }}"
+                                                   data-produk-id="{{ $item->id_produk }}"
+                                                   class="item-id-input">
                                         </td>
-                                        <td class="text-center">{{ $index + 1 }}</td>
                                         <td>
                                             <strong>{{ $item->nama_produk }}</strong>
                                             @if($item->produk)
-                                                <br><small class="text-muted">{{ $item->produk->merk ?? '' }} - {{ $item->produk->satuan }}</small>
+                                                <br><small class="text-muted">
+                                                    {{ $item->produk->merk ?? '' }}
+                                                    @if($item->produk->merk && $item->produk->satuan) - @endif
+                                                    {{ $item->produk->satuan ?? '' }}
+                                                </small>
                                             @endif
                                         </td>
                                         <td class="text-center">
@@ -137,7 +141,7 @@
                                                     id="kondisi-{{ $index }}"
                                                     data-index="{{ $index }}"
                                                     required>
-                                                <option value="baik">✓ Baik</option>
+                                                <option value="baik" selected>✓ Baik</option>
                                                 <option value="rusak">✗ Rusak</option>
                                                 <option value="kadaluarsa">⚠ Kadaluarsa</option>
                                             </select>
@@ -146,6 +150,7 @@
                                             <input type="text" 
                                                    class="form-control form-control-sm" 
                                                    name="items[{{ $index }}][catatan]"
+                                                   id="catatan-{{ $index }}"
                                                    placeholder="Catatan (opsional)">
                                         </td>
                                     </tr>
@@ -219,7 +224,7 @@
                         <hr>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-success">Qty Baik:</span>
-                            <strong id="totalBaik" class="text-success">0</strong>
+                            <strong id="totalBaik" class="text-success">{{ $po->items->sum('qty_diminta') }}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-danger">Qty Rusak/Expired:</span>
@@ -228,12 +233,17 @@
                         <hr>
                         <div class="d-flex justify-content-between">
                             <span class="fw-bold">Total Diterima:</span>
-                            <h5 class="text-primary mb-0" id="totalDiterima">0</h5>
+                            <h5 class="text-primary mb-0" id="totalDiterima">{{ $po->items->sum('qty_diminta') }}</h5>
                         </div>
                         
-                        <div class="alert alert-info mt-3 small">
-                            <i class="ri-information-line me-1"></i>
-                            Sistem akan otomatis menambahkan stok untuk produk yang sudah ada di apotik
+                        <div class="alert alert-success mt-3 small">
+                            <i class="ri-checkbox-circle-line me-1"></i>
+                            <strong>Stok akan otomatis:</strong>
+                            <ul class="mb-0 mt-2 ps-3">
+                                <li>Dikurangi dari gudang</li>
+                                <li>Ditambahkan ke apotik</li>
+                                <li>Per batch untuk tracking</li>
+                            </ul>
                         </div>
                     </div>
                     <div class="card-footer bg-white">
@@ -255,15 +265,16 @@
                             <i class="ri-information-line text-info me-2"></i>Panduan Pengecekan
                         </h6>
                         <ul class="small mb-0">
-                            <li class="mb-2">Periksa kondisi fisik setiap barang yang diterima</li>
-                            <li class="mb-2">Pastikan jumlah yang diterima sesuai dengan permintaan</li>
-                            <li class="mb-2">Jika ada barang rusak atau kadaluarsa, ubah kondisi dan sesuaikan jumlah</li>
-                            <li class="mb-2 text-primary"><strong>Stok akan otomatis ditambahkan untuk produk yang sama</strong></li>
-                            <li class="mb-2 text-primary"><strong>Produk baru akan dibuatkan record baru di apotik</strong></li>
-                            <li>Barang dengan kondisi rusak/kadaluarsa akan masuk sebagai retur</li>
+                            <li class="mb-2">✓ Periksa kondisi fisik setiap barang</li>
+                            <li class="mb-2">✓ Pastikan jumlah sesuai permintaan</li>
+                            <li class="mb-2">✓ Barang rusak/kadaluarsa ubah kondisi</li>
+                            <li class="mb-2 text-primary"><strong>✓ Stok gudang akan otomatis berkurang</strong></li>
+                            <li class="mb-2 text-success"><strong>✓ Stok apotik akan otomatis bertambah</strong></li>
+                            <li>⚠ Barang rusak/kadaluarsa masuk retur</li>
                         </ul>
                     </div>
                 </div>
+
             </div>
         </div>
     </form>
@@ -301,18 +312,56 @@
     .kondisi-select option[value="kadaluarsa"] {
         color: #ffc107;
     }
+    
+    .badge-sm {
+        font-size: 0.7rem;
+        padding: 0.2rem 0.4rem;
+    }
 </style>
 @endpush
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+// Debug function - Hapus setelah testing
+function debugFormData() {
+    const formData = new FormData(document.getElementById('formConfirm'));
+    console.log('=== FORM DATA DEBUG ===');
+    
+    let itemsData = [];
+    formData.forEach((value, key) => {
+        console.log(key + ': ' + value);
+        if (key.includes('items')) {
+            itemsData.push({key, value});
+        }
+    });
+    
+    console.log('=== ITEMS DATA ===');
+    console.table(itemsData);
+    
+    // Check hidden inputs
+    console.log('=== HIDDEN INPUTS ===');
+    $('.item-id-input').each(function(i) {
+        console.log(`Item ${i}:`, {
+            name: $(this).attr('name'),
+            value: $(this).val(),
+            'data-item-id': $(this).data('item-id'),
+            'data-produk-id': $(this).data('produk-id')
+        });
+    });
+    
+    alert('Debug info sudah dicetak di Console (F12). Periksa tab Console.');
+}
+
 $(document).ready(function() {
+    console.log('Confirm Receipt Form Loaded');
+    console.log('Total Items:', {{ $po->items->count() }});
+    
     // Calculate summary on load
     calculateSummary();
     
     // Monitor qty input changes
-    $('.qty-input').on('input', function() {
+    $('.qty-input').on('input change', function() {
         const maxQty = parseInt($(this).data('diminta'));
         const currentQty = parseInt($(this).val()) || 0;
         
@@ -321,7 +370,7 @@ $(document).ready(function() {
             Swal.fire({
                 icon: 'warning',
                 title: 'Perhatian',
-                text: 'Jumlah tidak boleh melebihi qty yang diminta',
+                text: `Jumlah tidak boleh melebihi ${maxQty}`,
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
@@ -338,11 +387,11 @@ $(document).ready(function() {
         const row = $(this).closest('tr');
         
         if (kondisi === 'baik') {
-            row.removeClass('table-danger table-warning').addClass('table-light');
+            row.removeClass('table-danger table-warning');
         } else if (kondisi === 'rusak') {
-            row.removeClass('table-light table-warning').addClass('table-danger');
+            row.removeClass('table-warning').addClass('table-danger');
         } else {
-            row.removeClass('table-light table-danger').addClass('table-warning');
+            row.removeClass('table-danger').addClass('table-warning');
         }
         
         calculateSummary();
@@ -371,6 +420,8 @@ $(document).ready(function() {
         $('#totalRusak').text(totalRusak);
         $('#totalDiterima').text(totalDiterima);
         
+        console.log('Summary:', {totalBaik, totalRusak, totalDiterima});
+        
         // Update button state
         if (totalDiterima === 0) {
             $('#btnSubmit').prop('disabled', true).addClass('disabled');
@@ -379,12 +430,15 @@ $(document).ready(function() {
         }
     }
     
-    // Form validation
+    // Form validation & submission
     $('#formConfirm').on('submit', function(e) {
+        e.preventDefault();
+        
+        console.log('Form submit triggered');
+        
         const pin = $('#pin').val();
         
         if (!pin || pin.length !== 6) {
-            e.preventDefault();
             Swal.fire({
                 icon: 'warning',
                 title: 'Perhatian',
@@ -396,7 +450,6 @@ $(document).ready(function() {
         const totalDiterima = parseInt($('#totalDiterima').text());
         
         if (totalDiterima === 0) {
-            e.preventDefault();
             Swal.fire({
                 icon: 'warning',
                 title: 'Perhatian',
@@ -405,20 +458,42 @@ $(document).ready(function() {
             return false;
         }
         
-        // Show confirmation
-        e.preventDefault();
+        // Validate all id_po_item exists
+        let hasError = false;
+        $('.item-id-input').each(function(i) {
+            const value = $(this).val();
+            if (!value || value === '') {
+                console.error(`Item ${i} missing id_po_item:`, value);
+                hasError = true;
+            }
+        });
+        
+        if (hasError) {
+            Swal.fire({
+                icon: 'error',
+                title: 'Error Validasi',
+                text: 'Terdapat item dengan ID tidak valid. Silakan refresh halaman.'
+            });
+            return false;
+        }
+        
         const form = this;
         
         Swal.fire({
             title: 'Konfirmasi Penerimaan',
             html: `
                 <div class="text-start">
-                    <p>Anda akan mengkonfirmasi penerimaan:</p>
+                    <p><strong>Anda akan mengkonfirmasi penerimaan:</strong></p>
                     <ul>
                         <li>Total Diterima (Baik): <strong class="text-success">${$('#totalBaik').text()} item</strong></li>
                         <li>Total Retur: <strong class="text-danger">${$('#totalRusak').text()} item</strong></li>
                     </ul>
-                    <p class="text-primary"><strong>Stok akan otomatis ditambahkan ke apotik!</strong></p>
+                    <div class="alert alert-info small mb-0">
+                        <strong>Proses otomatis:</strong><br>
+                        ✓ Stock gudang akan berkurang<br>
+                        ✓ Stock apotik akan bertambah<br>
+                        ✓ Tracking per batch
+                    </div>
                 </div>
             `,
             icon: 'question',
@@ -426,30 +501,37 @@ $(document).ready(function() {
             confirmButtonColor: '#198754',
             cancelButtonColor: '#6c757d',
             confirmButtonText: 'Ya, Konfirmasi!',
-            cancelButtonText: 'Batal'
+            cancelButtonText: 'Batal',
+            width: '600px'
         }).then((result) => {
             if (result.isConfirmed) {
+                console.log('User confirmed, submitting form...');
+                
                 // Show loading
                 Swal.fire({
-                    title: 'Memproses...',
-                    text: 'Mohon tunggu, sedang memproses penerimaan barang',
+                    title: 'Memproses Penerimaan...',
+                    html: `
+                        <div class="text-center">
+                            <div class="spinner-border text-primary mb-3" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <p>Mohon tunggu, sedang memproses:</p>
+                            <ul class="text-start small">
+                                <li>✓ Mengurangi stock gudang</li>
+                                <li>✓ Menambah stock apotik</li>
+                                <li>✓ Menyimpan tracking batch</li>
+                                <li>✓ Update status PO</li>
+                            </ul>
+                        </div>
+                    `,
                     allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
+                    allowEscapeKey: false,
+                    showConfirmButton: false
                 });
+                
                 form.submit();
             }
         });
-    });
-    
-    // Quick fill all with same qty
-    $('#btnFillAll').on('click', function() {
-        $('.qty-input').each(function() {
-            const maxQty = $(this).data('diminta');
-            $(this).val(maxQty);
-        });
-        calculateSummary();
     });
 });
 </script>

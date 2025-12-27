@@ -177,6 +177,7 @@
                                     <th width="50">No</th>
                                     <th>No PO</th>
                                     <th>Tanggal</th>
+                                    <th>Tanggal Jatuh Tempo</th>
                                     <th>Pemohon</th>
                                     <th>Tujuan</th>
                                     <th width="150">Total</th>
@@ -189,7 +190,13 @@
                                     <tr>
                                         <td class="text-center">{{ $purchaseOrders->firstItem() + $x }}</td>
                                         <td>
-                                            <strong class="text-primary">{{ $po->no_po }}</strong>
+                                            <strong class="text-primary">
+                                                @if($po->status === 'selesai')
+                                                    {{ $po->no_gr }}
+                                                @else
+                                                    {{ $po->no_po }}
+                                                @endif
+                                            </strong>
                                             <br>
                                             @if($po->tipe_po == 'internal')
                                                 <span class="badge badge-sm bg-info">Internal</span>
@@ -201,6 +208,12 @@
                                             <small class="text-muted">
                                                 <i class="ri-calendar-line"></i> 
                                                 {{ $po->tanggal_permintaan->format('d/m/Y') }}
+                                            </small>
+                                        </td>
+                                        <td>
+                                            <small class="text-muted">
+                                                <i class="ri-calendar-line"></i> 
+                                                {{ $po->tanggal_jatuh_tempo?->format('d/m/Y') ?? '-' }}
                                             </small>
                                         </td>
                                         <td>
@@ -312,7 +325,7 @@
                     </div>
 
                     {{-- Pagination --}}
-                    @if($purchaseOrders->hasPages())
+                    {{-- @if($purchaseOrders->hasPages())
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div class="text-muted small">
                             Menampilkan {{ $purchaseOrders->firstItem() }} - {{ $purchaseOrders->lastItem() }} 
@@ -322,7 +335,7 @@
                             {{ $purchaseOrders->links() }}
                         </div>
                     </div>
-                    @endif
+                    @endif --}}
                 </div>
             </div>
         </div>
@@ -448,6 +461,17 @@
 @endpush
 
 @push('scripts')
+<script>
+        $(document).ready(function() {
+            $("#poTable").DataTable({
+                ordering: false,
+                searching: false, // hilangkan search
+                lengthChange: false
+            });
+            
+
+        })
+    </script>
 <script>
     let submitModalInstance, deleteModalInstance;
 

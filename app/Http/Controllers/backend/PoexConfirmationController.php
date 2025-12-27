@@ -13,7 +13,9 @@ use App\Models\PurchaseOrderItemBatch;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\TagihanPoServices;
 
 class PoexConfirmationController extends Controller
 {
@@ -124,7 +126,7 @@ class PoexConfirmationController extends Controller
             // Update PO dengan nomor GR
             $po->update([
                 'no_gr' => $noGR,
-                'status' => 'diterima',
+                'status' => 'selesai',
                 'id_penerima' => Auth::user()->id_karyawan,
                 'tanggal_diterima' => now(),
                 'catatan_penerima' => $request->catatan_penerima,
@@ -140,6 +142,17 @@ class PoexConfirmationController extends Controller
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
+
+            if ($po->tipe_po === 'eksternal') {
+                $tagihanService = new TagihanPoServices();
+                $tagihan = $tagihanService->updateTagihanAfterReceipt($po);
+
+                Log::info('Tagihan updated after receipt', [
+                    'po_id' => $po->id_po,
+                    'tagihan_id' => $tagihan?->id_tagihan ?? 'null',
+                    'status' => $tagihan?->status ?? 'null'
+                ]);
+            }
 
             DB::commit();
 
