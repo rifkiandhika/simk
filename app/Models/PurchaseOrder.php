@@ -72,7 +72,7 @@ class PurchaseOrder extends Model
 
     public function auditTrails()
     {
-        return $this->hasMany(POAuditTrail::class, 'id_po', 'id_po');
+        return $this->hasMany(PoAuditTrail::class, 'id_po', 'id_po');
     }
     public function penerima()
     {
