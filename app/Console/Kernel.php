@@ -9,34 +9,57 @@ use Illuminate\Support\Facades\Log;
 class Kernel extends ConsoleKernel
 {
     /**
-     * Define the application's command schedule.
+     * IMPORTANT: Daftarkan command secara eksplisit
      *
-     * @param  \Illuminate\Console\Scheduling\Schedule  $schedule
-     * @return void
+     * @var array
+     */
+    protected $commands = [
+        \App\Console\Commands\AutoCancelPendingPO::class,
+        // Tambahkan command lain di sini jika ada
+    ];
+
+    /**
+     * Define the application's command schedule.
      */
     protected function schedule(Schedule $schedule)
     {
-        // Run auto-cancel command every hour
+        // PASTIKAN method ini ada dan tidak kosong
+
+        // Auto-cancel PO yang pending > 24 jam
         $schedule->command('po:auto-cancel')
-            ->hourly()
+            ->everyMinute() // SEMENTARA set setiap menit untuk testing
             ->withoutOverlapping()
+            ->appendOutputTo(storage_path('logs/scheduler.log'))
             ->onSuccess(function () {
-                Log::info('Auto-cancel PO command executed successfully');
+                Log::info('[Scheduler] Auto-cancel PO SUCCESS', [
+                    'time' => now()->format('Y-m-d H:i:s')
+                ]);
             })
             ->onFailure(function () {
-                Log::error('Auto-cancel PO command failed');
+                Log::error('[Scheduler] Auto-cancel PO FAILED', [
+                    'time' => now()->format('Y-m-d H:i:s')
+                ]);
             });
+
+        // Setelah berhasil, ubah ke hourly():
+        // ->hourly()
     }
 
     /**
      * Register the commands for the application.
-     *
-     * @return void
      */
-    protected function commands()
+    protected function commands(): void
     {
         $this->load(__DIR__ . '/Commands');
 
         require base_path('routes/console.php');
+    }
+
+    /**
+     * Get the timezone that should be used by default for scheduled events.
+     */
+    protected function scheduleTimezone(): string
+    {
+        return config('app.timezone', 'Asia/Jakarta');
     }
 }

@@ -222,6 +222,40 @@
     transform: translateX(5px);
 }
 
+/* Active notification item */
+.notification-item.active {
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-color: #667eea;
+    border-width: 2px;
+    position: relative;
+}
+
+.notification-item.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px 0 0 8px;
+}
+
+.active-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    color: #667eea;
+    font-size: 11px;
+    font-weight: 600;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
 .notification-item-header {
     display: flex;
     justify-content: space-between;
@@ -326,12 +360,17 @@ let dragThreshold = 5;
 let startX = 0;
 let startY = 0;
 
-
 document.addEventListener('DOMContentLoaded', function() {
     const floatBtn = document.getElementById('notificationFloat');
     const notifBtn = document.getElementById('notificationBtn');
     const panel = document.getElementById('notificationPanel');
     const closeBtn = document.getElementById('closePanel');
+    
+    // Check if panel should be open from session
+    const panelState = sessionStorage.getItem('notificationPanelOpen');
+    if (panelState === 'true') {
+        panel.style.display = 'block';
+    }
     
     // Load notifications on page load
     loadNotifications();
@@ -344,6 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!isDragging) {
             const isVisible = panel.style.display === 'block';
             panel.style.display = isVisible ? 'none' : 'block';
+            sessionStorage.setItem('notificationPanelOpen', !isVisible);
             if (!isVisible) {
                 loadNotifications();
             }
@@ -352,12 +392,14 @@ document.addEventListener('DOMContentLoaded', function() {
     
     closeBtn.addEventListener('click', function() {
         panel.style.display = 'none';
+        sessionStorage.setItem('notificationPanelOpen', 'false');
     });
     
     // Close panel when clicking outside
     document.addEventListener('click', function(e) {
         if (!floatBtn.contains(e.target) && !panel.contains(e.target)) {
             panel.style.display = 'none';
+            sessionStorage.setItem('notificationPanelOpen', 'false');
         }
     });
     
@@ -387,7 +429,6 @@ function dragStart(e) {
 
     isDragging = false;
 }
-
 
 function drag(e) {
     let currentClientX, currentClientY;
@@ -420,13 +461,11 @@ function drag(e) {
     setTranslate(currentX, currentY, document.getElementById('notificationFloat'));
 }
 
-
 function dragEnd() {
     setTimeout(() => {
         isDragging = false;
     }, 50);
 }
-
 
 function setTranslate(xPos, yPos, el) {
     el.style.transform = `translate(${xPos}px, ${yPos}px)`;
@@ -462,11 +501,14 @@ function renderNotifications(notifications) {
     
     let hasNotifications = false;
     
+    // Get active notification from session
+    const activeNotification = sessionStorage.getItem('activeNotification');
+    
     // Render each category
     for (const [key, category] of Object.entries(notifications)) {
         if (category.count > 0) {
             hasNotifications = true;
-            html += renderCategory(key, category);
+            html += renderCategory(key, category, activeNotification);
         }
     }
     
@@ -481,11 +523,21 @@ function renderNotifications(notifications) {
     
     container.innerHTML = html;
     
+    // Scroll to active item if exists
+    if (activeNotification) {
+        setTimeout(() => {
+            const activeItem = document.querySelector('.notification-item.active');
+            if (activeItem) {
+                activeItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }, 100);
+    }
+    
     // Add click handlers
     attachClickHandlers();
 }
 
-function renderCategory(key, category) {
+function renderCategory(key, category, activeNotification) {
     let html = `
         <div class="notification-category">
             <div class="category-header" onclick="toggleCategory('${key}')">
@@ -501,7 +553,7 @@ function renderCategory(key, category) {
     `;
     
     category.items.forEach(item => {
-        html += renderNotificationItem(key, item, category.color);
+        html += renderNotificationItem(key, item, category.color, activeNotification);
     });
     
     html += `
@@ -512,9 +564,15 @@ function renderCategory(key, category) {
     return html;
 }
 
-function renderNotificationItem(type, item, color) {
+function renderNotificationItem(type, item, color, activeNotification) {
     let content = '';
     let footer = '';
+    
+    // Determine item ID and create unique identifier
+    const itemId = type.includes('tagihan') || type === 'pending_payment' || type === 'overdue' || type === 'completed' ? 
+                   item.id_tagihan : item.id_po;
+    const uniqueId = `${type}-${itemId}`;
+    const isActive = activeNotification === uniqueId;
     
     switch(type) {
         case 'draft':
@@ -526,6 +584,7 @@ function renderNotificationItem(type, item, color) {
             `;
             footer = `
                 <span><i class="ri-calendar-line"></i> ${formatDate(item.tanggal_permintaan)}</span>
+                ${isActive ? '<span class="active-indicator"><i class="ri-eye-line"></i> Sedang dilihat</span>' : ''}
             `;
             break;
             
@@ -537,9 +596,11 @@ function renderNotificationItem(type, item, color) {
             `;
             footer = `
                 <span><i class="ri-time-line"></i> ${formatDate(item.tanggal_permintaan)}</span>
-                <span class="${item.hours_left < 6 ? 'deadline-warning' : 'text-warning'}">
-                    <i class="ri-alarm-warning-line"></i> ${Math.round(item.hours_left)} jam lagi
-                </span>
+                ${isActive ? '<span class="active-indicator"><i class="ri-eye-line"></i> Sedang dilihat</span>' : 
+                    `<span class="${item.hours_left < 6 ? 'deadline-warning' : 'text-warning'}">
+                        <i class="ri-alarm-warning-line"></i> ${Math.round(item.hours_left)} jam lagi
+                    </span>`
+                }
             `;
             break;
             
@@ -553,9 +614,11 @@ function renderNotificationItem(type, item, color) {
             `;
             footer = `
                 <span><i class="ri-calendar-line"></i> J.Tempo: ${formatDate(item.tanggal_jatuh_tempo)}</span>
-                ${item.is_overdue ? 
-                    `<span class="deadline-warning"><i class="ri-error-warning-line"></i> Lewat ${Math.abs(item.days_left)} hari</span>` :
-                    `<span class="text-warning">${item.days_left} hari lagi</span>`
+                ${isActive ? '<span class="active-indicator"><i class="ri-eye-line"></i> Sedang dilihat</span>' :
+                    (item.is_overdue ? 
+                        `<span class="deadline-warning"><i class="ri-error-warning-line"></i> Lewat ${Math.abs(item.days_left)} hari</span>` :
+                        `<span class="text-warning">${item.days_left} hari lagi</span>`
+                    )
                 }
             `;
             break;
@@ -569,17 +632,16 @@ function renderNotificationItem(type, item, color) {
             `;
             footer = `
                 <span><i class="ri-check-line"></i> ${formatDate(item.updated_at)}</span>
+                ${isActive ? '<span class="active-indicator"><i class="ri-eye-line"></i> Sedang dilihat</span>' : ''}
             `;
             break;
     }
     
-    const itemId = type.includes('tagihan') || type === 'pending_payment' || type === 'overdue' || type === 'completed' ? 
-                   item.id_tagihan : item.id_po;
     const itemNo = type.includes('tagihan') || type === 'pending_payment' || type === 'overdue' || type === 'completed' ? 
                    item.no_tagihan : item.no_po;
     
     return `
-        <div class="notification-item" data-type="${type}" data-id="${itemId}">
+        <div class="notification-item ${isActive ? 'active' : ''}" data-type="${type}" data-id="${itemId}" data-unique-id="${uniqueId}">
             <div class="notification-item-header">
                 <span class="notification-item-title">${itemNo}</span>
                 <span class="badge notification-item-badge bg-color-${color} text-white">
@@ -610,12 +672,13 @@ function attachClickHandlers() {
         item.addEventListener('click', function() {
             const type = this.dataset.type;
             const id = this.dataset.id;
-            handleNotificationClick(type, id);
+            const uniqueId = this.dataset.uniqueId;
+            handleNotificationClick(type, id, uniqueId);
         });
     });
 }
 
-function handleNotificationClick(type, id) {
+function handleNotificationClick(type, id, uniqueId) {
     let url = '';
     
     switch(type) {
@@ -638,6 +701,11 @@ function handleNotificationClick(type, id) {
     }
     
     if (url) {
+        // Save active notification to session
+        sessionStorage.setItem('activeNotification', uniqueId);
+        // Keep panel open
+        sessionStorage.setItem('notificationPanelOpen', 'true');
+        // Navigate to URL
         window.location.href = url;
     }
 }

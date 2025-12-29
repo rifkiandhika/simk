@@ -250,6 +250,7 @@
                                                     'dalam_pengiriman' => 'bg-primary',
                                                     'diterima' => 'bg-success',
                                                     'ditolak' => 'bg-danger',
+                                                    'dibatalkan' => 'bg-danger',
                                                 ];
                                                 $statusLabels = [
                                                     'draft' => 'Draft',
@@ -260,6 +261,7 @@
                                                     'dalam_pengiriman' => 'Dalam Pengiriman',
                                                     'diterima' => 'Diterima',
                                                     'ditolak' => 'Ditolak',
+                                                    'dibatalkan' => 'Dibatalkan',
                                                 ];
                                             @endphp
                                             <span class="badge {{ $statusColors[$po->status] ?? 'bg-secondary' }}">

@@ -110,7 +110,7 @@
                         <select name="satuan[]" class="form-select" required>
                             <option value="" hidden>-- Pilih Satuan --</option>
                             @foreach($satuans as $data)
-                                <option value="{{ $data->nama_satuan }}" {{ ($detail->satuans ?? '') == $data->nama_satuan ? 'selected' : '' }}>
+                                <option value="{{ $data->nama_satuan }}" {{ ($detail->satuan ?? '') == $data->nama_satuan ? 'selected' : '' }}>
                                     {{ $data->nama_satuan }}
                                 </option>
                             @endforeach
@@ -138,9 +138,13 @@
                     </div>
                     <div class="col-md-6">
                         <label>Harga Beli</label>
-                        <input type="number" name="harga_beli[]" class="form-control format-rupiah"
-                               value="{{ number_format($detail->harga_beli ?? 0, 0, ',', '.') }}" placeholder="e.g. 5000">
+                        <input type="text"
+                            name="harga_beli[]"
+                            class="form-control format-rupiah"
+                            value="{{ number_format($detail->harga_beli ?? 0, 0, ',', '.') }}"
+                            placeholder="e.g. 500.000">
                     </div>
+
                     <div class="col-md-6">
                         <label>Department</label>
                         <select name="department_id[]" class="form-control">

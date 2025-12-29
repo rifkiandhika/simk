@@ -766,8 +766,8 @@
                             <i class="ri-arrow-left-line me-1"></i> Kembali
                         </a>
 
-                        @if($po->status === 'draft')
-                            <a href="{{ route('po.edit', $po->id_po) }}" class="btn btn-warning">
+                        @if(in_array($po->status, ['draft', 'ditolak']))
+                            <a href="{{ route('po.edit', $po->id_po) }}" class="btn btn-outline-info">
                                 <i class="ri-pencil-line me-1"></i> Edit PO
                             </a>
                             <button class="btn btn-primary" onclick="submitPO('{{ $po->id_po }}')">

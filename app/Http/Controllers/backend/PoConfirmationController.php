@@ -7,6 +7,7 @@ use App\Models\DetailGudang;
 use App\Models\DetailstockApotik;
 use App\Models\DetailSupplier;
 use App\Models\Gudang;
+use App\Models\HistoryGudang;
 use App\Models\Karyawan;
 use App\Models\PoAuditTrail;
 use App\Models\PurchaseOrder;
@@ -79,7 +80,6 @@ class PoConfirmationController extends Controller
             return back()->withErrors($validator)->withInput();
         }
 
-        // Verifikasi PIN
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
@@ -105,7 +105,6 @@ class PoConfirmationController extends Controller
                 'items_count' => $po->items->count()
             ]);
 
-            // Validate PO status
             if ($po->tipe_po !== 'internal') {
                 throw new \Exception('Hanya PO Internal yang dapat dikonfirmasi melalui halaman ini');
             }
@@ -116,7 +115,6 @@ class PoConfirmationController extends Controller
 
             $dataBefore = $po->toArray();
 
-            // Get gudang
             $gudang = Gudang::first();
             if (!$gudang) {
                 throw new \Exception('Gudang tidak ditemukan di sistem');
@@ -147,23 +145,15 @@ class PoConfirmationController extends Controller
                     throw new \Exception("Produk dengan ID {$poItem->id_produk} tidak ditemukan di master data");
                 }
 
-                Log::info('Produk Found:', [
-                    'id' => $produk->id,
-                    'nama' => $produk->nama,
-                    'harga_beli' => $produk->harga_beli
-                ]);
-
                 $qtyDiterima = (int) $itemData['qty_diterima'];
                 $kondisi = $itemData['kondisi'];
                 $catatan = $itemData['catatan'] ?? null;
 
-                // Skip if qty = 0
                 if ($qtyDiterima == 0) {
                     Log::info('Skipping item with qty = 0', ['id_po_item' => $poItem->id_po_item]);
                     continue;
                 }
 
-                // Cari detail gudang
                 $detailGudang = DetailGudang::where('barang_id', $poItem->id_produk)
                     ->where('gudang_id', $gudang->id)
                     ->where('stock_gudang', '>', 0)
@@ -178,14 +168,6 @@ class PoConfirmationController extends Controller
                     throw new \Exception("Produk {$produk->nama} tidak ditemukan di gudang atau stock habis");
                 }
 
-                Log::info('Detail Gudang Found:', [
-                    'id' => $detailGudang->id,
-                    'no_batch' => $detailGudang->no_batch,
-                    'stock_gudang' => $detailGudang->stock_gudang,
-                    'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa
-                ]);
-
-                // Validasi stock
                 if ($detailGudang->stock_gudang < $qtyDiterima) {
                     Log::error('Insufficient Stock', [
                         'available' => $detailGudang->stock_gudang,
@@ -194,7 +176,6 @@ class PoConfirmationController extends Controller
                     throw new \Exception("Stock {$produk->nama} (Batch: {$detailGudang->no_batch}) tidak mencukupi. Tersedia: {$detailGudang->stock_gudang}, Diminta: {$qtyDiterima}");
                 }
 
-                // Update PO Item
                 $poItem->update([
                     'qty_diterima' => $qtyDiterima,
                     'qty_disetujui' => $qtyDiterima,
@@ -203,8 +184,6 @@ class PoConfirmationController extends Controller
                     'batch_number' => $detailGudang->no_batch,
                     'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
                 ]);
-
-                Log::info('PO Item Updated', ['id_po_item' => $poItem->id_po_item]);
 
                 // KURANGI STOCK GUDANG
                 $stockBefore = $detailGudang->stock_gudang;
@@ -215,6 +194,29 @@ class PoConfirmationController extends Controller
                     'stock_before' => $stockBefore,
                     'decrement' => $qtyDiterima,
                     'stock_after' => $detailGudang->stock_gudang
+                ]);
+
+                // ✅ CATAT HISTORY GUDANG - PENGIRIMAN (BARANG KELUAR KE APOTIK)
+                HistoryGudang::create([
+                    'gudang_id' => $gudang->id,
+                    'supplier_id' => null, // Internal transfer, bukan dari supplier
+                    'barang_id' => $poItem->id_produk,
+                    'no_batch' => $detailGudang->no_batch,
+                    'jumlah' => $qtyDiterima,
+                    'waktu_proses' => now(),
+                    'status' => 'pengiriman',
+                    'referensi_type' => 'po_internal',
+                    'referensi_id' => $po->id_po,
+                    'no_referensi' => $po->no_po,
+                    'keterangan' => "Pengiriman barang ke Apotik - PO Internal: {$po->no_po}, Unit: {$po->unit_pemohon}, Kondisi: {$kondisi}",
+                ]);
+
+                Log::info('History Gudang - Pengiriman dicatat', [
+                    'po_id' => $po->id_po,
+                    'barang' => $produk->nama,
+                    'batch' => $detailGudang->no_batch,
+                    'qty' => $qtyDiterima,
+                    'kondisi' => $kondisi,
                 ]);
 
                 // Proses berdasarkan kondisi
@@ -247,7 +249,6 @@ class PoConfirmationController extends Controller
 
             $noGr = $po->no_gr ?? $this->generateNoGr();
 
-            // Update PO status
             $po->update([
                 'no_gr' => $noGr,
                 'status' => 'selesai',
@@ -256,9 +257,8 @@ class PoConfirmationController extends Controller
                 'catatan_penerima' => $request->catatan_penerima,
             ]);
 
-            Log::info('PO Status Updated to DITERIMA');
+            Log::info('PO Status Updated to SELESAI');
 
-            // Audit Trail
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,

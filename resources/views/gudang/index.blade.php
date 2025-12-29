@@ -182,7 +182,7 @@
                                                 </small>
                                             </td>
                                             <td class="text-center">
-                                                <div class="btn-group">
+                                                <div>
                                                     <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
                                                         <i class="ri-more-2-fill"></i>
                                                     </button>

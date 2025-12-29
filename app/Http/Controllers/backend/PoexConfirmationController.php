@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\DetailGudang;
 use App\Models\DetailSupplier;
 use App\Models\Gudang;
+use App\Models\HistoryGudang;
 use App\Models\Karyawan;
 use App\Models\PoAuditTrail;
 use App\Models\PurchaseOrder;
@@ -51,14 +52,13 @@ class PoexConfirmationController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id_po_item' => 'required|uuid',
             'items.*.batches' => 'required|array|min:1',
-            'items.*.batches.*.batch_number' => 'required|string',
+            'items.*.batches.*.batch_number' => 'nullable|string',
             'items.*.batches.*.tanggal_kadaluarsa' => 'required|date',
             'items.*.batches.*.qty_diterima' => 'required|integer|min:1',
             'items.*.batches.*.kondisi' => 'required|in:baik,rusak,kadaluarsa',
             'items.*.batches.*.catatan' => 'nullable|string',
         ]);
 
-        // Verifikasi PIN
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
@@ -71,7 +71,6 @@ class PoexConfirmationController extends Controller
         try {
             $po = PurchaseOrder::with('items')->findOrFail($id_po);
 
-            // Validasi ulang
             if (!$po->needsReceiptConfirmation()) {
                 DB::rollBack();
                 return redirect()->route('po.show', $id_po)
@@ -79,8 +78,6 @@ class PoexConfirmationController extends Controller
             }
 
             $dataBefore = $po->toArray();
-
-            // Generate nomor GR
             $noGR = PurchaseOrder::generateNoGR();
 
             // Process setiap item dengan batch-nya
@@ -92,11 +89,8 @@ class PoexConfirmationController extends Controller
                 }
 
                 $totalQtyDiterima = 0;
-
-                // Hapus batch lama jika ada (untuk re-confirmation)
                 $item->batches()->delete();
 
-                // Simpan setiap batch
                 foreach ($itemData['batches'] as $batchData) {
                     PurchaseOrderItemBatch::create([
                         'id_po_item' => $item->id_po_item,
@@ -110,20 +104,18 @@ class PoexConfirmationController extends Controller
                     $totalQtyDiterima += $batchData['qty_diterima'];
                 }
 
-                // Update total qty_diterima di item
                 $item->update([
                     'qty_diterima' => $totalQtyDiterima,
                 ]);
             }
 
-            // Transfer stok ke gudang/apotik
+            // Transfer stok ke gudang
             if ($po->tipe_po === 'internal') {
-                // $this->transferStockGudangToApotik($po);
+                // Internal PO tidak ada penerimaan di sini
             } else {
-                $this->addStockToGudang($po);
+                $this->addStockToGudang($po, $noGR); // PASS $noGR
             }
 
-            // Update PO dengan nomor GR
             $po->update([
                 'no_gr' => $noGR,
                 'status' => 'selesai',
@@ -132,7 +124,6 @@ class PoexConfirmationController extends Controller
                 'catatan_penerima' => $request->catatan_penerima,
             ]);
 
-            // Audit Trail
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,
@@ -167,7 +158,7 @@ class PoexConfirmationController extends Controller
     /**
      * Tambah stok ke gudang (untuk PO Eksternal dari Supplier)
      */
-    private function addStockToGudang(PurchaseOrder $po)
+    private function addStockToGudang(PurchaseOrder $po, $noGR)
     {
         $gudang = Gudang::where('supplier_id', $po->id_supplier)->first();
 
@@ -203,7 +194,6 @@ class PoexConfirmationController extends Controller
                     if ($batch->kondisi === 'baik') {
                         $detailGudang->increment('stock_gudang', $batch->qty_diterima);
                     }
-                    // Update kondisi jika perlu
                     if ($batch->kondisi !== 'baik') {
                         $detailGudang->update(['kondisi' => ucfirst($batch->kondisi)]);
                     }
@@ -222,6 +212,30 @@ class PoexConfirmationController extends Controller
                         'kondisi' => ucfirst($batch->kondisi),
                     ]);
                 }
+
+                // ✅ CATAT HISTORY GUDANG - PENERIMAAN (BARANG MASUK)
+                if ($batch->kondisi === 'baik') {
+                    HistoryGudang::create([
+                        'gudang_id' => $gudang->id,
+                        'supplier_id' => $po->id_supplier,
+                        'barang_id' => $item->id_produk,
+                        'no_batch' => $batch->batch_number,
+                        'jumlah' => $batch->qty_diterima,
+                        'waktu_proses' => now(),
+                        'status' => 'penerimaan',
+                        'referensi_type' => 'po_eksternal',
+                        'referensi_id' => $po->id_po,
+                        'no_referensi' => $noGR ?? $po->no_po,
+                        'keterangan' => "Penerimaan barang dari supplier {$po->supplier->nama_supplier} - PO: {$po->no_po}, GR: {$noGR}",
+                    ]);
+
+                    Log::info('History Gudang - Penerimaan dicatat', [
+                        'po_id' => $po->id_po,
+                        'barang' => $produk->nama,
+                        'batch' => $batch->batch_number,
+                        'qty' => $batch->qty_diterima,
+                    ]);
+                }
             }
 
             // Update stock_po di detail_suppliers
@@ -229,7 +243,6 @@ class PoexConfirmationController extends Controller
                 $produk->decrement('stock_po', $item->getTotalQtyBaikFromBatches());
             }
 
-            // Update qty_disetujui jika belum ada
             if (!$item->qty_disetujui) {
                 $item->update(['qty_disetujui' => $item->qty_diminta]);
             }

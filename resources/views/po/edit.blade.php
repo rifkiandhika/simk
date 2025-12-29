@@ -1,10 +1,11 @@
 @extends('layouts.app')
 
-@section('title', 'Buat Purchase Order')
+@section('title', 'Edit Purchase Order')
 
 @section('breadcrumb')
     <li class="breadcrumb-item"><a href="{{ route('po.index') }}">Purchase Order</a></li>
-    <li class="breadcrumb-item text-primary" aria-current="page">Buat PO {{ ucfirst($type) }}</li>
+    <li class="breadcrumb-item"><a href="{{ route('po.show', $po->id_po) }}">Detail PO</a></li>
+    <li class="breadcrumb-item text-primary" aria-current="page">Edit PO</li>
 @endsection
 
 @push('styles')
@@ -53,11 +54,17 @@
         </div>
     @endif
 
-    <form action="{{ route('po.store') }}" method="POST" id="formPO">
+    @if(session('error'))
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="ri-error-warning-line me-2"></i>
+            {{ session('error') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
+    <form action="{{ route('po.update', $po->id_po) }}" method="POST" id="formPO">
         @csrf
-        <input type="hidden" name="tipe_po" value="{{ $type }}">
-        <input type="hidden" name="unit_pemohon" value="{{ $type === 'internal' ? 'apotik' : 'gudang' }}">
-        <input type="hidden" name="id_unit_pemohon" value="{{ auth()->user()->id_karyawan ?? '' }}">
+        @method('PUT')
 
         <div class="row">
             <!-- Left Column - Form -->
@@ -72,7 +79,7 @@
                     <div class="card-body">
                         <div class="alert alert-info">
                             <i class="ri-information-line me-2"></i>
-                            @if($type === 'internal')
+                            @if($po->tipe_po === 'internal')
                                 <strong>PO Internal:</strong> Permintaan barang dari <strong>Apotik</strong> ke <strong>Gudang</strong><br>
                                 <small class="text-muted">
                                     <i class="ri-checkbox-circle-line me-1"></i> Hanya memerlukan persetujuan Kepala Gudang<br>
@@ -89,57 +96,49 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
-                                    <i class="ri-user-line me-1"></i> Pemohon
+                                    <i class="ri-hashtag me-1"></i> Nomor PO
                                 </label>
-                                <input type="text" class="form-control" value="{{ auth()->user()->name }}" disabled>
+                                <input type="text" class="form-control" value="{{ $po->no_po }}" disabled>
                             </div>
 
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="ri-user-line me-1"></i> Pemohon
+                                </label>
+                                <input type="text" class="form-control" value="{{ $po->pemohon->name ?? auth()->user()->name }}" disabled>
+                            </div>
+                        </div>
+
+                        <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
                                     <i class="ri-building-line me-1"></i> Unit Pemohon
                                 </label>
-                                <input type="text" class="form-control" value="{{ $type === 'internal' ? 'Apotik' : 'Gudang' }}" disabled>
+                                <input type="text" class="form-control" value="{{ $po->tipe_po === 'internal' ? 'Apotik' : 'Gudang' }}" disabled>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
+                                    <i class="ri-calendar-line me-1"></i> Tanggal Dibuat
+                                </label>
+                                <input type="text" class="form-control" value="{{ $po->created_at->format('d/m/Y H:i') }}" disabled>
                             </div>
                         </div>
 
-                        @if($type === 'eksternal')
+                        @if($po->tipe_po === 'eksternal')
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
-                                    <i class="ri-store-line me-1"></i> Supplier <span class="text-danger">*</span>
+                                    <i class="ri-store-line me-1"></i> Supplier
                                 </label>
-                                <select class="form-select @error('id_supplier') is-invalid @enderror" 
-                                        name="id_supplier" id="supplier" required>
-                                    <option value="">-- Pilih Supplier --</option>
-                                    @foreach($suppliers as $supplier)
-                                        <option value="{{ $supplier->id }}" {{ old('id_supplier') == $supplier->id ? 'selected' : '' }}>
-                                            {{ $supplier->nama_supplier }}
-                                        </option>
-                                    @endforeach
-                                </select>
-                                @error('id_supplier')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                <input type="text" class="form-control" value="{{ $po->supplier->nama_supplier ?? '-' }}" disabled>
                             </div>
 
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
-                                    <i class="ri-percent-line me-1"></i> Pajak (%)
+                                    <i class="ri-percent-line me-1"></i> Pajak (Rp)
                                 </label>
-                                <div class="input-group">
-                                    <input type="number" 
-                                        class="form-control" 
-                                        name="pajak_persen" 
-                                        id="pajak_persen"
-                                        value="{{ old('pajak_persen', 0) }}" 
-                                        min="0" 
-                                        max="100"
-                                        step="0.01"
-                                        placeholder="0">
-                                    <span class="input-group-text">%</span>
-                                </div>
-                                <small class="text-muted">Nilai pajak: <span id="nilai_pajak_display">Rp 0</span></small>
-                                <input type="hidden" name="pajak" id="pajak_value">
+                                <input type="text" class="form-control" value="Rp {{ number_format($po->pajak, 0, ',', '.') }}" disabled>
                             </div>
                         </div>
                         @endif
@@ -151,7 +150,7 @@
                             <textarea class="form-control @error('catatan_pemohon') is-invalid @enderror" 
                                       name="catatan_pemohon" 
                                       rows="3" 
-                                      placeholder="Tambahkan catatan untuk PO ini...">{{ old('catatan_pemohon') }}</textarea>
+                                      placeholder="Tambahkan catatan untuk PO ini...">{{ old('catatan_pemohon', $po->catatan_pemohon) }}</textarea>
                             @error('catatan_pemohon')
                                 <div class="invalid-feedback">{{ $message }}</div>
                             @enderror
@@ -185,7 +184,7 @@
                                     </tr>
                                 </thead>
                                 <tbody id="itemTableBody">
-                                    <!-- Items will be added here dynamically -->
+                                    <!-- Items will be loaded from existing data -->
                                 </tbody>
                                 <tfoot class="table-light">
                                     <tr>
@@ -193,10 +192,10 @@
                                         <th class="text-end" id="totalHarga">Rp 0</th>
                                         <th></th>
                                     </tr>
-                                    @if($type === 'eksternal')
+                                    @if($po->tipe_po === 'eksternal')
                                     <tr>
                                         <th colspan="4" class="text-end">Pajak:</th>
-                                        <th class="text-end" id="totalPajak">Rp 0</th>
+                                        <th class="text-end" id="totalPajak">Rp {{ number_format($po->pajak, 0, ',', '.') }}</th>
                                         <th></th>
                                     </tr>
                                     @endif
@@ -212,7 +211,7 @@
                 </div>
 
                 <!-- PIN Confirmation -->
-                {{-- <div class="card shadow-sm border-0">
+                <div class="card shadow-sm border-0">
                     <div class="card-header bg-warning py-3">
                         <h5 class="mb-0">
                             <i class="ri-lock-line me-2"></i>Konfirmasi PIN
@@ -221,7 +220,7 @@
                     <div class="card-body">
                         <div class="alert alert-warning mb-3">
                             <i class="ri-shield-check-line me-2"></i>
-                            <strong>Keamanan:</strong> Masukkan PIN 6 digit Anda untuk mengonfirmasi pembuatan PO ini.
+                            <strong>Keamanan:</strong> Masukkan PIN 6 digit Anda untuk mengonfirmasi perubahan PO ini.
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">PIN (6 digit) <span class="text-danger">*</span></label>
@@ -237,7 +236,7 @@
                             @enderror
                         </div>
                     </div>
-                </div> --}}
+                </div>
             </div>
 
             <!-- Right Column - Summary & Actions -->
@@ -261,10 +260,10 @@
                             <span class="text-muted">Subtotal:</span>
                             <strong id="summarySubtotal">Rp 0</strong>
                         </div>
-                        @if($type === 'eksternal')
+                        @if($po->tipe_po === 'eksternal')
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Pajak:</span>
-                            <strong id="summaryPajak">Rp 0</strong>
+                            <strong id="summaryPajak">Rp {{ number_format($po->pajak, 0, ',', '.') }}</strong>
                         </div>
                         @endif
                         <hr>
@@ -276,9 +275,9 @@
                     <div class="card-footer bg-white">
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="ri-save-line me-1"></i> Simpan PO
+                                <i class="ri-save-line me-1"></i> Update PO
                             </button>
-                            <a href="{{ route('po.index') }}" class="btn btn-outline-secondary">
+                            <a href="{{ route('po.show', $po->id_po) }}" class="btn btn-outline-secondary">
                                 <i class="ri-arrow-left-line me-1"></i> Batal
                             </a>
                         </div>
@@ -292,15 +291,15 @@
                             <i class="ri-information-line text-info me-2"></i>Informasi
                         </h6>
                         <ul class="small mb-0">
+                            <li class="mb-2">Hanya PO dengan status <strong>Draft</strong> yang dapat diedit</li>
                             <li class="mb-2">Pastikan semua item yang dipilih sudah benar</li>
                             <li class="mb-2">Quantity yang diisi adalah jumlah yang diminta</li>
-                            @if($type === 'internal')
+                            @if($po->tipe_po === 'internal')
                                 <li class="mb-2"><strong class="text-success">Produk ditampilkan per batch dengan stock gudang</strong></li>
-                                <li class="mb-2 text-success"><strong>PO Internal hanya memerlukan approval Kepala Gudang</strong></li>
-                                <li class="mb-2 text-success"><strong>Stok otomatis ditransfer dari Gudang ke Apotik</strong></li>
+                                <li class="mb-2 text-success"><strong>Stok PO akan otomatis disesuaikan</strong></li>
                             @else
                                 <li class="mb-2">Harga akan otomatis terisi dari master data produk</li>
-                                <li class="mb-2">PO Eksternal memerlukan approval dari Kepala Gudang dan Kasir</li>
+                                <li class="mb-2">Stok PO supplier akan otomatis disesuaikan</li>
                             @endif
                             <li>PIN diperlukan untuk keamanan transaksi</li>
                         </ul>
@@ -320,40 +319,21 @@
 <script>
     let itemCounter = 0;
     const produkData = @json($produkList);
-    const isInternal = {{ $type === 'internal' ? 'true' : 'false' }};
+    const isInternal = {{ $po->tipe_po === 'internal' ? 'true' : 'false' }};
+    const existingItems = @json($po->items);
+    const poTipePo = '{{ $po->tipe_po }}';
+    const poPajak = {{ $po->pajak }};
 
     // Filter produk by supplier if eksternal
-    @if($type === 'eksternal')
-    const supplierSelect = document.getElementById('supplier');
-    let filteredProduk = [];
-
-    supplierSelect.addEventListener('change', function() {
-        const supplierId = this.value;
-        if (supplierId) {
-            filteredProduk = produkData.filter(p => p.supplier_id === supplierId);
-        } else {
-            filteredProduk = [];
-        }
-        
-        // Clear existing items
-        document.getElementById('itemTableBody').innerHTML = '';
-        itemCounter = 0;
-        calculateTotal();
-    });
+    @if($po->tipe_po === 'eksternal')
+    let filteredProduk = produkData.filter(p => p.supplier_id === '{{ $po->id_supplier }}');
     @else
     let filteredProduk = produkData;
     @endif
 
     function addItem() {
-        @if($type === 'eksternal')
-        if (!document.getElementById('supplier').value) {
-            Swal.fire('Perhatian', 'Pilih supplier terlebih dahulu', 'warning');
-            return;
-        }
-        @endif
-
         if (filteredProduk.length === 0) {
-            Swal.fire('Perhatian', 'Tidak ada produk tersedia di gudang', 'warning');
+            Swal.fire('Perhatian', 'Tidak ada produk tersedia', 'warning');
             return;
         }
 
@@ -364,7 +344,7 @@
         row.id = `item-${itemCounter}`;
 
         row.innerHTML = `
-            <td class="text-center">${itemCounter}</td>
+            <td class="text-center">${document.querySelectorAll('#itemTableBody tr').length + 1}</td>
             <td>
                 <select class="form-select form-select-sm select2-produk" 
                         name="items[${itemCounter}][id_produk]" 
@@ -399,40 +379,69 @@
         `;
 
         tbody.appendChild(row);
-
-        // Initialize Select2 for this item
         initializeSelect2(itemCounter);
     }
 
-    function initializeSelect2(itemId) {
+    function loadExistingItem(item, index) {
+        itemCounter++;
+        const tbody = document.getElementById('itemTableBody');
+        const row = document.createElement('tr');
+        row.className = 'item-row';
+        row.id = `item-${itemCounter}`;
+
+        row.innerHTML = `
+            <td class="text-center">${index + 1}</td>
+            <td>
+                <select class="form-select form-select-sm select2-produk" 
+                        name="items[${itemCounter}][id_produk]" 
+                        id="produk-${itemCounter}"
+                        onchange="updatePrice(${itemCounter})" required>
+                    <option value="">-- Pilih Produk --</option>
+                </select>
+                <div class="batch-info" id="batch-info-${itemCounter}"></div>
+            </td>
+            <td>
+                <input type="text" class="form-control form-control-sm text-end" 
+                       id="harga-${itemCounter}" readonly value="0">
+                <input type="hidden" name="items[${itemCounter}][harga]" id="harga-val-${itemCounter}" value="0">
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm" 
+                       name="items[${itemCounter}][qty_diminta]" 
+                       id="qty-${itemCounter}"
+                       min="1" value="${item.qty_diminta}" 
+                       onchange="calculateSubtotal(${itemCounter})" required>
+                <small class="text-muted" id="max-qty-${itemCounter}"></small>
+            </td>
+            <td class="text-end">
+                <strong id="subtotal-${itemCounter}">Rp 0</strong>
+                <input type="hidden" id="subtotal-val-${itemCounter}" value="0">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${itemCounter})">
+                    <i class="ri-delete-bin-line"></i>
+                </button>
+            </td>
+        `;
+
+        tbody.appendChild(row);
+        initializeSelect2(itemCounter, item.id_produk);
+    }
+
+    function initializeSelect2(itemId, selectedId = null) {
         const selectElement = $(`#produk-${itemId}`);
         
         // Populate options
         filteredProduk.forEach(p => {
             let optionText = '';
-            let optionHtml = '';
             
             if (isInternal) {
-                // Internal: Show batch info
                 optionText = `${p.nama} - Batch: ${p.no_batch} (Stock: ${p.stock_gudang})`;
-                optionHtml = `
-                    <div>
-                        <strong>${p.nama}</strong> ${p.merk ? `- ${p.merk}` : ''}
-                        <br>
-                        <small class="text-muted">
-                            <span class="badge bg-info stock-badge">Batch: ${p.no_batch}</span>
-                            <span class="badge bg-success stock-badge">Stock: ${p.stock_gudang}</span>
-                            <span class="badge bg-warning stock-badge text-dark">Exp: ${p.tanggal_kadaluarsa}</span>
-                        </small>
-                    </div>
-                `;
             } else {
-                // External: Standard display
                 optionText = `${p.nama} - ${p.merk || ''} (${p.satuan})`;
-                optionHtml = `<div><strong>${p.nama}</strong> - ${p.merk || ''} (${p.satuan})</div>`;
             }
             
-            const newOption = new Option(optionText, p.id, false, false);
+            const newOption = new Option(optionText, p.id, false, selectedId === p.id);
             $(newOption).data('produk', p);
             selectElement.append(newOption);
         });
@@ -446,6 +455,11 @@
             templateResult: formatProduk,
             templateSelection: formatProdukSelection
         });
+
+        // If there's a selected item, trigger update
+        if (selectedId) {
+            selectElement.trigger('change');
+        }
     }
 
     function formatProduk(produk) {
@@ -593,45 +607,29 @@
             }
         });
 
-        const pajakPersen = parseFloat(document.getElementById('pajak_persen')?.value || 0);
-        const pajakValue = (total * pajakPersen) / 100;
-        const grandTotal = total + pajakValue;
-
-        // Update hidden input pajak value
-        if (document.getElementById('pajak_value')) {
-            document.getElementById('pajak_value').value = pajakValue;
-        }
-
-        // Update display nilai pajak
-        if (document.getElementById('nilai_pajak_display')) {
-            document.getElementById('nilai_pajak_display').textContent = 'Rp ' + formatRupiah(pajakValue);
-        }
+        const pajak = poTipePo === 'eksternal' ? poPajak : 0;
+        const grandTotal = total + pajak;
 
         // Update table footer
         document.getElementById('totalHarga').textContent = 'Rp ' + formatRupiah(total);
-        @if($type === 'eksternal')
-        document.getElementById('totalPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
-        @endif
+        if (poTipePo === 'eksternal') {
+            document.getElementById('totalPajak').textContent = 'Rp ' + formatRupiah(pajak);
+        }
         document.getElementById('grandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
 
         // Update summary
         document.getElementById('summaryItemCount').textContent = itemCount;
         document.getElementById('summaryTotalQty').textContent = totalQty;
         document.getElementById('summarySubtotal').textContent = 'Rp ' + formatRupiah(total);
-        @if($type === 'eksternal')
-        document.getElementById('summaryPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
-        @endif
+        if (poTipePo === 'eksternal') {
+            document.getElementById('summaryPajak').textContent = 'Rp ' + formatRupiah(pajak);
+        }
         document.getElementById('summaryGrandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
     }
 
     function formatRupiah(angka) {
         return new Intl.NumberFormat('id-ID').format(angka);
     }
-
-    // Event listener for pajak
-    @if($type === 'eksternal')
-    document.getElementById('pajak_persen')?.addEventListener('input', calculateTotal);
-    @endif
 
     // Form validation
     document.getElementById('formPO').addEventListener('submit', function(e) {
@@ -669,11 +667,11 @@
         });
     });
 
-    // Add first item on load
+    // Load existing items on page load
     document.addEventListener('DOMContentLoaded', function() {
-        @if($type === 'internal')
-        addItem();
-        @endif
+        existingItems.forEach((item, index) => {
+            loadExistingItem(item, index);
+        });
     });
 </script>
 @endpush

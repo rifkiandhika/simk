@@ -111,7 +111,7 @@ class PurchaseOrderController extends Controller
             'unit_pemohon' => 'required|in:apotik,gudang',
             'catatan_pemohon' => 'nullable|string',
             'id_supplier' => 'required_if:tipe_po,eksternal|nullable|uuid',
-            'pin' => 'required|size:6',
+            // 'pin' => 'required|size:6',
             'pajak' => 'nullable|numeric',
             'items' => 'required|array|min:1',
             'items.*.id_produk' => 'required|uuid',
@@ -119,16 +119,16 @@ class PurchaseOrderController extends Controller
         ]);
 
         // Verifikasi PIN
-        $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
-            ->where('pin', $request->pin)
-            ->first();
+        // $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
+        //     ->where('pin', $request->pin)
+        //     ->first();
 
-        if (!$karyawan) {
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'PIN tidak valid'], 403);
-            }
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
-        }
+        // if (!$karyawan) {
+        //     if ($request->wantsJson()) {
+        //         return response()->json(['error' => 'PIN tidak valid'], 403);
+        //     }
+        //     return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
+        // }
 
         DB::beginTransaction();
         try {
@@ -243,9 +243,10 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::with('items')->findOrFail($id_po);
 
-        if ($po->status !== 'draft') {
+        // Izinkan edit untuk status draft dan ditolak
+        if (!in_array($po->status, ['draft', 'ditolak'])) {
             return redirect()->route('po.show', $id_po)
-                ->with('error', 'Hanya PO dengan status draft yang dapat diedit');
+                ->with('error', 'Hanya PO dengan status draft atau ditolak yang dapat diedit');
         }
 
         $suppliers = Supplier::where('status', 'Aktif')->get();
@@ -258,11 +259,12 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::findOrFail($id_po);
 
-        if ($po->status !== 'draft') {
+        // Izinkan update untuk status draft dan ditolak
+        if (!in_array($po->status, ['draft', 'ditolak'])) {
             if ($request->wantsJson()) {
-                return response()->json(['error' => 'Hanya PO draft yang dapat diedit'], 400);
+                return response()->json(['error' => 'Hanya PO draft atau ditolak yang dapat diedit'], 400);
             }
-            return back()->with('error', 'Hanya PO dengan status draft yang dapat diedit');
+            return back()->with('error', 'Hanya PO dengan status draft atau ditolak yang dapat diedit');
         }
 
         $validated = $request->validate([
@@ -288,6 +290,7 @@ class PurchaseOrderController extends Controller
         DB::beginTransaction();
         try {
             $dataBefore = $po->toArray();
+            $statusSebelum = $po->status;
 
             // Delete old items & reset stock_po
             foreach ($po->items as $oldItem) {
@@ -320,12 +323,25 @@ class PurchaseOrderController extends Controller
                 }
             }
 
-            // Update PO
-            $po->update([
+            // Update PO - ubah status menjadi draft jika sebelumnya ditolak
+            $updateData = [
                 'catatan_pemohon' => $request->catatan_pemohon,
                 'total_harga' => $total,
                 'grand_total' => $total + $po->pajak,
-            ]);
+            ];
+
+            // Jika status sebelumnya ditolak, ubah menjadi draft
+            if ($statusSebelum === 'ditolak') {
+                $updateData['status'] = 'draft';
+            }
+
+            $po->update($updateData);
+
+            // Deskripsi aksi untuk audit trail
+            $deskripsiAksi = 'Mengupdate PO';
+            if ($statusSebelum === 'ditolak') {
+                $deskripsiAksi .= ' (status berubah dari ditolak menjadi draft)';
+            }
 
             // Audit Trail
             PoAuditTrail::create([
@@ -333,22 +349,27 @@ class PurchaseOrderController extends Controller
                 'id_karyawan' => Auth::user()->id_karyawan,
                 'pin_karyawan' => $request->pin,
                 'aksi' => 'edit_po',
-                'deskripsi_aksi' => 'Mengupdate PO',
+                'deskripsi_aksi' => $deskripsiAksi,
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
 
             DB::commit();
 
+            $successMessage = 'Purchase Order berhasil diupdate';
+            if ($statusSebelum === 'ditolak') {
+                $successMessage .= ' dan status berubah menjadi draft';
+            }
+
             if ($request->wantsJson()) {
                 return response()->json([
-                    'message' => 'PO berhasil diupdate',
+                    'message' => $successMessage,
                     'data' => $po->load('items')
                 ], 200);
             }
 
             return redirect()->route('po.show', $po->id_po)
-                ->with('success', 'Purchase Order berhasil diupdate');
+                ->with('success', $successMessage);
         } catch (\Exception $e) {
             DB::rollBack();
 

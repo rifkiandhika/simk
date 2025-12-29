@@ -160,12 +160,12 @@
                                         </div>
                                         <div class="row">
                                             <div class="col-md-3">
-                                                <label class="form-label small">No. Batch <span class="text-danger">*</span></label>
+                                                <label class="form-label small">No. Batch</label>
                                                 <input type="text" 
                                                        class="form-control form-control-sm" 
                                                        name="items[{{ $index }}][batches][0][batch_number]" 
                                                        placeholder="BATCH001"
-                                                       required>
+                                                       >
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label small">Exp Date <span class="text-danger">*</span></label>
@@ -405,7 +405,7 @@ $(document).ready(function() {
                                class="form-control form-control-sm" 
                                name="items[${itemIndex}][batches][${batchIndex}][batch_number]" 
                                placeholder="BATCH001"
-                               required>
+                               >
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small">Exp Date <span class="text-danger">*</span></label>

@@ -25,7 +25,11 @@ use App\Http\Controllers\backend\StockapotikController;
 use App\Http\Controllers\backend\SupplierController;
 use App\Http\Controllers\backend\TagihanPoController;
 use App\Http\Controllers\backend\UserController;
+use App\Models\PurchaseOrder;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -245,7 +249,118 @@ Route::middleware(['auth'])->group(function () {
     // });
 });
 
+Route::get('/debug/po-status', function () {
+    $cutoffTime = Carbon::now()->subHours(24);
 
-Route::fallback(function () {
-    return view('errors.404');
+    $pendingPOs = PurchaseOrder::whereIn('status', [
+        'menunggu_persetujuan_kepala_gudang',
+        'menunggu_persetujuan_kasir'
+    ])->get();
+
+    $result = [
+        'current_time' => Carbon::now()->format('Y-m-d H:i:s'),
+        'cutoff_time' => $cutoffTime->format('Y-m-d H:i:s'),
+        'total_pending' => $pendingPOs->count(),
+        'should_be_cancelled' => [],
+        'still_pending' => [],
+    ];
+
+    foreach ($pendingPOs as $po) {
+        $hoursAgo = $po->created_at->diffInHours(now());
+        $shouldCancel = $po->created_at->lte($cutoffTime);
+
+        $poData = [
+            'no_po' => $po->no_po,
+            'status' => $po->status,
+            'created_at' => $po->created_at->format('Y-m-d H:i:s'),
+            'hours_ago' => $hoursAgo,
+            'should_cancel' => $shouldCancel,
+        ];
+
+        if ($shouldCancel) {
+            $result['should_be_cancelled'][] = $poData;
+        } else {
+            $result['still_pending'][] = $poData;
+        }
+    }
+
+    return response()->json($result, 200, [], JSON_PRETTY_PRINT);
+});
+
+Route::get('/debug/run-auto-cancel', function () {
+    try {
+        Artisan::call('po:auto-cancel');
+        $output = Artisan::output();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Command executed successfully',
+            'output' => $output
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
+});
+
+Route::get('/debug/scheduler-info', function () {
+    $schedule = app()->make(\Illuminate\Console\Scheduling\Schedule::class);
+
+    $events = collect($schedule->events())->map(function ($event) {
+        return [
+            'command' => $event->command ?? $event->description,
+            'expression' => $event->expression,
+            'timezone' => $event->timezone,
+            'next_run' => $event->nextRunDate()->format('Y-m-d H:i:s'),
+        ];
+    });
+
+    return response()->json([
+        'scheduled_tasks' => $events,
+        'server_time' => now()->format('Y-m-d H:i:s'),
+        'timezone' => config('app.timezone'),
+    ], 200, [], JSON_PRETTY_PRINT);
+});
+
+// Route untuk create dummy PO (untuk testing)
+Route::get('/debug/create-old-po', function () {
+    if (!app()->environment('local')) {
+        abort(403, 'Only available in local environment');
+    }
+
+    try {
+        $po = PurchaseOrder::create([
+            'tipe_po' => 'internal',
+            'status' => 'menunggu_persetujuan_kepala_gudang',
+            'id_unit_pemohon' => '123e4567-e89b-12d3-a456-426614174000', // Sesuaikan dengan data Anda
+            'unit_pemohon' => 'apotik',
+            'id_karyawan_pemohon' => '123e4567-e89b-12d3-a456-426614174001', // Sesuaikan dengan data Anda
+            'tanggal_permintaan' => Carbon::now()->subHours(25), // 25 jam yang lalu
+            'catatan_pemohon' => 'Testing PO - Auto cancel',
+            'unit_tujuan' => 'gudang',
+            'total_harga' => 100000,
+            'pajak' => 10000,
+            'grand_total' => 110000,
+            'tanggal_jatuh_tempo' => now()->addDays(30),
+        ]);
+
+        // Paksa update created_at (untuk testing)
+        DB::table('purchase_orders')
+            ->where('id_po', $po->id_po)
+            ->update(['created_at' => Carbon::now()->subHours(25)]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Dummy PO created',
+            'po' => $po->fresh(),
+            'hours_ago' => $po->fresh()->created_at->diffInHours(now())
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'error' => $e->getMessage()
+        ], 500);
+    }
 });
