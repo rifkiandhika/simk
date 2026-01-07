@@ -374,8 +374,6 @@
         }
         @endif
 
-        // console.log('Adding item - filteredProduk count:', filteredProduk.length);
-
         if (filteredProduk.length === 0) {
             Swal.fire({
                 icon: 'warning',
@@ -401,9 +399,7 @@
                     onchange="updatePrice(${itemCounter})" required>
                     <option value="">-- Pilih Produk --</option>
                 </select>
-                <input type="hidden" 
-                name="items[${itemCounter}][jenis]" 
-                id="jenis-${itemCounter}">
+                ${!isInternal ? `<input type="hidden" name="items[${itemCounter}][jenis]" id="jenis-${itemCounter}">` : ''}
                 <div class="batch-info" id="batch-info-${itemCounter}"></div>
             </td>
 
@@ -438,7 +434,7 @@
                     <i class="ri-delete-bin-line"></i>
                 </button>
             </td>
-            `;
+        `;
 
         tbody.appendChild(row);
 
@@ -530,13 +526,17 @@
 
         if (!data) return;
 
+        // ✅ UNTUK EKSTERNAL: Set jenis di hidden input
         if (!isInternal && data.jenis) {
-            document.getElementById(`jenis-${itemId}`).value = data.jenis;
-            // console.log(`Set jenis untuk item ${itemId}:`, data.jenis);
+            const jenisInput = document.getElementById(`jenis-${itemId}`);
+            if (jenisInput) {
+                jenisInput.value = data.jenis;
+                console.log(`Set jenis untuk item ${itemId}:`, data.jenis);
+            }
         }
 
         if (isInternal) {
-            // Hanya batch & stok
+            // INTERNAL: Tampilkan batch info
             document.getElementById(`batch-info-${itemId}`).innerHTML = `
                 <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
                 <span class="badge bg-success stock-badge">Stock: ${data.stock_gudang}</span>
@@ -544,12 +544,14 @@
 
             const qtyInput = document.getElementById(`qty-${itemId}`);
             qtyInput.max = data.stock_gudang;
-            document.getElementById(`max-qty-${itemId}`).textContent =
-                `Max: ${data.stock_gudang}`;
+            document.getElementById(`max-qty-${itemId}`).textContent = `Max: ${data.stock_gudang}`;
+            
+            // ✅ Update total untuk internal (tanpa harga)
+            calculateTotal();
             return;
         }
 
-        // ===== PO EKSTERNAL =====
+        // EKSTERNAL: Set harga dan hitung subtotal
         const harga = parseFloat(data.harga_beli || 0);
         document.getElementById(`harga-${itemId}`).value = formatRupiah(harga);
         document.getElementById(`harga-val-${itemId}`).value = harga;
@@ -703,12 +705,19 @@
             return false;
         }
 
+        // ✅ VALIDASI JENIS HANYA UNTUK EKSTERNAL
         @if($type === 'eksternal')
             let missingJenis = false;
+            let missingJenisItems = [];
+            
             document.querySelectorAll('[id^="jenis-"]').forEach(input => {
                 if (!input.value) {
                     missingJenis = true;
-                    console.error('Missing jenis for:', input.id);
+                    const itemId = input.id.replace('jenis-', '');
+                    const produkSelect = document.getElementById(`produk-${itemId}`);
+                    const produkName = produkSelect?.options[produkSelect.selectedIndex]?.text || `Item ${itemId}`;
+                    missingJenisItems.push(produkName);
+                    console.error('Missing jenis for:', input.id, 'Product:', produkName);
                 }
             });
 
@@ -717,13 +726,13 @@
                 Swal.fire({
                     icon: 'error',
                     title: 'Data Tidak Lengkap',
-                    text: 'Pilih produk dengan jenis yang valid'
+                    html: 'Produk berikut belum memiliki jenis yang valid:<br><br>' + 
+                        missingJenisItems.map(item => `• ${item}`).join('<br>'),
+                    footer: 'Pilih ulang produk atau hubungi administrator'
                 });
                 return false;
             }
         @endif
-
-        // Removed PIN validation since it's commented out in the form
 
         // Show loading
         Swal.fire({

@@ -70,8 +70,6 @@ class PurchaseOrderController extends Controller
         $suppliers = Supplier::where('status', 'Aktif')->get();
 
         if ($type === 'internal') {
-            // ... kode internal tetap sama (tidak perlu diubah) ...
-
             $gudang = Gudang::first();
             if (!$gudang) {
                 return back()->with('error', 'Gudang tidak ditemukan');
@@ -89,7 +87,8 @@ class PurchaseOrderController extends Controller
                 $merk = null;
                 $satuan = 'pcs';
                 $hargaBeli = 0;
-                $jenis = $detail->barang_type;
+
+                // ✅ Tidak perlu set jenis untuk internal, karena tidak divalidasi
 
                 if ($detail->barang_type === 'Obat' && $detail->barangObat) {
                     $nama = $detail->barangObat->nama_obat_rs;
@@ -118,7 +117,7 @@ class PurchaseOrderController extends Controller
                     'detail_gudang_id' => $detail->id,
                     'barang_type' => $detail->barang_type,
                     'nama' => $nama,
-                    'jenis' => $jenis,
+                    // ✅ Jenis tidak diperlukan untuk internal
                     'merk' => $merk ?? '',
                     'satuan' => $satuan,
                     'harga_beli' => $hargaBeli,
@@ -130,36 +129,33 @@ class PurchaseOrderController extends Controller
                 ];
             }
         } else {
-            // PO EKSTERNAL: dari DetailSupplier (Gudang → Supplier)
-            // ✅ Obat: detail_obat_rs_id | Non-Obat: product_id
+            // PO EKSTERNAL: Tetap butuh jenis
             $produkList = DetailSupplier::with(['supplier', 'obats', 'alkes', 'reagensia'])
                 ->get()
                 ->map(function ($detail) {
                     $nama = null;
                     $productId = null;
 
-                    // Tentukan ID dan nama berdasarkan jenis
                     if ($detail->jenis === 'obat') {
-                        $productId = $detail->detail_obat_rs_id; // ✅ Obat pakai detail_obat_rs_id
+                        $productId = $detail->detail_obat_rs_id;
                         $nama = $detail->obats->nama_obat_rs ?? null;
                     } elseif ($detail->jenis === 'alkes') {
-                        $productId = $detail->product_id; // ✅ Alkes pakai product_id
+                        $productId = $detail->product_id;
                         $nama = $detail->alkes->nama_alkes ?? $detail->nama;
                     } elseif ($detail->jenis === 'reagensia') {
-                        $productId = $detail->product_id; // ✅ Reagensia pakai product_id
+                        $productId = $detail->product_id;
                         $nama = $detail->reagensia->nama_reagensia ?? $detail->nama;
                     } else {
-                        // Lainnya
-                        $productId = $detail->product_id; // ✅ Lainnya pakai product_id
+                        $productId = $detail->product_id;
                         $nama = $detail->nama;
                     }
 
                     return [
-                        'id' => $productId, // ✅ ID yang benar (detail_obat_rs_id atau product_id)
+                        'id' => $productId,
                         'detail_supplier_id' => $detail->id,
                         'supplier_id' => $detail->supplier_id,
                         'nama' => $nama,
-                        'jenis' => $detail->jenis,
+                        'jenis' => $detail->jenis, // ✅ Penting untuk eksternal
                         'merk' => $detail->merk ?? '',
                         'satuan' => $detail->satuan ?? 'pcs',
                         'harga_beli' => $detail->harga_beli ?? 0,
