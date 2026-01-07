@@ -130,7 +130,7 @@ class TagihanPoServices
                 'grand_total' => $grandTotal,
                 'sisa_tagihan' => $grandTotal - $tagihan->total_dibayar,
                 'tanggal_tagihan' => now(),
-                'tanggal_jatuh_tempo' => now()->addDays($tagihan->tenor_hari),
+                'tanggal_jatuh_tempo' => now()->addDays((int) $tagihan->tenor_hari),
             ]);
 
             DB::commit();

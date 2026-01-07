@@ -23,6 +23,7 @@ class TagihanPo extends Model
         'grand_total' => 'decimal:2',
         'total_dibayar' => 'decimal:2',
         'sisa_tagihan' => 'decimal:2',
+        'tenor_hari' => 'integer',
     ];
 
     protected static function boot()
