@@ -27,7 +27,7 @@ class DetailSupplier extends Model
     }
     public function obats()
     {
-        return $this->belongsTo(DetailObatRs::class, 'detail_obat_rs_id', 'id_detail_obat_rs');
+        return $this->belongsTo(DetailobatRs::class, 'detail_obat_rs_id', 'id_detail_obat_rs');
     }
     public function alkes()
     {
