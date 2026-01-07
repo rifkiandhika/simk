@@ -19,7 +19,7 @@ class DetailGudang extends Model
     // Relasi khusus untuk Obat (DetailObatRs)
     public function barangObat()
     {
-        return $this->belongsTo(DetailObatRs::class, 'barang_id', 'id_detail_obat_rs');
+        return $this->belongsTo(DetailobatRs::class, 'barang_id', 'id_detail_obat_rs');
     }
 
     // Relasi khusus untuk Alkes/Reagensia/Lainnya (DetailSupplier)
