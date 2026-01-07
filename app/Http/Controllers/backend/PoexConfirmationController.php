@@ -171,7 +171,16 @@ class PoexConfirmationController extends Controller
         }
 
         foreach ($po->items as $item) {
-            $produk = DetailSupplier::find($item->id_produk);
+            $produk = DetailSupplier::where('supplier_id', $po->id_supplier)
+                ->where('product_id', $item->id_produk)
+                ->first();
+
+            if (!$produk) {
+                throw new \Exception(
+                    "Produk supplier tidak ditemukan (supplier_id={$po->id_supplier}, product_id={$item->id_produk})"
+                );
+            }
+
 
             if (!$produk) {
                 throw new \Exception("Produk dengan ID {$item->id_produk} tidak ditemukan");

@@ -18,7 +18,7 @@ class DetailstockApotik extends Model
 
     public function detailSupplier()
     {
-        return $this->belongsTo(DetailSupplier::class, 'obat_id');
+        return $this->belongsTo(DetailSupplier::class, 'detail_obat_rs_id', 'product_id');
     }
 
     public function obat()

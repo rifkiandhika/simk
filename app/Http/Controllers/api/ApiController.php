@@ -4,6 +4,7 @@ namespace App\Http\Controllers\api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Asuransi;
+use App\Models\DetailSupplier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -72,7 +73,7 @@ class ApiController extends Controller
                 }
 
                 return [
-                    'id' => $item->nama_obat_rs, // ✅ UBAH: Gunakan nama sebagai value
+                    'id' => $item->id_detail_obat_rs,
                     'text' => $displayText,
                     'nama_generik' => $item->nama_generik ?? '-',
                     'satuan' => $item->bentuk_sediaan ?? '-',
@@ -126,7 +127,7 @@ class ApiController extends Controller
                 }
 
                 return [
-                    'id' => $item->text, // Gunakan nama sebagai value
+                    'id' => $item->id, // Gunakan nama sebagai value
                     'text' => $displayText,
                     'merk' => $item->merk,
                     'satuan' => $item->satuan
@@ -181,7 +182,7 @@ class ApiController extends Controller
                 }
 
                 return [
-                    'id' => $item->text, // Gunakan nama sebagai value
+                    'id' => $item->id, // Gunakan nama sebagai value
                     'text' => $displayText,
                     'merk' => $item->merk,
                     'satuan' => $item->satuan
@@ -196,18 +197,61 @@ class ApiController extends Controller
         ]);
     }
 
-    public function searchSupplierProducts(Request $request, $supplierId)
+    public function searchSupplierProducts($supplierId, Request $request)
     {
-        $query = $request->get('q');
+        $query = $request->get('q', '');
 
-        $results = \App\Models\DetailSupplier::where('supplier_id', $supplierId)
-            ->where(function ($qbuilder) use ($query) {
-                $qbuilder->where('nama', 'like', "%{$query}%")
-                    ->orWhere('judul', 'like', "%{$query}%")
-                    ->orWhere('jenis', 'like', "%{$query}%");
-            })
-            ->limit(20)
-            ->get(['id', 'nama', 'judul', 'jenis', 'exp_date']);
+        // Ambil semua detail supplier dengan relasi obats (untuk jenis Obat)
+        $detailSuppliers = DetailSupplier::with('obats')
+            ->where('supplier_id', $supplierId)
+            ->get();
+
+        $results = [];
+
+        foreach ($detailSuppliers as $detail) {
+            $nama = null;
+            $barangId = null;
+
+            // Tentukan nama dan ID berdasarkan jenis
+            if ($detail->jenis === 'Obat' && $detail->obats) {
+                // Untuk Obat, ambil dari relasi detail_obat_rs
+                $nama = $detail->obats->nama_obat_rs;
+                $barangId = $detail->obats->id_detail_obat_rs;
+            } else {
+                // Untuk Alkes, Reagensia, Lainnya, ambil dari kolom nama
+                $nama = $detail->nama;
+                $barangId = $detail->id; // Gunakan ID detail_supplier sebagai referensi
+            }
+
+            // Skip jika nama kosong
+            if (!$nama) continue;
+
+            // Filter berdasarkan query pencarian
+            if ($query) {
+                $searchLower = strtolower($query);
+                $namaMatch = stripos(strtolower($nama), $searchLower) !== false;
+                $judulMatch = stripos(strtolower($detail->judul ?? ''), $searchLower) !== false;
+                $jenisMatch = stripos(strtolower($detail->jenis ?? ''), $searchLower) !== false;
+                $merkMatch = stripos(strtolower($detail->merk ?? ''), $searchLower) !== false;
+
+                if (!$namaMatch && !$judulMatch && !$jenisMatch && !$merkMatch) {
+                    continue;
+                }
+            }
+
+            $results[] = [
+                'id' => $barangId,
+                'detail_supplier_id' => $detail->id,
+                'nama' => $nama,
+                'judul' => $detail->judul ?? '-',
+                'jenis' => $detail->jenis ?? '-',
+                'merk' => $detail->merk ?? '-',
+                'satuan' => $detail->satuan ?? '-',
+                'exp_date' => $detail->exp_date ?? '',
+                'no_batch' => $detail->no_batch ?? '',
+                'type' => $detail->jenis, // Penting untuk membedakan tipe barang
+            ];
+        }
 
         return response()->json($results);
     }

@@ -45,24 +45,26 @@
     </li>
 
     {{-- Apotik --}}
-    <li class="treeview {{ Request::is('stock_apotiks*') || Request::is('permintaans*') && request('from') == 'apotik' ? 'active' : '' }}">
+    <li class="treeview {{ Request::is('apotik*') || Request::is('stock_apotiks*') || Request::is('permintaans*') && request('from') == 'apotik' ? 'active' : '' }}">
       <a href="#!">
         <i class="ri-heart-pulse-line"></i>
         <span class="menu-text">Manajement Apotik</span>
       </a>
       <ul class="treeview-menu">
+        <li class="{{ Request::is('apotik') ? 'active' : '' }}">
+          <a href="{{ route('apotik.index') }}">Apotik</a>
+        </li>
         <li class="{{ Request::is('stock_apotiks') ? 'active' : '' }}">
           <a href="{{ route('stock_apotiks.index') }}">Stock Apotik</a>
         </li>
-
-        <li class="{{ Request::is('permintaans') && request('from') == 'apotik' ? 'active' : '' }}">
-          <a href="{{ route('permintaans.index', ['from' => 'apotik']) }}">Permintaan</a>
+        <li class="{{ Request::is('purchase-orders')}}">
+          <a href="{{ route('po.index') }}">PO</a>
         </li>
       </ul>
     </li>
 
     {{-- Supplier --}}
-    <li class="treeview {{ Request::is('suppliers*') || Request::is('permintaans*') && request('from') == 'supplier' ? 'active' : '' }}">
+    <li class="treeview {{ Request::is('suppliers*') ? 'active' : '' }}">
       <a href="#!">
         <i class="ri-folder-user-line"></i>
         <span class="menu-text">Manajement Supplier</span>
@@ -71,29 +73,26 @@
         <li class="{{ Request::is('suppliers') ? 'active' : '' }}">
           <a href="{{ route('suppliers.index') }}">Supplier</a>
         </li>
-        <li class="{{ Request::is('permintaans') && request('from') == 'supplier' ? 'active' : '' }}">
-          <a href="{{ route('permintaans.index', ['from' => 'supplier']) }}">Permintaan</a>
+        <li class="{{ Request::is('purchase-orders')}}">
+          <a href="{{ route('po.index') }}">PO</a>
         </li>
       </ul>
     </li>
 
     {{-- Gudang --}}
-    <li class="treeview {{ Request::is('gudangs*') || Request::is('permintaans*') && request('from') == 'gudang' ? 'active' : '' }}">
+    <li class="treeview {{ Request::is('gudangs*') || Request::is('po*') || Request::is('tagihan*')  ? 'active' : '' }}">
       <a href="#!">
         <i class="ri-folder-user-line"></i>
         <span class="menu-text">Manajement Gudang</span>
       </a>
       <ul class="treeview-menu">
         <li class="{{ Request::is('gudangs') ? 'active' : '' }}">
-          <a href="{{ route('gudangs.index') }}">Gudang <span class="badge bg-danger">1</span></a>
+          <a href="{{ route('gudangs.index') }}">Gudang</a>
         </li>
-        <li class="{{ Request::is('permintaans') && request('from') == 'gudang' ? 'active' : '' }}">
-          <a href="{{ route('permintaans.index', ['from' => 'gudang']) }}">Permintaan</a>
-        </li>
-        <li class="{{ Request::is('purchase-orders')}}">
+        <li class="{{ Request::is('po') ? 'active' : ''}}">
           <a href="{{ route('po.index') }}">PO</a>
         </li>
-        <li class="{{ Request::is('tagihans')}}">
+        <li class="{{ Request::is('tagihan') ? 'active' : ''}}">
           <a href="{{ route('tagihan.index') }}">Tagihan</a>
         </li>
       </ul>

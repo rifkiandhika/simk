@@ -16,14 +16,39 @@ class DetailGudang extends Model
         return $this->belongsTo(Gudang::class);
     }
 
-    // relasi ke detail_suppliers
-    public function barang()
+    // Relasi khusus untuk Obat (DetailObatRs)
+    public function barangObat()
     {
-        return $this->belongsTo(DetailSupplier::class);
+        return $this->belongsTo(DetailObatRs::class, 'barang_id', 'id_detail_obat_rs');
     }
 
-    public function detailSupplier()
+    // Relasi khusus untuk Alkes/Reagensia/Lainnya (DetailSupplier)
+    public function barangSupplier()
     {
         return $this->belongsTo(DetailSupplier::class, 'barang_id', 'id');
+    }
+
+    // Accessor untuk mendapatkan nama barang
+    public function getNamaBarangAttribute()
+    {
+        if ($this->barang_type === 'DetailObatRs') {
+            return $this->barangObat->nama_obat_rs ?? '-';
+        } elseif ($this->barang_type === 'DetailSupplier') {
+            return $this->barangSupplier->nama ?? '-';
+        }
+
+        return '-';
+    }
+
+    // Accessor untuk mendapatkan jenis barang
+    public function getJenisBarangAttribute()
+    {
+        if ($this->barang_type === 'DetailObatRs') {
+            return 'Obat';
+        } elseif ($this->barang_type === 'DetailSupplier' && $this->barangSupplier) {
+            return $this->barangSupplier->jenis ?? '-';
+        }
+
+        return '-';
     }
 }

@@ -186,7 +186,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($purchaseOrders as $x => $po)
+                                @foreach ($purchaseOrders as $x => $po)
                                     <tr>
                                         <td class="text-center">{{ $purchaseOrders->firstItem() + $x }}</td>
                                         <td>
@@ -311,17 +311,7 @@
                                             </div>
                                         </td>
                                     </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="8" class="text-center py-5">
-                                            <i class="ri-file-list-3-line ri-3x text-muted d-block mb-3"></i>
-                                            <p class="text-muted mb-0">Belum ada data Purchase Order</p>
-                                            <a href="{{ route('po.create', ['type' => 'internal']) }}" class="btn btn-primary btn-sm mt-3">
-                                                <i class="ri-add-circle-line me-1"></i>Buat PO Baru
-                                            </a>
-                                        </td>
-                                    </tr>
-                                @endforelse
+                                @endforeach
                             </tbody>
                         </table>
                     </div>
@@ -468,7 +458,19 @@
             $("#poTable").DataTable({
                 ordering: false,
                 searching: false, // hilangkan search
-                lengthChange: false
+                lengthChange: false,
+                language: {
+                emptyTable: `
+                    <div class="text-center py-5">
+                        <i class="ri-file-list-3-line ri-3x text-muted d-block mb-3"></i>
+                        <p class="text-muted mb-0">Belum ada data Purchase Order</p>
+                        <a href="{{ route('po.create', ['type' => 'internal']) }}"
+                        class="btn btn-primary btn-sm mt-3">
+                            <i class="ri-add-circle-line me-1"></i>Buat PO Baru
+                        </a>
+                    </div>
+                `
+            }
             });
             
 

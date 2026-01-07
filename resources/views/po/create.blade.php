@@ -178,34 +178,42 @@
                                     <tr>
                                         <th width="50">No</th>
                                         <th>Produk <span class="text-danger">*</span></th>
-                                        <th width="120">Harga</th>
+                                        @if($type !== 'internal')
+                                            <th width="120">Harga</th>
+                                        @endif
                                         <th width="100">Qty <span class="text-danger">*</span></th>
-                                        <th width="150" class="text-end">Subtotal</th>
+                                        @if($type !== 'internal')
+                                            <th width="150" class="text-end">Subtotal</th>
+                                        @endif
                                         <th width="80" class="text-center">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="itemTableBody">
                                     <!-- Items will be added here dynamically -->
                                 </tbody>
-                                <tfoot class="table-light">
-                                    <tr>
-                                        <th colspan="4" class="text-end">Total:</th>
-                                        <th class="text-end" id="totalHarga">Rp 0</th>
-                                        <th></th>
-                                    </tr>
-                                    @if($type === 'eksternal')
-                                    <tr>
-                                        <th colspan="4" class="text-end">Pajak:</th>
-                                        <th class="text-end" id="totalPajak">Rp 0</th>
-                                        <th></th>
-                                    </tr>
+                                @if($type !== 'internal')
+                                    <tfoot class="table-light">
+                                        <tr>
+                                            <th colspan="4" class="text-end">Total:</th>
+                                            <th class="text-end" id="totalHarga">Rp 0</th>
+                                            <th></th>
+                                        </tr>
+
+                                        @if($type === 'eksternal')
+                                        <tr>
+                                            <th colspan="4" class="text-end">Pajak:</th>
+                                            <th class="text-end" id="totalPajak">Rp 0</th>
+                                            <th></th>
+                                        </tr>
+                                        @endif
+
+                                        <tr class="table-primary">
+                                            <th colspan="4" class="text-end">Grand Total:</th>
+                                            <th class="text-end" id="grandTotal">Rp 0</th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
                                     @endif
-                                    <tr class="table-primary">
-                                        <th colspan="4" class="text-end">Grand Total:</th>
-                                        <th class="text-end" id="grandTotal">Rp 0</th>
-                                        <th></th>
-                                    </tr>
-                                </tfoot>
                             </table>
                         </div>
                     </div>
@@ -257,21 +265,25 @@
                             <strong id="summaryTotalQty">0</strong>
                         </div>
                         <hr>
+                        @if($type !== 'internal')
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Subtotal:</span>
                             <strong id="summarySubtotal">Rp 0</strong>
                         </div>
+                        @endif
                         @if($type === 'eksternal')
                         <div class="d-flex justify-content-between mb-2">
                             <span class="text-muted">Pajak:</span>
                             <strong id="summaryPajak">Rp 0</strong>
                         </div>
                         @endif
+                        @if($type !== 'internal')
                         <hr>
                         <div class="d-flex justify-content-between">
                             <span class="fw-bold">Grand Total:</span>
                             <h5 class="text-success mb-0" id="summaryGrandTotal">Rp 0</h5>
                         </div>
+                        @endif
                     </div>
                     <div class="card-footer bg-white">
                         <div class="d-grid gap-2">
@@ -319,8 +331,14 @@
 
 <script>
     let itemCounter = 0;
-    const produkData = @json($produkList);
+    const produkData = Object.values(@json($produkList));
     const isInternal = {{ $type === 'internal' ? 'true' : 'false' }};
+
+    // Debug: Cek data produk
+    // console.log('=== PRODUK DATA ===');
+    // console.log('Total produk:', produkData.length);
+    // console.log('Is Internal:', isInternal);
+    // console.log('Sample produk:', produkData[0]);
 
     // Filter produk by supplier if eksternal
     @if($type === 'eksternal')
@@ -329,8 +347,11 @@
 
     supplierSelect.addEventListener('change', function() {
         const supplierId = this.value;
+        // console.log('Supplier selected:', supplierId);
+        
         if (supplierId) {
             filteredProduk = produkData.filter(p => p.supplier_id === supplierId);
+            // console.log('Filtered produk:', filteredProduk.length);
         } else {
             filteredProduk = [];
         }
@@ -342,6 +363,7 @@
     });
     @else
     let filteredProduk = produkData;
+    // console.log('Internal PO - Total produk tersedia:', filteredProduk.length);
     @endif
 
     function addItem() {
@@ -352,8 +374,15 @@
         }
         @endif
 
+        // console.log('Adding item - filteredProduk count:', filteredProduk.length);
+
         if (filteredProduk.length === 0) {
-            Swal.fire('Perhatian', 'Tidak ada produk tersedia di gudang', 'warning');
+            Swal.fire({
+                icon: 'warning',
+                title: 'Perhatian',
+                text: 'Tidak ada produk tersedia di gudang',
+                footer: 'Pastikan gudang sudah memiliki stock barang'
+            });
             return;
         }
 
@@ -366,37 +395,50 @@
         row.innerHTML = `
             <td class="text-center">${itemCounter}</td>
             <td>
-                <select class="form-select form-select-sm select2-produk" 
-                        name="items[${itemCounter}][id_produk]" 
-                        id="produk-${itemCounter}"
-                        onchange="updatePrice(${itemCounter})" required>
+                <select class="form-select form-select-sm select2-produk"
+                    name="items[${itemCounter}][id_produk]"
+                    id="produk-${itemCounter}"
+                    onchange="updatePrice(${itemCounter})" required>
                     <option value="">-- Pilih Produk --</option>
                 </select>
+                <input type="hidden" 
+                name="items[${itemCounter}][jenis]" 
+                id="jenis-${itemCounter}">
                 <div class="batch-info" id="batch-info-${itemCounter}"></div>
             </td>
+
+            ${isInternal ? '' : `
             <td>
-                <input type="text" class="form-control form-control-sm text-end" 
-                       id="harga-${itemCounter}" readonly value="0">
-                <input type="hidden" name="items[${itemCounter}][harga]" id="harga-val-${itemCounter}" value="0">
+                <input type="text" class="form-control form-control-sm text-end"
+                    id="harga-${itemCounter}" readonly value="0">
+                <input type="hidden" name="items[${itemCounter}][harga]"
+                    id="harga-val-${itemCounter}" value="0">
             </td>
+            `}
+
             <td>
-                <input type="number" class="form-control form-control-sm" 
-                       name="items[${itemCounter}][qty_diminta]" 
-                       id="qty-${itemCounter}"
-                       min="1" value="1" 
-                       onchange="calculateSubtotal(${itemCounter})" required>
+                <input type="number" class="form-control form-control-sm"
+                    name="items[${itemCounter}][qty_diminta]"
+                    id="qty-${itemCounter}"
+                    min="1" value="1"
+                    onchange="calculateSubtotal(${itemCounter})" required>
                 <small class="text-muted" id="max-qty-${itemCounter}"></small>
             </td>
+
+            ${isInternal ? '' : `
             <td class="text-end">
                 <strong id="subtotal-${itemCounter}">Rp 0</strong>
                 <input type="hidden" id="subtotal-val-${itemCounter}" value="0">
             </td>
+            `}
+
             <td class="text-center">
-                <button type="button" class="btn btn-sm btn-danger" onclick="removeItem(${itemCounter})">
+                <button type="button" class="btn btn-sm btn-danger"
+                    onclick="removeItem(${itemCounter})">
                     <i class="ri-delete-bin-line"></i>
                 </button>
             </td>
-        `;
+            `;
 
         tbody.appendChild(row);
 
@@ -407,8 +449,10 @@
     function initializeSelect2(itemId) {
         const selectElement = $(`#produk-${itemId}`);
         
+        // console.log(`Initializing Select2 for item ${itemId}, produk count:`, filteredProduk.length);
+        
         // Populate options
-        filteredProduk.forEach(p => {
+        filteredProduk.forEach((p, index) => {
             let optionText = '';
             let optionHtml = '';
             
@@ -422,7 +466,7 @@
                         <small class="text-muted">
                             <span class="badge bg-info stock-badge">Batch: ${p.no_batch}</span>
                             <span class="badge bg-success stock-badge">Stock: ${p.stock_gudang}</span>
-                            <span class="badge bg-warning stock-badge text-dark">Exp: ${p.tanggal_kadaluarsa}</span>
+                            ${p.tanggal_kadaluarsa !== '-' ? `<span class="badge bg-warning stock-badge text-dark">Exp: ${p.tanggal_kadaluarsa}</span>` : ''}
                         </small>
                     </div>
                 `;
@@ -436,6 +480,8 @@
             $(newOption).data('produk', p);
             selectElement.append(newOption);
         });
+
+        // console.log(`Added ${selectElement.find('option').length - 1} options to select`);
 
         // Initialize Select2
         selectElement.select2({
@@ -462,7 +508,7 @@
                     <small class="text-muted">
                         <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
                         <span class="badge bg-success stock-badge">Stock: ${data.stock_gudang}</span>
-                        <span class="badge bg-warning stock-badge text-dark">Exp: ${data.tanggal_kadaluarsa}</span>
+                        ${data.tanggal_kadaluarsa !== '-' ? `<span class="badge bg-warning stock-badge text-dark">Exp: ${data.tanggal_kadaluarsa}</span>` : ''}
                     </small>
                 </div>
             `);
@@ -480,67 +526,73 @@
 
     function updatePrice(itemId) {
         const selectElement = $(`#produk-${itemId}`);
-        const selectedOption = selectElement.find(':selected');
-        const data = selectedOption.data('produk');
-        
-        if (!data) {
-            document.getElementById(`harga-${itemId}`).value = '0';
-            document.getElementById(`harga-val-${itemId}`).value = '0';
-            document.getElementById(`batch-info-${itemId}`).innerHTML = '';
-            document.getElementById(`max-qty-${itemId}`).textContent = '';
-            calculateSubtotal(itemId);
+        const data = selectElement.find(':selected').data('produk');
+
+        if (!data) return;
+
+        if (!isInternal && data.jenis) {
+            document.getElementById(`jenis-${itemId}`).value = data.jenis;
+            // console.log(`Set jenis untuk item ${itemId}:`, data.jenis);
+        }
+
+        if (isInternal) {
+            // Hanya batch & stok
+            document.getElementById(`batch-info-${itemId}`).innerHTML = `
+                <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
+                <span class="badge bg-success stock-badge">Stock: ${data.stock_gudang}</span>
+            `;
+
+            const qtyInput = document.getElementById(`qty-${itemId}`);
+            qtyInput.max = data.stock_gudang;
+            document.getElementById(`max-qty-${itemId}`).textContent =
+                `Max: ${data.stock_gudang}`;
             return;
         }
 
+        // ===== PO EKSTERNAL =====
         const harga = parseFloat(data.harga_beli || 0);
         document.getElementById(`harga-${itemId}`).value = formatRupiah(harga);
         document.getElementById(`harga-val-${itemId}`).value = harga;
-
-        // Show batch info for internal PO
-        if (isInternal) {
-            const batchInfo = document.getElementById(`batch-info-${itemId}`);
-            batchInfo.innerHTML = `
-                <span class="badge bg-info stock-badge">Batch: ${data.no_batch}</span>
-                <span class="badge bg-success stock-badge">Stock Tersedia: ${data.stock_gudang}</span>
-                <span class="badge bg-warning stock-badge text-dark">Exp: ${data.tanggal_kadaluarsa}</span>
-            `;
-            
-            // Set max quantity
-            const qtyInput = document.getElementById(`qty-${itemId}`);
-            qtyInput.max = data.stock_gudang;
-            document.getElementById(`max-qty-${itemId}`).textContent = `Max: ${data.stock_gudang}`;
-            
-            // Validate current quantity
-            if (parseInt(qtyInput.value) > data.stock_gudang) {
-                qtyInput.value = data.stock_gudang;
-            }
-        }
-
         calculateSubtotal(itemId);
     }
 
     function calculateSubtotal(itemId) {
-        const harga = parseFloat(document.getElementById(`harga-val-${itemId}`).value || 0);
-        const qty = parseInt(document.getElementById(`qty-${itemId}`).value || 0);
-        
-        // Validate quantity for internal PO
+        const qtyInput = document.getElementById(`qty-${itemId}`);
+        if (!qtyInput) return;
+
+        let qty = parseInt(qtyInput.value || 0);
+
+        // ===============================
+        // VALIDASI KHUSUS PO INTERNAL
+        // ===============================
         if (isInternal) {
             const selectElement = $(`#produk-${itemId}`);
             const selectedOption = selectElement.find(':selected');
             const data = selectedOption.data('produk');
-            
+
             if (data && qty > data.stock_gudang) {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Quantity Melebihi Stock',
-                    text: `Stock tersedia: ${data.stock_gudang}`,
-                    confirmButtonText: 'OK'
+                    text: `Stock tersedia: ${data.stock_gudang}`
                 });
-                document.getElementById(`qty-${itemId}`).value = data.stock_gudang;
-                return calculateSubtotal(itemId);
+
+                qty = data.stock_gudang;
+                qtyInput.value = qty;
             }
+
+            // 🔥 INTERNAL TIDAK HITUNG SUBTOTAL
+            calculateTotal();
+            return;
         }
-        
+
+        // ===============================
+        // EKSTERNAL SAJA (AMAN)
+        // ===============================
+        const hargaInput = document.getElementById(`harga-val-${itemId}`);
+        if (!hargaInput) return;
+
+        const harga = parseFloat(hargaInput.value || 0);
         const subtotal = harga * qty;
 
         document.getElementById(`subtotal-${itemId}`).textContent = 'Rp ' + formatRupiah(subtotal);
@@ -548,6 +600,7 @@
 
         calculateTotal();
     }
+
 
     function removeItem(itemId) {
         Swal.fire({
@@ -575,54 +628,57 @@
     }
 
     function calculateTotal() {
-        const subtotals = document.querySelectorAll('[id^="subtotal-val-"]');
-        let total = 0;
         let itemCount = 0;
         let totalQty = 0;
+        let total = 0;
 
-        subtotals.forEach(input => {
-            if (input.value) {
-                total += parseFloat(input.value || 0);
+        const rows = document.querySelectorAll('#itemTableBody tr');
+
+        rows.forEach(row => {
+            const qtyInput = row.querySelector('input[id^="qty-"]');
+            if (!qtyInput) return;
+
+            const qty = parseInt(qtyInput.value || 0);
+            if (qty > 0) {
                 itemCount++;
-                
-                const itemId = input.id.split('-')[2];
-                const qtyInput = document.getElementById(`qty-${itemId}`);
-                if (qtyInput) {
-                    totalQty += parseInt(qtyInput.value || 0);
+                totalQty += qty;
+            }
+
+            // HANYA untuk PO EKSTERNAL
+            if (!isInternal) {
+                const itemId = qtyInput.id.split('-')[1];
+                const subtotalInput = document.getElementById(`subtotal-val-${itemId}`);
+                if (subtotalInput) {
+                    total += parseFloat(subtotalInput.value || 0);
                 }
             }
         });
 
-        const pajakPersen = parseFloat(document.getElementById('pajak_persen')?.value || 0);
-        const pajakValue = (total * pajakPersen) / 100;
-        const grandTotal = total + pajakValue;
-
-        // Update hidden input pajak value
-        if (document.getElementById('pajak_value')) {
-            document.getElementById('pajak_value').value = pajakValue;
-        }
-
-        // Update display nilai pajak
-        if (document.getElementById('nilai_pajak_display')) {
-            document.getElementById('nilai_pajak_display').textContent = 'Rp ' + formatRupiah(pajakValue);
-        }
-
-        // Update table footer
-        document.getElementById('totalHarga').textContent = 'Rp ' + formatRupiah(total);
-        @if($type === 'eksternal')
-        document.getElementById('totalPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
-        @endif
-        document.getElementById('grandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
-
-        // Update summary
+        // ===============================
+        // UPDATE RINGKASAN (AMAN)
+        // ===============================
         document.getElementById('summaryItemCount').textContent = itemCount;
         document.getElementById('summaryTotalQty').textContent = totalQty;
-        document.getElementById('summarySubtotal').textContent = 'Rp ' + formatRupiah(total);
-        @if($type === 'eksternal')
-        document.getElementById('summaryPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
-        @endif
-        document.getElementById('summaryGrandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
+
+        // ===============================
+        // JIKA EKSTERNAL → HITUNG RUPIAH
+        // ===============================
+        if (!isInternal) {
+            const pajakPersen = parseFloat(document.getElementById('pajak_persen')?.value || 0);
+            const pajakValue = (total * pajakPersen) / 100;
+            const grandTotal = total + pajakValue;
+
+            document.getElementById('totalHarga').textContent = 'Rp ' + formatRupiah(total);
+            document.getElementById('grandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
+            document.getElementById('summarySubtotal').textContent = 'Rp ' + formatRupiah(total);
+            document.getElementById('summaryGrandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
+
+            if (document.getElementById('summaryPajak')) {
+                document.getElementById('summaryPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
+            }
+        }
     }
+
 
     function formatRupiah(angka) {
         return new Intl.NumberFormat('id-ID').format(angka);
@@ -647,16 +703,27 @@
             return false;
         }
 
-        const pin = document.getElementById('pin').value;
-        if (!pin || pin.length !== 6) {
-            e.preventDefault();
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'PIN harus 6 digit'
+        @if($type === 'eksternal')
+            let missingJenis = false;
+            document.querySelectorAll('[id^="jenis-"]').forEach(input => {
+                if (!input.value) {
+                    missingJenis = true;
+                    console.error('Missing jenis for:', input.id);
+                }
             });
-            return false;
-        }
+
+            if (missingJenis) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Data Tidak Lengkap',
+                    text: 'Pilih produk dengan jenis yang valid'
+                });
+                return false;
+            }
+        @endif
+
+        // Removed PIN validation since it's commented out in the form
 
         // Show loading
         Swal.fire({
@@ -671,8 +738,17 @@
 
     // Add first item on load
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('=== DOM LOADED ===');
+        console.log('Type:', '{{ $type }}');
+        console.log('Total produk:', produkData.length);
+        
         @if($type === 'internal')
-        addItem();
+        if (filteredProduk.length > 0) {
+            console.log('Auto-adding first item for internal PO');
+            addItem();
+        } else {
+            console.warn('No products available for internal PO');
+        }
         @endif
     });
 </script>

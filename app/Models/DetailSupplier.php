@@ -25,4 +25,20 @@ class DetailSupplier extends Model
     {
         return $this->hasMany(DetailStockApotik::class, 'obat_id');
     }
+    public function obats()
+    {
+        return $this->belongsTo(DetailObatRs::class, 'detail_obat_rs_id', 'id_detail_obat_rs');
+    }
+    public function alkes()
+    {
+        return $this->belongsTo(Alkes::class, 'product_id', 'id');
+    }
+    public function reagensia()
+    {
+        return $this->belongsTo(Reagen::class, 'product_id', 'id');
+    }
+    public function hargaObat()
+    {
+        return $this->belongsTo(HargaObat::class, 'product_id', 'id_detail_obat_rs');
+    }
 }

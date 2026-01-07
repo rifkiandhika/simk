@@ -497,8 +497,10 @@
                                     <th width="100">Qty Diminta</th>
                                     <th width="100">Qty Disetujui</th>
                                     <th width="100">Qty Diterima</th>
+                                    @if($po->tipe_po !== 'internal')
                                     <th width="120" class="text-end">Harga</th>
                                     <th width="150" class="text-end">Subtotal</th>
+                                    @endif
                                 </tr>
                             </thead>
                             <tbody>
@@ -542,16 +544,19 @@
                                             <span class="text-muted">-</span>
                                         @endif
                                     </td>
+                                    @if($po->tipe_po !== 'internal')
                                     <td class="text-end">
                                         <small>Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</small>
                                     </td>
                                     <td class="text-end">
                                         <strong>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</strong>
                                     </td>
+                                    @endif
                                 </tr>
                                 @endforeach
                             </tbody>
                             <tfoot class="table-light">
+                                @if($po->tipe_po !== 'internal')
                                 <tr>
                                     <th colspan="6" class="text-end">Subtotal:</th>
                                     <th class="text-end">Rp {{ number_format($po->total_harga, 0, ',', '.') }}</th>
@@ -566,6 +571,7 @@
                                     <th colspan="6" class="text-end">Grand Total:</th>
                                     <th class="text-end">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</th>
                                 </tr>
+                                @endif
                             </tfoot>
                         </table>
                     </div>

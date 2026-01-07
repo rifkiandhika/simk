@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('detail_stock_apotiks', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignUuid('stock_apotik_id')->constrained('stock_apotiks')->onDelete('cascade');
-            $table->uuid('obat_id');
+            $table->uuid('detail_obat_rs_id')->constrained('detail_obat_rs', 'id_detail_obat_rs')->onDelete('cascade');
             $table->string('no_batch');
             $table->bigInteger('stock_apotik');
             $table->bigInteger('min_persediaan')->default(0);

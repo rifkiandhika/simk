@@ -192,20 +192,20 @@
                                                                 <i class="ri-pencil-fill me-2"></i>Edit
                                                             </a>
                                                         </li>
-                                                        <li>
+                                                        {{-- <li>
                                                             <button type="button" class="dropdown-item" 
                                                                     data-bs-toggle="modal" 
                                                                     data-bs-target="#penerimaanModal"
                                                                     data-supplier="{{ $data->supplier_id }}">
                                                                 <i class="ri-download-2-line me-2"></i>Penerimaan
                                                             </button>
-                                                        </li>
+                                                        </li> --}}
                                                         <li>
-                                                            <button type="button" class="dropdown-item"
-                                                                data-bs-toggle="modal"
-                                                                data-bs-target="#historyModal{{ $data->id }}">
+                                                            <button type="button" 
+                                                                    class="dropdown-item"
+                                                                    onclick="window.location.href='{{ route('gudang.history', $data->id) }}'">
                                                                 <i class="ri-time-line me-2"></i>History
-                                                            </button>
+                                                            </a>
                                                         </li>
                                                         <li><hr class="dropdown-divider"></li>
                                                         <li>
@@ -313,27 +313,37 @@
         </div>
     </div>
     @foreach($gudangs as $data)
-        <!-- Modal Detail (Loop untuk setiap gudang) -->
+        <!-- Modal Detail -->
         <div class="modal fade" id="detailModal{{ $data->id }}" tabindex="-1" aria-labelledby="detailModalLabel{{ $data->id }}" aria-hidden="true">
-            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-dialog modal-xl modal-dialog-scrollable">
                 <div class="modal-content">
                     <div class="modal-header bg-info text-white">
                         <h5 class="modal-title">
-                            <i class="ri-file-list-line me-2"></i>Detail Barang - {{ $data->supplier->nama_supplier ?? '' }}
+                            <i class="ri-file-list-line me-2"></i>Detail Barang - {{ $data->supplier->nama_supplier ?? 'N/A' }}
                         </h5>
                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body">
-                        <table class="table table-sm table-bordered w-100" id="detailTable-{{ $data->id }}">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>No</th>
-                                    <th>Nama Barang</th>
-                                    <th>Jenis</th>
-                                    <th>Jumlah</th>
-                                </tr>
-                            </thead>
-                        </table>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered table-striped w-100" id="detailTable-{{ $data->id }}">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th width="50">No</th>
+                                        <th>Nama Barang</th>
+                                        <th width="100">Jenis</th>
+                                        <th width="80">Stok</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- DataTables akan mengisi bagian ini -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="ri-close-line me-1"></i>Tutup
+                        </button>
                     </div>
                 </div>
             </div>
@@ -415,387 +425,187 @@
 @endpush
 
 @push('scripts')
-    <script>
-        $(document).ready(function() {
-            let dataTable = null;
-            
-            // Function to initialize DataTable
-            function initializeDataTable() {
-                const $table = $('#gudangTable');
-                
-                // Check if table has data
-                const isEmpty = $table.find('tbody tr td[colspan]').length > 0;
-                
-                // Destroy existing DataTable if exists
-                if ($.fn.DataTable.isDataTable('#gudangTable')) {
-                    $table.DataTable().destroy();
-                }
-                
-                // Only initialize DataTable if table has data
-                if (!isEmpty) {
-                    try {
-                        dataTable = $table.DataTable({
-                            responsive: true,
-                            pageLength: 10,
-                            order: [[0, 'asc']],
-                            dom: 'rtip',
-                            language: {
-                                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json',
-                                emptyTable: "Belum ada data gudang"
-                            },
-                            columnDefs: [
-                                { orderable: false, targets: [4] }
-                            ]
-                        });
-
-                        // Custom search
-                        $('#searchBox').on('keyup', function() {
-                            dataTable.search(this.value).draw();
-                        });
-
-                        // Filter by supplier
-                        $('#filterSupplier').on('change', function() {
-                            dataTable.column(1).search(this.value).draw();
-                        });
-                    } catch (error) {
-                        console.log('DataTable initialization skipped - no data available');
-                    }
-                }
-            }
-            
-            // Initialize DataTable on page load
-            initializeDataTable();
-
-            // Confirm delete with SweetAlert
-            $(document).on('submit', '.delete-confirm', function(e) {
-                e.preventDefault();
-                var form = this;
-                
-                Swal.fire({
-                    title: 'Apakah Anda yakin?',
-                    text: "Data gudang akan dihapus permanen!",
-                    icon: 'warning',
-                    showCancelButton: true,
-                    confirmButtonColor: '#d33',
-                    cancelButtonColor: '#3085d6',
-                    confirmButtonText: 'Ya, Hapus!',
-                    cancelButtonText: 'Batal'
-                }).then((result) => {
-                    if (result.isConfirmed) {
-                        form.submit();
-                    }
+<script>
+$(document).ready(function() {
+    let dataTable = null;
+    
+    // Function to initialize DataTable
+    function initializeDataTable() {
+        const $table = $('#gudangTable');
+        
+        // Check if table has data
+        const isEmpty = $table.find('tbody tr td[colspan]').length > 0;
+        
+        // Destroy existing DataTable if exists
+        if ($.fn.DataTable.isDataTable('#gudangTable')) {
+            $table.DataTable().destroy();
+        }
+        
+        // Only initialize DataTable if table has data
+        if (!isEmpty) {
+            try {
+                dataTable = $table.DataTable({
+                    responsive: true,
+                    pageLength: 10,
+                    order: [[0, 'asc']],
+                    dom: 'rtip',
+                    language: {
+                        url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json',
+                        emptyTable: "Belum ada data gudang"
+                    },
+                    columnDefs: [
+                        { orderable: false, targets: [4] }
+                    ]
                 });
-            });
 
-            // Auto dismiss alerts
-            setTimeout(function() {
-                $('.alert').fadeOut('slow');
-            }, 5000);
-        });
-
-// ========== PENERIMAAN BARANG SCRIPT ==========
-document.addEventListener('DOMContentLoaded', function () {
-    let selectedPenerimaanProducts = [];
-    let penerimaanSupplierProducts = {};
-
-    // 🔹 Fungsi memuat produk supplier
-    function loadPenerimaanProducts(supplierId) {
-        if (!supplierId) return;
-
-        $('#penerimaan-products-modal').html(`
-            <div class="text-center text-muted py-5">
-                <i class="ri-loader-4-line ri-2x ri-spin"></i>
-                <div class="mt-2">Memuat data produk...</div>
-            </div>
-        `);
-
-        $.get(`/supplier/${supplierId}/details`, function (grouped) {
-            penerimaanSupplierProducts = grouped;
-            let html = '<div class="accordion" id="accordionPenerimaanProducts">';
-            let accordionIndex = 0;
-
-            for (const jenis in grouped) {
-                const collapseId = `collapsePenerimaan${accordionIndex}`;
-                const headingId = `headingPenerimaan${accordionIndex}`;
-
-                html += `
-                    <div class="accordion-item">
-                        <h2 class="accordion-header" id="${headingId}">
-                            <button class="accordion-button ${accordionIndex === 0 ? '' : 'collapsed'}" 
-                                    type="button" data-bs-toggle="collapse" 
-                                    data-bs-target="#${collapseId}" 
-                                    aria-expanded="${accordionIndex === 0 ? 'true' : 'false'}" 
-                                    aria-controls="${collapseId}">
-                                ${jenis}
-                            </button>
-                        </h2>
-                        <div id="${collapseId}" class="accordion-collapse collapse ${accordionIndex === 0 ? 'show' : ''}" 
-                             aria-labelledby="${headingId}" 
-                             data-bs-parent="#accordionPenerimaanProducts">
-                            <div class="accordion-body p-2">
-                `;
-
-                for (const judul in grouped[jenis]) {
-                    html += `<h6 class="mt-2 mb-2 text-primary">${judul}</h6><div class="list-group mb-3">`;
-
-                    grouped[jenis][judul].forEach(d => {
-                        const isChecked = selectedPenerimaanProducts.some(item => item.id === d.id);
-
-                        html += `
-                            <label class="list-group-item cursor">
-                                <input type="checkbox" class="form-check-input me-1 penerimaan-product-checkbox"
-                                    data-id="${d.id}" data-nama="${d.nama}"
-                                    data-judul="${d.judul}" data-jenis="${d.jenis}"
-                                    data-exp_date="${d.exp_date}"
-                                    ${isChecked ? 'checked' : ''}>
-                                ${d.nama}
-                            </label>
-                        `;
-                    });
-
-                    html += '</div>';
-                }
-
-                html += `</div></div></div>`;
-                accordionIndex++;
-            }
-
-            html += '</div>';
-            $('#penerimaan-products-modal').html(html);
-            updatePenerimaanSelectedCount();
-        }).fail(function() {
-            $('#penerimaan-products-modal').html(`
-                <div class="text-center text-danger py-5">
-                    <i class="ri-error-warning-line ri-2x"></i>
-                    <div class="mt-2">Gagal memuat data produk</div>
-                </div>
-            `);
-        });
-    }
-
-    // 🔹 Hitung produk terpilih dan update tabel
-    function updatePenerimaanSelectedCount() {
-        const count = selectedPenerimaanProducts.length;
-        $('#penerimaanSelectedCount').text(count);
-        
-        if (count > 0) {
-            $('#jumlah-section').show();
-            $('#btnProsesPenerimaan').prop('disabled', false);
-            updatePenerimaanTable();
-        } else {
-            $('#jumlah-section').hide();
-            $('#btnProsesPenerimaan').prop('disabled', true);
-            $('#tablePenerimaan tbody').empty();
-        }
-    }
-
-    // 🔹 Render tabel penerimaan
-    function updatePenerimaanTable() {
-        let tbody = '';
-        
-        selectedPenerimaanProducts.forEach(product => {
-            let batchInput = '';
-            if (product.existing_batches && product.existing_batches.length > 0) {
-                batchInput = `
-                    <select name="no_batch[]" class="form-select form-select-sm">
-                        ${product.existing_batches.map(b => 
-                            `<option value="${b.no_batch}">
-                                ${b.no_batch} (stok: ${b.stock_gudang})
-                            </option>`
-                        ).join('')}
-                    </select>
-                `;
-            } else {
-                batchInput = `
-                    <input type="text" name="no_batch[]" class="form-control form-control-sm" 
-                        placeholder="Masukkan batch baru" required>
-                `;
-            }
-
-            tbody += `
-                <tr data-id="${product.id}">
-                    <td>
-                        <input type="hidden" name="barang_id[]" value="${product.id}">
-                        <span>${product.nama}</span>
-                    </td>
-                    <td><span>${product.jenis}</span></td>
-                    <td><span>${product.exp_date}</span></td>
-                    <td>${batchInput}</td>
-                    <td>
-                        <input type="number" name="jumlah[]" class="form-control form-control-sm" 
-                               placeholder="0" min="1" required>
-                    </td>
-                    <td class="text-center">
-                        <button type="button" class="btn btn-sm btn-outline-danger btn-remove-penerimaan" 
-                                data-id="${product.id}">
-                            <i class="ri-delete-bin-line"></i>
-                        </button>
-                    </td>
-                </tr>
-            `;
-        });
-        
-        $('#tablePenerimaan tbody').html(tbody);
-    }
-
-    // 🔹 Event buka modal
-    $('button[data-bs-target="#penerimaanModal"]').on('click', function () {
-        const supplierId = $(this).data('supplier');
-        $('#penerimaan_supplier_id').val(supplierId);
-
-        selectedPenerimaanProducts = [];
-        $('#jumlah-section').hide();
-        $('#btnProsesPenerimaan').prop('disabled', true);
-        loadPenerimaanProducts(supplierId);
-    });
-
-    // 🔹 Checkbox pilih produk
-    $(document).on('change', '.penerimaan-product-checkbox', function () {
-        const productData = {
-            id: $(this).data('id'),
-            nama: $(this).data('nama'),
-            judul: $(this).data('judul'),
-            jenis: $(this).data('jenis'),
-            exp_date: $(this).data('exp_date')
-        };
-
-        if ($(this).is(':checked')) {
-            if (!selectedPenerimaanProducts.some(item => item.id === productData.id)) {
-                $.get(`/gudang/barang/${productData.id}/detail`, function (data) {
-                    productData.existing_batches = data.length > 0 ? data : [];
-                    selectedPenerimaanProducts.push(productData);
-                    updatePenerimaanSelectedCount();
-                }).fail(function() {
-                    productData.existing_batches = [];
-                    selectedPenerimaanProducts.push(productData);
-                    updatePenerimaanSelectedCount();
+                // Custom search
+                $('#searchBox').on('keyup', function() {
+                    dataTable.search(this.value).draw();
                 });
+
+                // Filter by supplier
+                $('#filterSupplier').on('change', function() {
+                    dataTable.column(1).search(this.value).draw();
+                });
+            } catch (error) {
+                console.log('DataTable initialization skipped - no data available');
             }
-        } else {
-            selectedPenerimaanProducts = selectedPenerimaanProducts.filter(item => item.id !== productData.id);
-            updatePenerimaanSelectedCount();
         }
-    });
+    }
+    
+    // Initialize DataTable on page load
+    initializeDataTable();
 
-    // 🔹 Hapus item dari tabel
-    $(document).on('click', '.btn-remove-penerimaan', function () {
-        const productId = $(this).data('id');
-        selectedPenerimaanProducts = selectedPenerimaanProducts.filter(item => item.id !== productId);
-        $(`.penerimaan-product-checkbox[data-id="${productId}"]`).prop('checked', false);
-        updatePenerimaanSelectedCount();
-    });
-
-    // 🔹 Submit
-    $('#btnProsesPenerimaan').on('click', function () {
-        const form = $('#penerimaanForm');
-        const formData = new FormData(form[0]);
-
-        const requiredFields = form.find('input[required]');
-        let isValid = true;
-
-        requiredFields.each(function() {
-            if (!$(this).val()) {
-                $(this).addClass('is-invalid');
-                isValid = false;
-            } else {
-                $(this).removeClass('is-invalid');
-            }
-        });
-
-        if (!isValid) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Validasi Error',
-                text: 'Mohon lengkapi semua field yang diperlukan!'
-            });
-            return;
-        }
-
+    // Confirm delete with SweetAlert
+    $(document).on('submit', '.delete-confirm', function(e) {
+        e.preventDefault();
+        var form = this;
+        
         Swal.fire({
-            title: 'Konfirmasi Penerimaan',
-            text: `Apakah Anda yakin ingin memproses penerimaan ${selectedPenerimaanProducts.length} barang?`,
-            icon: 'question',
+            title: 'Apakah Anda yakin?',
+            text: "Data gudang akan dihapus permanen!",
+            icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#198754',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Proses!',
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Ya, Hapus!',
             cancelButtonText: 'Batal'
         }).then((result) => {
             if (result.isConfirmed) {
-                prosesSubmitPenerimaan(formData);
+                form.submit();
             }
         });
     });
 
-    // 🔹 Kirim ke backend
-    function prosesSubmitPenerimaan(formData) {
-        $('#btnProsesPenerimaan').prop('disabled', true).html('<i class="ri-loader-4-line ri-spin me-1"></i> Memproses...');
+    // Auto dismiss alerts
+    setTimeout(function() {
+        $('.alert').fadeOut('slow');
+    }, 5000);
 
-        $.ajax({
-            url: '/gudang/penerimaan',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-            },
-            success: function(response) {
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: 'Penerimaan barang berhasil diproses.',
-                    timer: 2000,
-                    showConfirmButton: false
-                });
-                $('#penerimaanModal').modal('hide');
-                setTimeout(() => location.reload(), 2000);
-            },
-            error: function(xhr) {
-                console.error('Error:', xhr.responseText);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error!',
-                    text: 'Terjadi kesalahan saat memproses penerimaan barang.'
-                });
-            },
-            complete: function() {
-                $('#btnProsesPenerimaan').prop('disabled', false).html('<i class="ri-check-line me-1"></i> Proses Penerimaan');
+    // ========== Detail Modal Script ===============
+    // Store initialized tables
+    let detailTables = {};
+
+    $(document).on('show.bs.modal', '[id^="detailModal"]', function () {
+        const modal = $(this);
+        const gudangId = modal.attr('id').replace('detailModal', '');
+        const tableId = `detailTable-${gudangId}`;
+        const $table = $(`#${tableId}`);
+
+        console.log('Modal opened for gudang:', gudangId);
+
+        // Destroy existing DataTable if already initialized
+        if (detailTables[tableId]) {
+            try {
+                detailTables[tableId].destroy();
+                delete detailTables[tableId];
+            } catch(e) {
+                console.log('Error destroying table:', e);
             }
-        });
-    }
+        }
 
-    // 🔹 Reset modal
-    $('#penerimaanModal').on('hidden.bs.modal', function () {
-        selectedPenerimaanProducts = [];
-        $('#jumlah-section').hide();
-        $('#btnProsesPenerimaan').prop('disabled', true);
-        $('#penerimaanForm')[0].reset();
-        updatePenerimaanSelectedCount();
+        // Initialize new DataTable
+        try {
+            detailTables[tableId] = $table.DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: `/gudang/${gudangId}/details/data`,
+                    type: 'GET',
+                    error: function(xhr, error, code) {
+                        console.error('Ajax error:', error, code);
+                        console.error('Response:', xhr.responseText);
+                    }
+                },
+                columns: [
+                    { 
+                        data: 'DT_RowIndex', 
+                        name: 'DT_RowIndex', 
+                        orderable: false, 
+                        searchable: false,
+                        width: '50px',
+                        className: 'text-center'
+                    },
+                    { 
+                        data: 'barang_nama', 
+                        name: 'barang_nama',
+                        render: function(data, type, row) {
+                            return data || '-';
+                        }
+                    },
+                    { 
+                        data: 'barang_type', 
+                        name: 'barang_type',
+                        width: '100px',
+                        className: 'text-center'
+                    },
+                    { 
+                        data: 'stock_gudang', 
+                        name: 'stock_gudang',
+                        width: '80px',
+                        className: 'text-center',
+                        render: function(data, type, row) {
+                            return `<span>${data}</span>`;
+                        }
+                    },
+                ],
+                pageLength: 10,
+                lengthChange: false,
+                responsive: true,
+                language: { 
+                    url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json',
+                    processing: '<i class="ri-loader-4-line ri-spin ri-2x"></i><br>Memuat data...',
+                    emptyTable: 'Tidak ada data barang',
+                    zeroRecords: 'Tidak ditemukan data yang sesuai'
+                },
+                order: [[0, 'asc']],
+                drawCallback: function(settings) {
+                    console.log('Table drawn with', settings.json ? settings.json.recordsTotal : 0, 'records');
+                }
+            });
+
+            console.log('DataTable initialized for', tableId);
+        } catch(e) {
+            console.error('Error initializing DataTable:', e);
+        }
+    });
+
+    // Clean up when modal is hidden
+    $(document).on('hidden.bs.modal', '[id^="detailModal"]', function () {
+        const modal = $(this);
+        const gudangId = modal.attr('id').replace('detailModal', '');
+        const tableId = `detailTable-${gudangId}`;
+
+        if (detailTables[tableId]) {
+            try {
+                detailTables[tableId].destroy();
+                delete detailTables[tableId];
+                console.log('Table destroyed:', tableId);
+            } catch(e) {
+                console.log('Error destroying table on close:', e);
+            }
+        }
     });
 });
-// ========== Detail Modal Script ===============
-$(document).on('show.bs.modal', '[id^="detailModal"]', function () {
-    const gudangId = $(this).attr('id').replace('detailModal', '');
-    const tableId = `#detailTable-${gudangId}`;
-
-    if (!$.fn.DataTable.isDataTable(tableId)) {
-        $(tableId).DataTable({
-            processing: true,
-            serverSide: true,
-            ajax: `/gudang/${gudangId}/details/data`,
-            columns: [
-                { data: 'DT_RowIndex', name: 'DT_RowIndex', orderable: false, searchable: false },
-                { data: 'barang_nama', name: 'barang_nama' },
-                { data: 'barang_type', name: 'barang_type' },
-                { data: 'stock_gudang', name: 'stock_gudang' },
-            ],
-            pageLength: 10,
-            responsive: true,
-            language: { url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json' }
-        });
-    }
-});
-
-    </script>
+</script>
 @endpush

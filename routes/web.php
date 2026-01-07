@@ -1,17 +1,21 @@
 <?php
 
 use App\Http\Controllers\backend\AlkesController;
+use App\Http\Controllers\backend\ApotikController;
 use App\Http\Controllers\backend\ApprovalController;
 use App\Http\Controllers\backend\AsuransiController;
 use App\Http\Controllers\backend\DepartmentController;
 use App\Http\Controllers\backend\DetailObatrsController;
 use App\Http\Controllers\backend\GudangController;
+use App\Http\Controllers\backend\HistoryGudangController;
 use App\Http\Controllers\backend\JenisController;
 use App\Http\Controllers\backend\KaryawanController;
 use App\Http\Controllers\backend\LoginController;
 use App\Http\Controllers\backend\NotificationController;
 use App\Http\Controllers\backend\ObatMasterController;
 use App\Http\Controllers\backend\ObatrsController;
+use App\Http\Controllers\backend\PenjualanBebasController;
+use App\Http\Controllers\backend\PenjualanResepController;
 use App\Http\Controllers\backend\PermintaanController;
 use App\Http\Controllers\backend\PoConfirmationController;
 use App\Http\Controllers\backend\PoexConfirmationController;
@@ -62,35 +66,31 @@ Route::get('/', function () {
 
 Route::middleware(['auth'])->group(function () {
 
-    // Dashboard
+    // ========================================
+    // DASHBOARD
+    // ========================================
     Route::get('/dashboard', function () {
         return view('dashboard');
     })->name('dashboard');
-
-    // Logout
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // ========================================
     // SYSTEM MANAGEMENT
     // ========================================
-
-    // User Management
     Route::resource('users', UserController::class);
     Route::patch('users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::patch('users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
 
-    // Notifications
-
+    // ========================================
+    // NOTIFICATIONS
+    // ========================================
     Route::get('/notifications', [NotificationController::class, 'getNotifications']);
-
-    // Mark as read
     Route::post('/notifications/read', [NotificationController::class, 'markAsRead']);
-
-    // Trigger auto-cancel manually (for testing)
     Route::post('/notifications/auto-cancel', [NotificationController::class, 'autoCancelPendingPO']);
 
-
-    // Role & Permission Management
+    // ========================================
+    // ROLE PERMISSON
+    // ========================================
     Route::resource('role-permissions', RolePermissionController::class);
     Route::post('role-permissions/assign', [RolePermissionController::class, 'assignRole'])->name('role-permissions.assign');
     Route::post('role-permissions/remove', [RolePermissionController::class, 'removeRole'])->name('role-permissions.remove');
@@ -131,122 +131,130 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('jenis', JenisController::class);
     Route::resource('satuans', SatuanController::class);
 
-    // Gudang
+    // ========================================
+    // GUDANG
+    // ========================================
     Route::resource('gudangs', GudangController::class);
     Route::get('/gudang/barang/{barangId}/detail', [GudangController::class, 'getDetailGudangByBarang']);
     Route::post('/gudang/penerimaan', [GudangController::class, 'prosesPenerimaan'])->name('gudangs.penerimaan');
     Route::get('/gudang/{id}/details/data', [GudangController::class, 'detailsData']);
     Route::get('/supplier/{supplier}/details', [GudangController::class, 'getSupplierDetails']);
-
-    // Gudang History & Stock
-    Route::get('/history', [GudangController::class, 'historyGudang'])->name('gudang.history');
+    Route::get('/gudang/{gudangId}/history', [HistoryGudangController::class, 'index'])
+        ->name('gudang.history');
+    Route::post('/history-gudang/filter', [HistoryGudangController::class, 'filter'])
+        ->name('history-gudang.filter');
+    Route::get('/history-gudang/export-excel', [HistoryGudangController::class, 'exportExcel'])
+        ->name('history-gudang.export-excel');
+    Route::get('/history-gudang/export-pdf', [HistoryGudangController::class, 'exportPdf'])
+        ->name('history-gudang.export-pdf');
+    Route::get('/history-gudang/{id}', [HistoryGudangController::class, 'show'])
+        ->name('history-gudang.show');
+    Route::post('/history-gudang/summary', [HistoryGudangController::class, 'summary'])
+        ->name('history-gudang.summary');
     Route::get('/stock', [GudangController::class, 'stockGudang'])->name('gudang.stock');
 
-
+    // ========================================
+    // APOTIK
+    // ========================================
+    Route::prefix('apotik')->name('apotik.')->middleware(['auth'])->group(function () {
+        Route::get('/', [ApotikController::class, 'index'])->name('index');
+        Route::get('/get-pasien/{id}', [ApotikController::class, 'getPasienById'])->name('apotik.get-pasien');
+        Route::get('/get-stock-obat', [ApotikController::class, 'getStockObat'])->name('get-stock-obat');
+        Route::post('/store-resep', [ApotikController::class, 'storeResep'])->name('store-resep');
+        Route::post('/store-resep-luar', [ApotikController::class, 'storeResepLuar'])->name('store-resep-luar');
+        Route::get('/export', [ApotikController::class, 'export'])->name('export');
+        Route::get('/riwayat-resep/{id_pasien}', [ApotikController::class, 'riwayatResep'])->name('riwayat-resep');
+        Route::get('/detail-pasien/{id_pasien}', [ApotikController::class, 'detailPasien'])->name('detail-pasien');
+        Route::patch('/update-status-resep/{id}', [ApotikController::class, 'updateStatusResep'])->name('update-status-resep');
+        Route::get('/print-resep/{id}', [ApotikController::class, 'printResep'])->name('print-resep');
+        Route::delete('/delete-resep/{id}', [ApotikController::class, 'deleteResep'])->name('delete-resep');
+    });
+    Route::prefix('penjualan-bebas')->name('penjualan_bebas.')->group(function () {
+        Route::get('/', [PenjualanBebasController::class, 'index'])->name('index');
+        Route::get('/create', [PenjualanBebasController::class, 'create'])->name('create');
+        Route::get('/{id}', [PenjualanBebasController::class, 'show'])->name('show');
+        Route::get('/{id}/print', [PenjualanBebasController::class, 'print'])->name('print');
+        Route::post('/store', [PenjualanBebasController::class, 'store'])->name('store');
+        Route::delete('/{id}', [PenjualanBebasController::class, 'destroy'])->name('destroy');
+        Route::get('/api/search-obat', [PenjualanBebasController::class, 'searchObat'])->name('search.obat');
+        Route::get('/api/history', [PenjualanBebasController::class, 'history'])->name('history');
+    });
+    Route::prefix('penjualan-resep')->name('penjualan_resep.')->group(function () {
+        Route::get('/', [PenjualanResepController::class, 'index'])->name('index');
+        Route::get('/create', [PenjualanResepController::class, 'create'])->name('create');
+        Route::get('/{id}', [PenjualanResepController::class, 'show'])->name('show');
+        Route::get('/{id}/print', [PenjualanResepController::class, 'print'])->name('print');
+        Route::post('/store', [PenjualanResepController::class, 'store'])->name('store');
+        Route::put('/{id}/status', [PenjualanResepController::class, 'updateStatus'])->name('update.status');
+        Route::delete('/{id}', [PenjualanResepController::class, 'destroy'])->name('destroy');
+        Route::get('/api/search-obat', [PenjualanResepController::class, 'searchObat'])->name('search.obat');
+        Route::get('/api/history', [PenjualanResepController::class, 'history'])->name('history');
+    });
     Route::resource('stock_apotiks', StockapotikController::class);
     Route::get('/stock-apotik/supplier/{supplierId}/details', [StockapotikController::class, 'getSupplierProducts']);
+    Route::get('/stock-apotik/gudang/{gudangId}/details', [StockApotikController::class, 'getGudangDetails'])
+        ->name('stock_apotiks.gudang.details');
+    Route::get('/stock_apotiks/export/excel', [StockApotikController::class, 'exportExcel'])
+        ->name('stock_apotiks.export.excel');
+    Route::get('/stock_apotiks/export/pdf', [StockApotikController::class, 'exportPdf'])
+        ->name('stock_apotiks.export.pdf');
 
-    Route::resource('permintaans', PermintaanController::class);
-    Route::post('permintaan/send/{id}', [PermintaanController::class, 'send'])->name('permintaans.send');
-    Route::get('/permintaan/supplier/{supplierId}/details', [PermintaanController::class, 'getSupplierGudangDetails']);
-
+    // ========================================
+    // PURCHASE ORDER
+    // ========================================
     Route::resource('po', PurchaseOrderController::class)->parameters([
         'po' => 'id_po'
     ]);
 
-    // Custom Routes untuk PO
     Route::prefix('po')->name('po.')->group(function () {
-        // Submit PO untuk Approval
         Route::post('{id_po}/submit', [PurchaseOrderController::class, 'submit'])->name('submit');
-
-        // Approval Kepala Gudang
         Route::post('{id_po}/approve-kepala-gudang', [PurchaseOrderController::class, 'approveKepalaGudang'])->name('approve.kepala-gudang');
-
-        // Approval Kasir
         Route::post('{id_po}/approve-kasir', [PurchaseOrderController::class, 'approveKasir'])->name('approve.kasir');
-
-        // Kirim ke Supplier
         Route::post('{id_po}/send-to-supplier', [PurchaseOrderController::class, 'sendToSupplier'])->name('send-to-supplier');
-
-        // Print PO
         Route::get('{id_po}/print', [PurchaseOrderController::class, 'print'])->name('print');
-        // Print Invoice
         Route::get('/po/{id_po}/print-invoice', [PurchaseOrderController::class, 'printInvoice'])->name('print-invoice');
-
-        // Internal
         Route::get('{id_po}/confirm-receipt-internal', [PoConfirmationController::class, 'showConfirmation'])
             ->name('show-confirmation');
         Route::post('{id_po}/confirm-receipt-internal', [PoConfirmationController::class, 'confirmReceipt'])
             ->name('confirm-receipt');
-        // External
         Route::get('{id_po}/confirm-receipt-external', [PoexConfirmationController::class, 'showConfirmation'])
             ->name('showex-confirmation');
         Route::post('{id_po}/confirm-receipt-external', [PoexConfirmationController::class, 'confirmReceipt'])
             ->name('confirmex-receipt');
         Route::get('/po/{id_po}/invoice-form', [PoexConfirmationController::class, 'showInvoiceForm'])
             ->name('invoice-form');
-
         Route::post('/po/{id_po}/store-invoice', [PoexConfirmationController::class, 'storeInvoice'])
             ->name('store-invoice');
     });
 
 
+    // ========================================
+    // Tagihan
+    // ========================================
     Route::prefix('tagihan')->name('tagihan.')->middleware(['auth'])->group(function () {
-        // List & Detail
         Route::get('/', [TagihanPoController::class, 'index'])->name('index');
         Route::get('/{id_tagihan}', [TagihanPoController::class, 'show'])->name('show');
-
-        // Payment
         Route::get('/{id_tagihan}/payment', [TagihanPoController::class, 'showPaymentForm'])->name('payment.form');
         Route::post('/{id_tagihan}/payment', [TagihanPoController::class, 'processPayment'])->name('payment.process');
         Route::get('/{id_tagihan}/payment-history', [TagihanPoController::class, 'paymentHistory'])->name('payment.history');
-
-        // Verify Payment (Manager/Supervisor)
-        Route::post('/payment/{id_pembayaran}/verify', [TagihanPoController::class, 'verifyPayment'])->name('payment.verify');
-
-        // Download & Print
+        // Route::post('/payment/{id_pembayaran}/verify', [TagihanPoController::class, 'verifyPayment'])->name('payment.verify');
         Route::get('/payment/{id_pembayaran}/download', [TagihanPoController::class, 'downloadBukti'])->name('payment.download');
         Route::get('/{id_tagihan}/print', [TagihanPoController::class, 'print'])->name('print');
     });
 
 
-    // Resource Route untuk Shipping
+    // ========================================
+    // SHIPPING
+    // ========================================
     Route::resource('shipping', ShippingController::class);
-
     Route::prefix('shipping')->name('shipping.')->group(function () {
-
-        // Halaman index tracking pengiriman
         Route::get('/', [ShippingController::class, 'index'])
             ->name('by-po');
-
-        // Store shipping activity (digunakan dari modal)
         Route::post('/store', [ShippingController::class, 'store'])
             ->name('store');
-
-        // Get shipping activities by PO ID
         Route::get('/po/{id_po}', [ShippingController::class, 'getByPO'])
             ->name('getByPO');
     });
-    Route::resource('stock_apotiks', StockApotikController::class);
-
-    // Custom route untuk mengambil detail gudang berdasarkan gudang_id
-    Route::get('/stock-apotik/gudang/{gudangId}/details', [StockApotikController::class, 'getGudangDetails'])
-        ->name('stock_apotiks.gudang.details');
-
-    // Optional: Export routes jika diperlukan
-    Route::get('/stock_apotiks/export/excel', [StockApotikController::class, 'exportExcel'])
-        ->name('stock_apotiks.export.excel');
-
-    Route::get('/stock_apotiks/export/pdf', [StockApotikController::class, 'exportPdf'])
-        ->name('stock_apotiks.export.pdf');
-
-    // Route::get('stock-apotik/test-connection/{gudangId}', [StockApotikController::class, 'testConnection']);
-    // Route::get('/test-gudang-simple/{id}', function ($id) {
-    //     return response()->json([
-    //         'gudang_id' => $id,
-    //         'message' => 'Gudang ID received'
-    //     ]);
-    // });
 });
 
 Route::get('/debug/po-status', function () {

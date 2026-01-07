@@ -15,6 +15,7 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->uuid('supplier_id');
             $table->foreign('supplier_id')->references('id')->on('suppliers')->onDelete('cascade');
+            $table->uuid('detail_obat_rs_id')->constrained('detail_obat_rs', 'id_detail_obat_rs')->onDelete('cascade');
             $table->uuid('department_id');
             $table->foreign('department_id')->references('id')->on('department')->onDelete('cascade');
             $table->string('no_batch')->nullable();

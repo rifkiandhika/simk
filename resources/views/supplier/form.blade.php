@@ -59,6 +59,8 @@
         <tr class="supplier-detail-item" data-detail-id="{{ $detail->id ?? '' }}">
             <td>
                 <input type="hidden" name="detail_id[]" value="{{ $detail->id ?? '' }}">
+                <input type="hidden" name="product_id[]" class="product-id-input" value="{{ $detail->product_id ?? '' }}">
+                <input type="hidden" name="detail_obat_rs_id[]" class="detail-obat-rs-id" value="{{ $detail->detail_obat_rs_id ?? '' }}">
                 <div class="row g-2">
                     <div class="col-md-6">
                         <label>No Batch</label>
@@ -79,26 +81,41 @@
                                     {{ $j->nama_jenis }}
                                 </option>
                             @endforeach
+                                <option value="Lainnya">Lainnya</option>
                         </select>
                     </div>
                     <div class="col-md-6">
                         <label>Nama <span class="text-danger">*</span></label>
                         <!-- Select2 untuk Obat/Alkes/Reagensia -->
-                        <select name="nama[]" class="form-control nama-select select2-nama" 
-                                style="{{ in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']) ? '' : 'display: none;' }}"
-                                {{ in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']) ? 'required' : 'disabled' }}>
-                            @if($detail && $detail->nama && in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']))
-                                <option value="{{ $detail->nama }}" selected>{{ $detail->nama }}</option>
+                        <select class="form-select nama-select">
+                            {{-- OBAT --}}
+                            @if($detail && ($detail->jenis ?? '') === 'obat' && $detail->obats)
+                                <option value="{{ $detail->obats->id_detail_obat_rs }}" selected>
+                                    {{ $detail->obats->nama_obat_rs }}
+                                </option>
+
+                            {{-- ALKES --}}
+                            @elseif($detail && ($detail->jenis ?? '') === 'alkes' && $detail->alkes)
+                                <option value="{{ $detail->alkes->id }}" selected>
+                                    {{ $detail->alkes->nama_alkes }}
+                                </option>
+
+                            {{-- REAGENSIA --}}
+                            @elseif($detail && ($detail->jenis ?? '') === 'reagensia' && $detail->reagensia)
+                                <option value="{{ $detail->reagensia->id }}" selected>
+                                    {{ $detail->reagensia->nama_reagen }}
+                                </option>
+
                             @else
                                 <option value="">-- Pilih atau ketik untuk mencari --</option>
                             @endif
                         </select>
                         <!-- Input Manual untuk jenis lainnya -->
                         <input type="text" name="nama_manual[]" class="form-control nama-manual" 
-                            value="{{ !in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']) && ($detail->jenis ?? '') ? ($detail->nama ?? '') : '' }}"
-                            style="{{ !in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']) && ($detail->jenis ?? '') ? '' : 'display: none;' }}" 
+                            value="{{ !in_array($detail->jenis ?? '', ['obat', 'alkes', 'reagensia']) && ($detail->jenis ?? '') ? ($detail->nama ?? '') : '' }}"
+                            style="{{ !in_array($detail->jenis ?? '', ['obat', 'alkes', 'reagensia']) && ($detail->jenis ?? '') ? '' : 'display: none;' }}" 
                             placeholder="Masukkan nama barang"
-                            {{ !in_array($detail->jenis ?? '', ['Obat', 'Alkes', 'Reagensia']) && ($detail->jenis ?? '') ? 'required' : 'disabled' }}>
+                            {{ !in_array($detail->jenis ?? '', ['obat', 'alkes', 'reagensia']) && ($detail->jenis ?? '') ? 'required' : 'disabled' }}>
                     </div>
                     <div class="col-md-6">
                         <label>Merk</label>
@@ -200,13 +217,13 @@
 {{-- Helper Api --}}
 <script>
     // Daftar jenis yang menggunakan API (Select2)
-    window.jenisWithApi = ['Obat', 'Alkes', 'Reagensia'];
+    window.jenisWithApi = ['obat', 'alkes', 'reagensia'];
     
     // Mapping API untuk jenis tertentu saja
     window.jenisApiMapping = {
-        'Obat': "{{ route('api.obat.search') }}",
-        'Alkes': "{{ route('api.alkes.search') }}",
-        'Reagensia': "{{ route('api.reagensia.search') }}"
+        'obat': "{{ route('api.obat.search') }}",
+        'alkes': "{{ route('api.alkes.search') }}",
+        'reagensia': "{{ route('api.reagensia.search') }}"
     };
 
     // Opsi jenis untuk dynamic row
@@ -251,10 +268,8 @@
 <script>
 $(document).ready(function() {
 
-    // Daftar jenis yang menggunakan API
-    const jenisWithApi = window.jenisWithApi || ['Obat', 'Alkes', 'Reagensia'];
+    const jenisWithApi = window.jenisWithApi || ['obat', 'alkes', 'reagensia'];
 
-    // Helper: Cek apakah jenis menggunakan API
     function isApiJenis(jenis) {
         return jenisWithApi.includes(jenis);
     }
@@ -264,12 +279,10 @@ $(document).ready(function() {
         const row = el.closest('.supplier-detail-item');
         const jenis = row.find('.jenis-select').val();
         
-        // Skip jika jenis belum dipilih atau tidak menggunakan API
         if (!jenis || !isApiJenis(jenis)) {
             return;
         }
         
-        // Ambil mapping API berdasarkan jenis
         const apiMapping = window.jenisApiMapping || {};
         const apiUrl = apiMapping[jenis];
         
@@ -290,8 +303,19 @@ $(document).ready(function() {
                     };
                 },
                 processResults: function(data) {
+                    // ✅ PENTING: Simpan UUID asli sebagai data attribute
+                    const items = (data.items || []).map(item => {
+                        return {
+                            id: item.id,           // Untuk option value
+                            text: item.text,       // Untuk display
+                            uuid: item.id,         // ✅ Simpan UUID asli
+                            merk: item.merk || '', // Data tambahan
+                            satuan: item.satuan || ''
+                        };
+                    });
+                    
                     return {
-                        results: data.items || [],
+                        results: items,
                         pagination: {
                             more: data.pagination ? data.pagination.more : false
                         }
@@ -304,23 +328,20 @@ $(document).ready(function() {
     }
 
     // Inisialisasi Select2 pada semua element yang sudah ada
-    $('.select2-nama').each(function() {
+    $('.nama-select').each(function() {
         const row = $(this).closest('.supplier-detail-item');
         const jenis = row.find('.jenis-select').val();
         const namaSelect = $(this);
         const namaManual = row.find('.nama-manual');
         
         if (!jenis) {
-            // Belum ada jenis dipilih - semua hidden
             namaSelect.hide().prop('disabled', true).prop('required', false);
             namaManual.hide().prop('disabled', true).prop('required', false);
         } else if (isApiJenis(jenis)) {
-            // Jenis menggunakan API - tampilkan select2, hide manual
             namaSelect.show().prop('disabled', false).prop('required', true);
             namaManual.hide().prop('disabled', true).prop('required', false);
             initSelect2(namaSelect);
         } else {
-            // Jenis menggunakan input manual - hide select2, tampilkan manual
             namaSelect.hide().prop('disabled', true).prop('required', false);
             namaManual.show().prop('disabled', false).prop('required', true);
         }
@@ -332,8 +353,11 @@ $(document).ready(function() {
         const jenis = $(this).val();
         const namaSelect = row.find('.nama-select');
         const namaManual = row.find('.nama-manual');
+
+        // ✅ Reset semua field terkait
+        row.find('.detail-obat-rs-id').val('');
+        row.find('.product-id-input').val(''); 
         
-        // Reset field
         if (namaSelect.hasClass('select2-hidden-accessible')) {
             namaSelect.val(null).trigger('change');
             namaSelect.select2('destroy');
@@ -342,20 +366,15 @@ $(document).ready(function() {
         namaManual.val('');
         
         if (!jenis) {
-            // Belum pilih jenis - semua hidden
             namaSelect.hide().prop('disabled', true).prop('required', false);
             namaSelect.html('<option value="">-- Pilih Jenis Terlebih Dahulu --</option>');
             namaManual.hide().prop('disabled', true).prop('required', false);
         } else if (isApiJenis(jenis)) {
-            // Jenis menggunakan API (Select2) - tampilkan select2, hide manual
             namaSelect.show().prop('disabled', false).prop('required', true);
             namaSelect.html('<option value="">-- Pilih atau ketik untuk mencari --</option>');
             namaManual.hide().prop('disabled', true).prop('required', false);
-            
-            // Initialize Select2
             initSelect2(namaSelect);
         } else {
-            // Jenis menggunakan input manual - hide select2, tampilkan manual
             namaSelect.hide().prop('disabled', true).prop('required', false);
             namaManual.show().prop('disabled', false).prop('required', true);
             namaManual.focus();
@@ -366,27 +385,62 @@ $(document).ready(function() {
     $('#detail-table').on('select2:select', '.nama-select', function(e) {
         const data = e.params.data;
         const row = $(this).closest('.supplier-detail-item');
+        const jenis = row.find('.jenis-select').val();
+
+        // ✅ FIX: Gunakan data.uuid yang sudah kita simpan dari API response
+        const productUuid = data.uuid || data.id;
+        
+        console.log('Selected data:', {
+            jenis: jenis,
+            uuid: productUuid,
+            text: data.text,
+            merk: data.merk,
+            satuan: data.satuan
+        });
+
+        // ✅ Simpan UUID untuk SEMUA jenis
+        row.find('.product-id-input').val(productUuid);
+
+        // ✅ Simpan detail_obat_rs_id HANYA untuk jenis obat
+        if (jenis === 'obat') {
+            row.find('.detail-obat-rs-id').val(productUuid);
+        } else {
+            row.find('.detail-obat-rs-id').val('');
+        }
         
         // Auto-fill merk dan satuan jika ada
         if (data.merk) {
             row.find('.merk-input').val(data.merk);
         }
         if (data.satuan) {
-            row.find('.satuan-input').val(data.satuan);
+            row.find('select[name="satuan[]"]').val(data.satuan);
         }
+    });
+
+    // ✅ Handle Select2 Clear
+    $('#detail-table').on('select2:clear', '.nama-select', function(e) {
+        const row = $(this).closest('.supplier-detail-item');
+        row.find('.product-id-input').val('');
+        row.find('.detail-obat-rs-id').val('');
+    });
+
+    // ✅ Handle Input Manual
+    $('#detail-table').on('input', '.nama-manual', function() {
+        const row = $(this).closest('.supplier-detail-item');
+        row.find('.product-id-input').val('');
+        row.find('.detail-obat-rs-id').val('');
     });
 
     // --- Tambah Baris Baru ---
     $('#detail-table').on('click', '.btn-add', function() {
         let $tableBody = $('#detail-table tbody');
-        
-        // Ambil opsi jenis dari variable global
         let jenisOptions = window.jenisOptions || '<option value="">-- Pilih Jenis --</option>';
         
-        // Template baris baru
         let $newRow = $('<tr class="supplier-detail-item" data-detail-id="">' +
             '<td>' +
                 '<input type="hidden" name="detail_id[]" value="">' +
+                '<input type="hidden" name="product_id[]" class="product-id-input" value="">' +
+                '<input type="hidden" name="detail_obat_rs_id[]" class="detail-obat-rs-id" value="">' +
                 '<div class="row g-2">' +
                     '<div class="col-md-6">' +
                         '<label>No Batch</label>' +
@@ -404,7 +458,7 @@ $(document).ready(function() {
                     '</div>' +
                     '<div class="col-md-6">' +
                         '<label>Nama <span class="text-danger">*</span></label>' +
-                        '<select name="nama[]" class="form-control nama-select select2-nama" style="display: none;" disabled>' +
+                        '<select class="form-control nama-select" style="display: none;" disabled>' +
                             '<option value="">-- Pilih Jenis Terlebih Dahulu --</option>' +
                         '</select>' +
                         '<input type="text" name="nama_manual[]" class="form-control nama-manual" style="display: none;" placeholder="Masukkan nama barang" disabled>' +
@@ -414,8 +468,11 @@ $(document).ready(function() {
                         '<input type="text" name="merk[]" class="form-control merk-input" placeholder="e.g. Kimia Farma">' +
                     '</div>' +
                     '<div class="col-md-6">' +
-                        '<label>Satuan</label>' +
-                        '<input type="text" name="satuan[]" class="form-control satuan-input" placeholder="e.g. Box">' +
+                        '<label>Satuan <span class="text-danger">*</span></label>' +
+                        '<select name="satuan[]" class="form-select" required>' +
+                            '<option value="" hidden>-- Pilih Satuan --</option>' +
+                            '<option value="ml">ml</option>' +
+                        '</select>' +
                     '</div>' +
                     '<div class="col-md-6">' +
                         '<label>Exp Date</label>' +
@@ -435,7 +492,7 @@ $(document).ready(function() {
                     '</div>' +
                     '<div class="col-md-6">' +
                         '<label>Harga Beli</label>' +
-                        '<input type="number" name="harga_beli[]" class="form-control" placeholder="e.g. 5000">' +
+                        '<input type="text" name="harga_beli[]" class="form-control format-rupiah" placeholder="e.g. 5.000">' +
                     '</div>' +
                     '<div class="col-md-6">' +
                         '<label>Department</label>' +
@@ -461,7 +518,6 @@ $(document).ready(function() {
             '</td>' +
         '</tr>');
 
-        // Tambahkan baris baru
         $tableBody.append($newRow);
     });
 
@@ -471,14 +527,10 @@ $(document).ready(function() {
         
         if (rowCount > 1) {
             let $row = $(this).closest('tr');
-            
-            // Hancurkan Select2 instance sebelum menghapus row
-            let $select = $row.find('.select2-nama');
+            let $select = $row.find('.nama-select');
             if ($select.hasClass('select2-hidden-accessible')) {
                 $select.select2('destroy');
             }
-            
-            // Hapus baris
             $row.remove();
         } else {
             alert('Minimal satu baris detail harus ada.');

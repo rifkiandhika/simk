@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Backend;
 
 use App\Http\Controllers\Controller;
 use App\Models\DetailGudang;
+use App\Models\DetailobatRs;
 use App\Models\DetailstockApotik;
 use App\Models\DetailSupplier;
 use App\Models\Gudang;
 use App\Models\Karyawan;
+use App\Models\ObatRs;
 use App\Models\PoAuditTrail;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
@@ -65,39 +67,106 @@ class PurchaseOrderController extends Controller
     public function create(Request $request)
     {
         $type = $request->get('type', 'internal');
-
         $suppliers = Supplier::where('status', 'Aktif')->get();
 
-        // PERBAIKAN: Untuk PO Internal, ambil dari DetailGudang (dengan batch)
-        // Untuk PO Eksternal, tetap dari DetailSupplier
         if ($type === 'internal') {
+            // ... kode internal tetap sama (tidak perlu diubah) ...
+
             $gudang = Gudang::first();
             if (!$gudang) {
                 return back()->with('error', 'Gudang tidak ditemukan');
             }
 
-            // Ambil semua barang yang ada di gudang dengan stock > 0
-            $produkList = DetailGudang::with(['barang.supplier'])
+            $detailGudangs = DetailGudang::with(['barangObat', 'barangSupplier'])
                 ->where('gudang_id', $gudang->id)
                 ->where('stock_gudang', '>', 0)
+                ->get();
+
+            $produkList = [];
+
+            foreach ($detailGudangs as $detail) {
+                $nama = null;
+                $merk = null;
+                $satuan = 'pcs';
+                $hargaBeli = 0;
+                $jenis = $detail->barang_type;
+
+                if ($detail->barang_type === 'Obat' && $detail->barangObat) {
+                    $nama = $detail->barangObat->nama_obat_rs;
+                    $hargaBeli = $detail->barangObat->harga_beli ?? 0;
+                } elseif (in_array($detail->barang_type, ['Alkes', 'Reagensia', 'Lainnya']) && $detail->barangSupplier) {
+                    $nama = $detail->barangSupplier->nama;
+                    $merk = $detail->barangSupplier->merk;
+                    $satuan = $detail->barangSupplier->satuan ?? 'pcs';
+                    $hargaBeli = $detail->barangSupplier->harga_beli ?? 0;
+                } else {
+                    if ($detail->barangObat) {
+                        $nama = $detail->barangObat->nama_obat_rs;
+                        $hargaBeli = $detail->barangObat->harga_beli ?? 0;
+                    } elseif ($detail->barangSupplier) {
+                        $nama = $detail->barangSupplier->nama;
+                        $merk = $detail->barangSupplier->merk;
+                        $satuan = $detail->barangSupplier->satuan ?? 'pcs';
+                        $hargaBeli = $detail->barangSupplier->harga_beli ?? 0;
+                    }
+                }
+
+                if (!$nama) continue;
+
+                $produkList[] = [
+                    'id' => $detail->barang_id,
+                    'detail_gudang_id' => $detail->id,
+                    'barang_type' => $detail->barang_type,
+                    'nama' => $nama,
+                    'jenis' => $jenis,
+                    'merk' => $merk ?? '',
+                    'satuan' => $satuan,
+                    'harga_beli' => $hargaBeli,
+                    'stock_gudang' => $detail->stock_gudang,
+                    'no_batch' => $detail->no_batch ?? '-',
+                    'tanggal_kadaluarsa' => $detail->tanggal_kadaluarsa
+                        ? \Carbon\Carbon::parse($detail->tanggal_kadaluarsa)->format('d/m/Y')
+                        : '-',
+                ];
+            }
+        } else {
+            // PO EKSTERNAL: dari DetailSupplier (Gudang → Supplier)
+            // ✅ Obat: detail_obat_rs_id | Non-Obat: product_id
+            $produkList = DetailSupplier::with(['supplier', 'obats', 'alkes', 'reagensia'])
                 ->get()
                 ->map(function ($detail) {
+                    $nama = null;
+                    $productId = null;
+
+                    // Tentukan ID dan nama berdasarkan jenis
+                    if ($detail->jenis === 'obat') {
+                        $productId = $detail->detail_obat_rs_id; // ✅ Obat pakai detail_obat_rs_id
+                        $nama = $detail->obats->nama_obat_rs ?? null;
+                    } elseif ($detail->jenis === 'alkes') {
+                        $productId = $detail->product_id; // ✅ Alkes pakai product_id
+                        $nama = $detail->alkes->nama_alkes ?? $detail->nama;
+                    } elseif ($detail->jenis === 'reagensia') {
+                        $productId = $detail->product_id; // ✅ Reagensia pakai product_id
+                        $nama = $detail->reagensia->nama_reagensia ?? $detail->nama;
+                    } else {
+                        // Lainnya
+                        $productId = $detail->product_id; // ✅ Lainnya pakai product_id
+                        $nama = $detail->nama;
+                    }
+
                     return [
-                        'id' => $detail->barang_id, // ID dari detail_supplier
-                        'detail_gudang_id' => $detail->id, // ID detail gudang untuk tracking
-                        'nama' => $detail->barang->nama ?? 'Unknown',
-                        'merk' => $detail->barang->merk ?? '',
-                        'satuan' => $detail->barang->satuan ?? 'pcs',
-                        'harga_beli' => $detail->barang->harga_beli ?? 0,
-                        'stock_gudang' => $detail->stock_gudang,
-                        'no_batch' => $detail->no_batch,
-                        'tanggal_kadaluarsa' => $detail->tanggal_kadaluarsa ? \Carbon\Carbon::parse($detail->tanggal_kadaluarsa)->format('d/m/Y') : '-',
-                        'supplier_name' => $detail->barang->supplier->nama_supplier ?? '-',
+                        'id' => $productId, // ✅ ID yang benar (detail_obat_rs_id atau product_id)
+                        'detail_supplier_id' => $detail->id,
+                        'supplier_id' => $detail->supplier_id,
+                        'nama' => $nama,
+                        'jenis' => $detail->jenis,
+                        'merk' => $detail->merk ?? '',
+                        'satuan' => $detail->satuan ?? 'pcs',
+                        'harga_beli' => $detail->harga_beli ?? 0,
+                        'supplier_name' => $detail->supplier->nama_supplier ?? '-',
                     ];
-                });
-        } else {
-            // PO Eksternal: dari DetailSupplier
-            $produkList = DetailSupplier::with('supplier')->get();
+                })
+                ->filter(fn($item) => !empty($item['nama']) && !empty($item['id']));
         }
 
         return view('po.create', compact('type', 'suppliers', 'produkList'));
@@ -105,44 +174,51 @@ class PurchaseOrderController extends Controller
 
     public function store(Request $request)
     {
+        // dd($request->all());
         $validated = $request->validate([
             'tipe_po' => 'required|in:internal,eksternal',
             'id_unit_pemohon' => 'required',
             'unit_pemohon' => 'required|in:apotik,gudang',
             'catatan_pemohon' => 'nullable|string',
             'id_supplier' => 'required_if:tipe_po,eksternal|nullable|uuid',
-            // 'pin' => 'required|size:6',
             'pajak' => 'nullable|numeric',
             'items' => 'required|array|min:1',
             'items.*.id_produk' => 'required|uuid',
             'items.*.qty_diminta' => 'required|integer|min:1',
+            'items.*.jenis' => 'required_if:tipe_po,eksternal|in:obat,alkes,reagensia,lainnya',
         ]);
-
-        // Verifikasi PIN
-        // $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
-        //     ->where('pin', $request->pin)
-        //     ->first();
-
-        // if (!$karyawan) {
-        //     if ($request->wantsJson()) {
-        //         return response()->json(['error' => 'PIN tidak valid'], 403);
-        //     }
-        //     return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
-        // }
 
         DB::beginTransaction();
         try {
-            // Hitung total
+            $items = $request->items;
             $total = 0;
-            foreach ($request->items as $item) {
-                $produk = DetailSupplier::find($item['id_produk']);
-                $total += $produk->harga_beli * $item['qty_diminta'];
+
+            /** ===============================
+             * HITUNG TOTAL (EKSTERNAL SAJA)
+             * =============================== */
+            if ($request->tipe_po === 'eksternal') {
+                foreach ($items as $item) {
+                    // ✅ Cari DetailSupplier berdasarkan jenis
+                    if ($item['jenis'] === 'obat') {
+                        $detailSupplier = DetailSupplier::where('detail_obat_rs_id', $item['id_produk'])->first();
+                    } else {
+                        $detailSupplier = DetailSupplier::where('product_id', $item['id_produk'])->first();
+                    }
+
+                    if (!$detailSupplier) {
+                        throw new \Exception('Produk tidak ditemukan di detail supplier');
+                    }
+
+                    $total += $detailSupplier->harga_beli * $item['qty_diminta'];
+                }
             }
 
-            $pajak = $request->pajak ?? 0;
+            $pajak = $request->tipe_po === 'eksternal' ? ($request->pajak ?? 0) : 0;
             $grandTotal = $total + $pajak;
 
-            // Create PO
+            /** ===============================
+             * CREATE PO
+             * =============================== */
             $po = PurchaseOrder::create([
                 'tipe_po' => $request->tipe_po,
                 'status' => 'draft',
@@ -152,33 +228,72 @@ class PurchaseOrderController extends Controller
                 'tanggal_permintaan' => now(),
                 'catatan_pemohon' => $request->catatan_pemohon,
                 'unit_tujuan' => $request->tipe_po === 'internal' ? 'gudang' : 'supplier',
-                'id_supplier' => $request->id_supplier,
+                'id_supplier' => $request->tipe_po === 'eksternal' ? $request->id_supplier : null,
                 'total_harga' => $total,
                 'pajak' => $pajak,
                 'grand_total' => $grandTotal,
                 'tanggal_jatuh_tempo' => now()->addDays(30),
             ]);
 
-            // Create items
-            foreach ($request->items as $item) {
-                $produk = DetailSupplier::find($item['id_produk']);
-
-                PurchaseOrderItem::create([
-                    'id_po' => $po->id_po,
-                    'id_produk' => $item['id_produk'],
-                    'nama_produk' => $produk->nama,
-                    'qty_diminta' => $item['qty_diminta'],
-                    'harga_satuan' => $produk->harga_beli,
-                    'subtotal' => $produk->harga_beli * $item['qty_diminta'],
-                ]);
-
-                // Update stock_po untuk PO eksternal
+            /** ===============================
+             * CREATE PO ITEMS
+             * =============================== */
+            foreach ($items as $item) {
                 if ($request->tipe_po === 'eksternal') {
-                    $produk->increment('stock_po', $item['qty_diminta']);
+                    // ✅ Cari DetailSupplier dan load relasi yang tepat
+                    if ($item['jenis'] === 'obat') {
+                        $detailSupplier = DetailSupplier::where('detail_obat_rs_id', $item['id_produk'])
+                            ->with('obats')
+                            ->first();
+                        $namaProduk = $detailSupplier->obats->nama_obat_rs ?? $detailSupplier->nama;
+                    } else {
+                        $detailSupplier = DetailSupplier::where('product_id', $item['id_produk'])
+                            ->with(['alkes', 'reagensia'])
+                            ->first();
+
+                        if ($item['jenis'] === 'alkes') {
+                            $namaProduk = $detailSupplier->alkes->nama_alkes ?? $detailSupplier->nama;
+                        } elseif ($item['jenis'] === 'reagensia') {
+                            $namaProduk = $detailSupplier->reagensia->nama_reagensia ?? $detailSupplier->nama;
+                        } else {
+                            $namaProduk = $detailSupplier->nama;
+                        }
+                    }
+
+                    if (!$detailSupplier) {
+                        throw new \Exception('Detail supplier tidak ditemukan');
+                    }
+
+                    // ✅ Simpan dengan id_produk yang benar (detail_obat_rs_id atau product_id)
+                    PurchaseOrderItem::create([
+                        'id_po' => $po->id_po,
+                        'id_produk' => $item['id_produk'], // ✅ Sudah benar dari frontend
+                        'nama_produk' => $namaProduk,
+                        'qty_diminta' => $item['qty_diminta'],
+                        'harga_satuan' => $detailSupplier->harga_beli,
+                        'subtotal' => $detailSupplier->harga_beli * $item['qty_diminta'],
+                    ]);
+
+                    // Update stock PO di DetailSupplier
+                    $detailSupplier->increment('stock_po', $item['qty_diminta']);
+                } else {
+                    // INTERNAL
+                    $produk = DetailobatRs::find($item['id_produk']);
+
+                    PurchaseOrderItem::create([
+                        'id_po' => $po->id_po,
+                        'id_produk' => $item['id_produk'],
+                        'nama_produk' => $produk->nama_obat_rs,
+                        'qty_diminta' => $item['qty_diminta'],
+                        'harga_satuan' => 0,
+                        'subtotal' => 0,
+                    ]);
                 }
             }
 
-            // Audit Trail
+            /** ===============================
+             * AUDIT TRAIL
+             * =============================== */
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,
@@ -188,37 +303,27 @@ class PurchaseOrderController extends Controller
                 'data_sesudah' => $po->toArray(),
             ]);
 
+            /** ===============================
+             * TAGIHAN EKSTERNAL
+             * =============================== */
             if ($request->tipe_po === 'eksternal') {
                 $tagihanService = new TagihanPoServices();
-                $tagihan = $tagihanService->createTagihanFromPO($po);
-
-                Log::info('Tagihan auto-created', [
-                    'po_id' => $po->id_po,
-                    'tagihan_id' => $tagihan?->id_tagihan ?? 'null'
-                ]);
+                $tagihanService->createTagihanFromPO($po);
             }
 
             DB::commit();
 
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'message' => 'PO berhasil dibuat',
-                    'data' => $po->load('items')
-                ], 201);
-            }
-
-            return redirect()->route('po.show', $po->id_po)
+            return redirect()
+                ->route('po.show', $po->id_po)
                 ->with('success', 'Purchase Order berhasil dibuat');
         } catch (\Exception $e) {
             DB::rollBack();
-
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'Gagal membuat PO: ' . $e->getMessage()], 500);
-            }
-
-            return back()->withErrors(['error' => 'Gagal membuat PO: ' . $e->getMessage()])->withInput();
+            return back()->withErrors([
+                'error' => 'Gagal membuat PO: ' . $e->getMessage()
+            ])->withInput();
         }
     }
+
 
     public function show($id_po)
     {
@@ -243,14 +348,101 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::with('items')->findOrFail($id_po);
 
-        // Izinkan edit untuk status draft dan ditolak
         if (!in_array($po->status, ['draft', 'ditolak'])) {
             return redirect()->route('po.show', $id_po)
                 ->with('error', 'Hanya PO dengan status draft atau ditolak yang dapat diedit');
         }
 
         $suppliers = Supplier::where('status', 'Aktif')->get();
-        $produkList = DetailSupplier::with('supplier')->get();
+
+        if ($po->tipe_po === 'internal') {
+            // ... kode internal sama seperti di method create ...
+            $gudang = Gudang::first();
+            if (!$gudang) {
+                return back()->with('error', 'Gudang tidak ditemukan');
+            }
+
+            $detailGudangs = DetailGudang::with(['barangObat', 'barangSupplier'])
+                ->where('gudang_id', $gudang->id)
+                ->where('stock_gudang', '>', 0)
+                ->get();
+
+            $produkList = [];
+
+            foreach ($detailGudangs as $detail) {
+                $nama = null;
+                $merk = null;
+                $satuan = 'pcs';
+                $hargaBeli = 0;
+                $jenis = null;
+
+                if ($detail->barang_type === 'DetailObatRs' && $detail->barangObat) {
+                    $nama = $detail->barangObat->nama_obat_rs;
+                    $hargaBeli = $detail->barangObat->harga_beli ?? 0;
+                    $jenis = 'Obat';
+                } elseif ($detail->barang_type === 'DetailSupplier' && $detail->barangSupplier) {
+                    $nama = $detail->barangSupplier->nama;
+                    $merk = $detail->barangSupplier->merk;
+                    $satuan = $detail->barangSupplier->satuan ?? 'pcs';
+                    $hargaBeli = $detail->barangSupplier->harga_beli ?? 0;
+                    $jenis = $detail->barangSupplier->jenis;
+                }
+
+                if (!$nama) continue;
+
+                $produkList[] = [
+                    'id' => $detail->barang_id,
+                    'detail_gudang_id' => $detail->id,
+                    'barang_type' => $detail->barang_type,
+                    'nama' => $nama,
+                    'jenis' => $jenis,
+                    'merk' => $merk ?? '',
+                    'satuan' => $satuan,
+                    'harga_beli' => $hargaBeli,
+                    'stock_gudang' => $detail->stock_gudang,
+                    'no_batch' => $detail->no_batch ?? '-',
+                    'tanggal_kadaluarsa' => $detail->tanggal_kadaluarsa
+                        ? \Carbon\Carbon::parse($detail->tanggal_kadaluarsa)->format('d/m/Y')
+                        : '-',
+                ];
+            }
+        } else {
+            // PO EKSTERNAL
+            // ✅ Obat: detail_obat_rs_id | Non-Obat: product_id
+            $produkList = DetailSupplier::with(['supplier', 'obats', 'alkes', 'reagensia'])
+                ->where('supplier_id', $po->id_supplier)
+                ->get()
+                ->map(function ($detail) {
+                    $nama = null;
+                    $productId = null;
+
+                    if ($detail->jenis === 'obat') {
+                        $productId = $detail->detail_obat_rs_id;
+                        $nama = $detail->obats->nama_obat_rs ?? null;
+                    } elseif ($detail->jenis === 'alkes') {
+                        $productId = $detail->product_id;
+                        $nama = $detail->alkes->nama_alkes ?? $detail->nama;
+                    } elseif ($detail->jenis === 'reagensia') {
+                        $productId = $detail->product_id;
+                        $nama = $detail->reagensia->nama_reagensia ?? $detail->nama;
+                    } else {
+                        $productId = $detail->product_id;
+                        $nama = $detail->nama;
+                    }
+
+                    return [
+                        'id' => $productId,
+                        'detail_supplier_id' => $detail->id,
+                        'supplier_id' => $detail->supplier_id,
+                        'nama' => $nama,
+                        'jenis' => $detail->jenis,
+                        'merk' => $detail->merk ?? '',
+                        'satuan' => $detail->satuan ?? 'pcs',
+                        'harga_beli' => $detail->harga_beli ?? 0,
+                    ];
+                })
+                ->filter(fn($item) => !empty($item['nama']) && !empty($item['id']));
+        }
 
         return view('po.edit', compact('po', 'suppliers', 'produkList'));
     }
@@ -259,7 +451,6 @@ class PurchaseOrderController extends Controller
     {
         $po = PurchaseOrder::findOrFail($id_po);
 
-        // Izinkan update untuk status draft dan ditolak
         if (!in_array($po->status, ['draft', 'ditolak'])) {
             if ($request->wantsJson()) {
                 return response()->json(['error' => 'Hanya PO draft atau ditolak yang dapat diedit'], 400);
@@ -273,9 +464,9 @@ class PurchaseOrderController extends Controller
             'items' => 'required|array|min:1',
             'items.*.id_produk' => 'required|uuid',
             'items.*.qty_diminta' => 'required|integer|min:1',
+            'items.*.jenis' => 'required_if:tipe_po,eksternal|in:obat,alkes,reagensia,lainnya',
         ]);
 
-        // Verifikasi PIN
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
@@ -295,8 +486,15 @@ class PurchaseOrderController extends Controller
             // Delete old items & reset stock_po
             foreach ($po->items as $oldItem) {
                 if ($po->tipe_po === 'eksternal') {
-                    $produk = DetailSupplier::find($oldItem->id_produk);
-                    $produk->decrement('stock_po', $oldItem->qty_diminta);
+                    // ✅ Cari DetailSupplier yang tepat untuk decrement stock_po
+                    $detailSupplier = DetailSupplier::where(function ($q) use ($oldItem) {
+                        $q->where('detail_obat_rs_id', $oldItem->id_produk)
+                            ->orWhere('product_id', $oldItem->id_produk);
+                    })->first();
+
+                    if ($detailSupplier) {
+                        $detailSupplier->decrement('stock_po', $oldItem->qty_diminta);
+                    }
                 }
             }
             $po->items()->delete();
@@ -304,46 +502,65 @@ class PurchaseOrderController extends Controller
             // Create new items
             $total = 0;
             foreach ($request->items as $item) {
-                $produk = DetailSupplier::find($item['id_produk']);
+                // ✅ Cari DetailSupplier berdasarkan jenis produk
+                if ($item['jenis'] === 'obat') {
+                    $detailSupplier = DetailSupplier::where('detail_obat_rs_id', $item['id_produk'])
+                        ->with('obats')
+                        ->first();
+                    $namaProduk = $detailSupplier->obats->nama_obat_rs ?? $detailSupplier->nama;
+                } else {
+                    $detailSupplier = DetailSupplier::where('product_id', $item['id_produk'])
+                        ->with(['alkes', 'reagensia'])
+                        ->first();
+
+                    if ($item['jenis'] === 'alkes') {
+                        $namaProduk = $detailSupplier->alkes->nama_alkes ?? $detailSupplier->nama;
+                    } elseif ($item['jenis'] === 'reagensia') {
+                        $namaProduk = $detailSupplier->reagensia->nama_reagensia ?? $detailSupplier->nama;
+                    } else {
+                        $namaProduk = $detailSupplier->nama;
+                    }
+                }
+
+                if (!$detailSupplier) {
+                    throw new \Exception('Produk tidak ditemukan');
+                }
 
                 PurchaseOrderItem::create([
                     'id_po' => $po->id_po,
                     'id_produk' => $item['id_produk'],
-                    'nama_produk' => $produk->nama,
+                    'nama_produk' => $namaProduk,
                     'qty_diminta' => $item['qty_diminta'],
-                    'harga_satuan' => $produk->harga_beli,
-                    'subtotal' => $produk->harga_beli * $item['qty_diminta'],
+                    'harga_satuan' => $detailSupplier->harga_beli,
+                    'subtotal' => $detailSupplier->harga_beli * $item['qty_diminta'],
                 ]);
 
-                $total += $produk->harga_beli * $item['qty_diminta'];
+                $total += $detailSupplier->harga_beli * $item['qty_diminta'];
 
                 // Update stock_po untuk eksternal
                 if ($po->tipe_po === 'eksternal') {
-                    $produk->increment('stock_po', $item['qty_diminta']);
+                    $detailSupplier->increment('stock_po', $item['qty_diminta']);
                 }
             }
 
-            // Update PO - ubah status menjadi draft jika sebelumnya ditolak
+            // Update PO
             $updateData = [
                 'catatan_pemohon' => $request->catatan_pemohon,
                 'total_harga' => $total,
                 'grand_total' => $total + $po->pajak,
             ];
 
-            // Jika status sebelumnya ditolak, ubah menjadi draft
             if ($statusSebelum === 'ditolak') {
                 $updateData['status'] = 'draft';
             }
 
             $po->update($updateData);
 
-            // Deskripsi aksi untuk audit trail
             $deskripsiAksi = 'Mengupdate PO';
             if ($statusSebelum === 'ditolak') {
                 $deskripsiAksi .= ' (status berubah dari ditolak menjadi draft)';
             }
 
-            // Audit Trail
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,
@@ -387,7 +604,6 @@ class PurchaseOrderController extends Controller
             'pin' => 'required|size:6'
         ]);
 
-        // Verifikasi PIN
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
@@ -407,12 +623,18 @@ class PurchaseOrderController extends Controller
             // Reset stock_po jika eksternal
             if ($po->tipe_po === 'eksternal') {
                 foreach ($po->items as $item) {
-                    $produk = DetailSupplier::find($item->id_produk);
-                    $produk->decrement('stock_po', $item->qty_diminta);
+                    // ✅ Cari DetailSupplier yang tepat
+                    $detailSupplier = DetailSupplier::where(function ($q) use ($item) {
+                        $q->where('detail_obat_rs_id', $item->id_produk)
+                            ->orWhere('product_id', $item->id_produk);
+                    })->first();
+
+                    if ($detailSupplier) {
+                        $detailSupplier->decrement('stock_po', $item->qty_diminta);
+                    }
                 }
             }
 
-            // Audit Trail
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,

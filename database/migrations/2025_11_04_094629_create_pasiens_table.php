@@ -35,6 +35,7 @@ return new class extends Migration
             $table->string('no_polis_asuransi')->nullable();
             $table->string('foto')->nullable();
             $table->enum('status_aktif', ['Aktif', 'Nonaktif'])->default('Aktif');
+            $table->date('tanggal')->nullable();
             $table->timestamps();
 
             $table->index('no_rm');

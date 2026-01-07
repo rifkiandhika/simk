@@ -34,7 +34,7 @@ class PurchaseOrderItem extends Model
 
     public function produk()
     {
-        return $this->belongsTo(DetailSupplier::class, 'id_produk', 'id');
+        return $this->belongsTo(DetailSupplier::class, 'id_produk', 'product_id');
     }
 
     public function batches()

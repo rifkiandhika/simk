@@ -4,6 +4,7 @@ namespace App\Http\Controllers\backend;
 
 use App\Http\Controllers\Controller;
 use App\Models\DetailGudang;
+use App\Models\DetailobatRs;
 use App\Models\DetailstockApotik;
 use App\Models\DetailSupplier;
 use App\Models\Gudang;
@@ -138,7 +139,7 @@ class PoConfirmationController extends Controller
                     'qty_diminta' => $poItem->qty_diminta
                 ]);
 
-                $produk = DetailSupplier::find($poItem->id_produk);
+                $produk = DetailobatRs::find($poItem->id_produk);
 
                 if (!$produk) {
                     Log::error('Produk Not Found', ['id_produk' => $poItem->id_produk]);
@@ -347,7 +348,7 @@ class PoConfirmationController extends Controller
         }
 
         // Cek existing detail
-        $existingDetail = DetailstockApotik::where('obat_id', $poItem->id_produk)
+        $existingDetail = DetailstockApotik::where('detail_obat_rs_id', $poItem->id_produk)
             ->where('no_batch', $detailGudang->no_batch)
             ->first();
 
@@ -366,7 +367,7 @@ class PoConfirmationController extends Controller
             $newDetail = DetailstockApotik::create([
                 'id' => (string) Str::uuid(),
                 'stock_apotik_id' => $stockApotik->id,
-                'obat_id' => $poItem->id_produk,
+                'detail_obat_rs_id' => $poItem->id_produk,
                 'no_batch' => $detailGudang->no_batch,
                 'stock_apotik' => $qty,
                 'min_persediaan' => $produk->min_persediaan ?? 0,
@@ -409,7 +410,7 @@ class PoConfirmationController extends Controller
             Log::info('StockApotik Header Created for Retur', ['id' => $stockApotik->id]);
         }
 
-        $existingRetur = DetailstockApotik::where('obat_id', $poItem->id_produk)
+        $existingRetur = DetailstockApotik::where('detail_obat_rs_id', $poItem->id_produk)
             ->where('stock_apotik_id', $stockApotik->id)
             ->where('no_batch', $detailGudang->no_batch)
             ->first();
@@ -429,7 +430,7 @@ class PoConfirmationController extends Controller
             $newRetur = DetailstockApotik::create([
                 'id' => (string) Str::uuid(),
                 'stock_apotik_id' => $stockApotik->id,
-                'obat_id' => $poItem->id_produk,
+                'detail_obat_rs_id' => $poItem->id_produk,
                 'no_batch' => $detailGudang->no_batch,
                 'stock_apotik' => 0,
                 'retur' => $qty,

@@ -140,14 +140,26 @@
             @if(isset($gudang) && $gudang->details->count())
                 @foreach($gudang->details as $detail)
                     <tr data-id="{{ $detail->barang_id }}" data-type="{{ $detail->barang_type }}">
+                      @php
+                        if ($detail->barang_type === 'obat') {
+                            $barang = $detail->barangObat;
+                            $nama   = $barang->nama_obat_rs ?? '-';
+                            $jenis  = 'Obat';
+                            $exp    = $detail->tanggal_kadaluarsa ?? null;
+                        } else {
+                            $barang = $detail->barangSupplier;
+                            $nama   = $barang->nama ?? '-';
+                            $jenis  = ucfirst($detail->barang_type); // Alkes / Reagensia
+                            $exp    = $barang->exp_date ?? null;
+                        }
+                    @endphp
                         <td>
                             <input type="hidden" name="barang_id[]" value="{{ $detail->barang_id }}">
                             <input type="hidden" name="barang_type[]" value="{{ $detail->barang_type }}">
-                            <input type="text" class="form-control" 
-                                   value="{{ optional($detail->barang)->nama }}" readonly>
+                            <input type="text" class="form-control" value="{{ $nama }}" readonly>
                         </td>
-                        <td><input type="text" class="form-control" value="{{ optional($detail->barang)->jenis }}" readonly></td>
-                        <td><input type="date" class="form-control" value="{{ optional($detail->barang)->exp_date }}" readonly></td>
+                        <td><input type="text" class="form-control" value="{{ $jenis }}" readonly></td>
+                        <td><input type="date" class="form-control" value="{{ $exp }}" readonly></td>
                         <td><input type="text" name="no_batch[]" class="form-control" 
                                    value="{{ $detail->no_batch }}" placeholder="No Batch"></td>
                         <td><input type="number" name="stock_gudang[]" class="form-control" 
