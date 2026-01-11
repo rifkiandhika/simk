@@ -159,12 +159,8 @@
                             </label>
                             <select class="form-select" name="status_shipping" id="modalStatus" required>
                                 <option value="">-- Pilih Status --</option>
-                                <option value="persiapan">📦 Persiapan</option>
                                 <option value="dikemas">📮 Dikemas</option>
-                                <option value="dalam_perjalanan">🚚 Dalam Perjalanan</option>
-                                <option value="tiba_di_tujuan">📍 Tiba di Tujuan</option>
                                 <option value="diterima">✅ Diterima</option>
-                                <option value="selesai">🎉 Selesai</option>
                             </select>
                         </div>
                         

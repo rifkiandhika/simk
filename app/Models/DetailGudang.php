@@ -23,9 +23,18 @@ class DetailGudang extends Model
     }
 
     // Relasi khusus untuk Alkes/Reagensia/Lainnya (DetailSupplier)
+    public function alkes()
+    {
+        return $this->belongsTo(Alkes::class, 'barang_id', 'id');
+    }
+    public function reagensia()
+    {
+        return $this->belongsTo(Reagen::class, 'barang_id', 'id');
+    }
+
     public function barangSupplier()
     {
-        return $this->belongsTo(DetailSupplier::class, 'barang_id', 'id');
+        return $this->belongsTo(DetailSupplier::class, 'barang_id', 'detail_obat_rs_id');
     }
 
     // Accessor untuk mendapatkan nama barang

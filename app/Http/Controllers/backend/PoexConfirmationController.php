@@ -94,7 +94,7 @@ class PoexConfirmationController extends Controller
                 foreach ($itemData['batches'] as $batchData) {
                     PurchaseOrderItemBatch::create([
                         'id_po_item' => $item->id_po_item,
-                        'batch_number' => $batchData['batch_number'],
+                        'batch_number' => $batchData['batch_number'] ?? null,
                         'tanggal_kadaluarsa' => $batchData['tanggal_kadaluarsa'],
                         'qty_diterima' => $batchData['qty_diterima'],
                         'kondisi' => $batchData['kondisi'],
@@ -213,7 +213,7 @@ class PoexConfirmationController extends Controller
                         'gudang_id' => $gudang->id,
                         'barang_type' => 'obat',
                         'barang_id' => $item->id_produk,
-                        'no_batch' => $batch->batch_number,
+                        'no_batch' => $batch->batch_number ?? null,
                         'stock_gudang' => $batch->kondisi === 'baik' ? $batch->qty_diterima : 0,
                         'min_persediaan' => $produk->min_persediaan ?? 0,
                         'tanggal_masuk' => now(),

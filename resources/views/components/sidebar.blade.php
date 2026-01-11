@@ -45,6 +45,22 @@
     </li>
 
     {{-- Apotik --}}
+    <li class="treeview {{ Request::is('pasiens*') || Request::is('tagihans*')  ? 'active' : '' }}">
+      <a href="#!">
+        <i class="ri-heart-pulse-line"></i>
+        <span class="menu-text">Loket</span>
+      </a>
+      <ul class="treeview-menu">
+        <li class="{{ Request::is('pasiens') ? 'active' : '' }}">
+          <a href="{{ route('pasiens.index') }}">Registrasi Pasien</a>
+        </li>
+        <li class="{{ Request::is('tagihans') ? 'active' : '' }}">
+          <a href="{{ route('tagihans.index') }}">Tagihan Pasien</a>
+        </li>
+      </ul>
+    </li>
+
+    {{-- Apotik --}}
     <li class="treeview {{ Request::is('apotik*') || Request::is('stock_apotiks*') || Request::is('permintaans*') && request('from') == 'apotik' ? 'active' : '' }}">
       <a href="#!">
         <i class="ri-heart-pulse-line"></i>

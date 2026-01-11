@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -27,6 +28,11 @@ class Resep extends Model
         return $this->belongsTo(Pasien::class, 'pasien_id', 'id_pasien');
     }
 
+    public function tagihan()
+    {
+        return $this->hasOne(Tagihan::class, 'resep_id', 'id');
+    }
+
     /**
      * Relasi ke Ruangan
      */
@@ -41,6 +47,32 @@ class Resep extends Model
     public function user()
     {
         return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function verifiedBy()
+    {
+        return $this->belongsTo(User::class, 'verified_by');
+    }
+
+    public function dispensedBy()
+    {
+        return $this->belongsTo(User::class, 'dispensed_by');
+    }
+
+    // Scope untuk filter
+    public function scopePending($query)
+    {
+        return $query->where('status', 'menunggu');
+    }
+
+    public function scopeProses($query)
+    {
+        return $query->where('status', 'proses');
+    }
+
+    public function scopeSelesai($query)
+    {
+        return $query->where('status', 'selesai');
     }
 
     /**

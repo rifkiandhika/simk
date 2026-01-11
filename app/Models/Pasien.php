@@ -9,8 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Pasien extends Model
 {
-    use HasUuids, HasFactory;
+    use HasFactory;
     protected $table = 'pasiens';
+    protected $primaryKey = 'id_pasien';
+    public $incrementing = false;
+    protected $keyType = 'string';
     protected $guarded = [];
     protected $casts = [
         'tanggal_lahir' => 'date',
@@ -31,6 +34,18 @@ class Pasien extends Model
     public function reseps()
     {
         return $this->hasMany(Resep::class, 'pasien_id', 'id_pasien');
+    }
+
+    public function tagihans()
+    {
+        return $this->hasMany(Tagihan::class, 'id_pasien');
+    }
+
+    public function getTotalPiutangAttribute()
+    {
+        return $this->tagihans()
+            ->whereIn('status', ['BELUM_LUNAS', 'CICILAN'])
+            ->sum('sisa_tagihan');
     }
 
     /**

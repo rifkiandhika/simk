@@ -138,7 +138,7 @@ class GudangController extends Controller
     public function edit(Gudang $gudang)
     {
         $suppliers = Supplier::all();
-        $gudang->load(['details.barangObat', 'details.barangSupplier']);
+        $gudang->load(['details.barangObat', 'details.alkes', 'details.reagensia']);
         return view('gudang.edit', compact('gudang', 'suppliers'));
     }
 
@@ -368,53 +368,37 @@ class GudangController extends Controller
 
     public function detailsData($id)
     {
-        // Langsung load dengan relasi
         $details = DetailGudang::where('gudang_id', $id)
-            ->with(['barangObat', 'barangSupplier'])
+            ->with(['barangObat', 'alkes', 'reagensia'])
             ->get();
 
         return DataTables::of($details)
             ->addIndexColumn()
+
             ->addColumn('barang_nama', function ($detail) {
-                // Cek dari relasi yang sudah di-load
-                if ($detail->barangObat) {
-                    return $detail->barangObat->nama_obat_rs;
-                } elseif ($detail->barangSupplier) {
-                    return $detail->barangSupplier->nama;
-                }
-                return '-';
+                return match ($detail->barang_type) {
+                    'obat'       => $detail->barangObat->nama_obat_rs ?? '-',
+                    'alkes'      => $detail->alkes->nama_alkes ?? '-',
+                    'reagensia'  => $detail->reagensia->nama_reagensia ?? '-',
+                    default      => '-',
+                };
             })
-            ->addColumn('barang_jenis', function ($detail) {
-                // Tentukan jenis
-                if ($detail->barangObat) {
-                    return 'Obat';
-                } elseif ($detail->barangSupplier) {
-                    return $detail->barangSupplier->jenis;
-                }
-                return '-';
-            })
+
             ->editColumn('barang_type', function ($detail) {
-                $jenis = '-';
-
-                // Tentukan jenis untuk badge
-                if ($detail->barangObat) {
-                    $jenis = 'Obat';
-                } elseif ($detail->barangSupplier) {
-                    $jenis = $detail->barangSupplier->jenis;
-                }
-
                 $badges = [
-                    'Obat' => '<span class="badge bg-primary">Obat</span>',
-                    'Alkes' => '<span class="badge bg-success">Alkes</span>',
-                    'Reagensia' => '<span class="badge bg-warning text-dark">Reagensia</span>',
-                    'Lainnya' => '<span class="badge bg-secondary">Lainnya</span>',
+                    'obat'       => '<span class="badge bg-primary">Obat</span>',
+                    'alkes'      => '<span class="badge bg-success">Alkes</span>',
+                    'reagensia'  => '<span class="badge bg-warning text-dark">Reagensia</span>',
                 ];
 
-                return $badges[$jenis] ?? '<span class="badge bg-info">' . e($jenis) . '</span>';
+                return $badges[$detail->barang_type]
+                    ?? '<span class="badge bg-secondary">Lainnya</span>';
             })
+
             ->rawColumns(['barang_type'])
             ->make(true);
     }
+
 
     public function getDetailGudangByBarang($barangId, $barangType)
     {

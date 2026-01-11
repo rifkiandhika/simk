@@ -44,32 +44,13 @@
                                 <div class="flex-shrink-0">
                                     <div class="avatar-sm rounded-circle bg-primary bg-soft">
                                         <span class="avatar-title rounded-circle bg-primary bg-gradient">
-                                            <i class="ri-user-heart-line fs-4 text-white"></i>
+                                            <i class="ri-file-list-3-line fs-4 text-white"></i>
                                         </span>
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <p class="text-muted mb-1">Total Pasien Hari Ini</p>
-                                    <h4 class="mb-0">{{ $totalPasienHariIni ?? 0 }}</h4>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-3">
-                    <div class="card border-0 shadow-sm">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center">
-                                <div class="flex-shrink-0">
-                                    <div class="avatar-sm rounded-circle bg-success bg-soft">
-                                        <span class="avatar-title rounded-circle bg-success bg-gradient">
-                                            <i class="ri-file-text-line fs-4 text-white"></i>
-                                        </span>
-                                    </div>
-                                </div>
-                                <div class="flex-grow-1 ms-3">
-                                    <p class="text-muted mb-1">Resep Selesai</p>
-                                    <h4 class="mb-0">{{ $resepSelesai ?? 0 }}</h4>
+                                    <p class="text-muted mb-1">Total Resep Hari Ini</p>
+                                    <h4 class="mb-0">{{ $totalResepHariIni ?? 0 }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -87,7 +68,7 @@
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <p class="text-muted mb-1">Menunggu Proses</p>
+                                    <p class="text-muted mb-1">Menunggu Verifikasi</p>
                                     <h4 class="mb-0">{{ $resepMenunggu ?? 0 }}</h4>
                                 </div>
                             </div>
@@ -101,13 +82,32 @@
                                 <div class="flex-shrink-0">
                                     <div class="avatar-sm rounded-circle bg-info bg-soft">
                                         <span class="avatar-title rounded-circle bg-info bg-gradient">
-                                            <i class="ri-shopping-bag-line fs-4 text-white"></i>
+                                            <i class="ri-loader-4-line fs-4 text-white"></i>
                                         </span>
                                     </div>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
-                                    <p class="text-muted mb-1">Resep Luar</p>
-                                    <h4 class="mb-0">{{ $resepLuar ?? 0 }}</h4>
+                                    <p class="text-muted mb-1">Sedang Diproses</p>
+                                    <h4 class="mb-0">{{ $resepProses ?? 0 }}</h4>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="flex-shrink-0">
+                                    <div class="avatar-sm rounded-circle bg-success bg-soft">
+                                        <span class="avatar-title rounded-circle bg-success bg-gradient">
+                                            <i class="ri-checkbox-circle-line fs-4 text-white"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <p class="text-muted mb-1">Selesai</p>
+                                    <h4 class="mb-0">{{ $resepSelesai ?? 0 }}</h4>
                                 </div>
                             </div>
                         </div>
@@ -120,7 +120,7 @@
                 <div class="card-header bg-white py-3">
                     <div class="d-flex justify-content-between align-items-center">
                         <h5 class="mb-0">
-                            <i class="ri-user-line me-2"></i>Daftar Pasien Apotik
+                            <i class="ri-file-list-3-line me-2"></i>Daftar Resep
                         </h5>
                         <div class="d-flex gap-2">
                             <button class="btn btn-outline-success btn-sm" id="btnExport">
@@ -141,14 +141,15 @@
                                 <label class="form-label small fw-bold">Status Resep</label>
                                 <select class="form-select form-select-sm" name="status">
                                     <option value="">Semua Status</option>
-                                    <option value="menunggu" {{ request('status') == 'menunggu' ? 'selected' : '' }}>Menunggu</option>
-                                    <option value="proses" {{ request('status') == 'proses' ? 'selected' : '' }}>Diproses</option>
+                                    <option value="menunggu" {{ request('status') == 'menunggu' ? 'selected' : '' }}>Menunggu Verifikasi</option>
+                                    <option value="proses" {{ request('status') == 'proses' ? 'selected' : '' }}>Sedang Diproses</option>
                                     <option value="selesai" {{ request('status') == 'selesai' ? 'selected' : '' }}>Selesai</option>
+                                    <option value="batal" {{ request('status') == 'batal' ? 'selected' : '' }}>Dibatalkan</option>
                                 </select>
                             </div>
                             <div class="col-md-3">
                                 <label class="form-label small fw-bold">Pencarian</label>
-                                <input type="text" class="form-control form-control-sm" name="search" placeholder="No RM / Nama Pasien" value="{{ request('search') }}">
+                                <input type="text" class="form-control form-control-sm" name="search" placeholder="No Resep / No RM / Nama" value="{{ request('search') }}">
                             </div>
                             <div class="col-md-3 d-flex align-items-end gap-2">
                                 <button type="submit" class="btn btn-sm btn-primary">
@@ -167,75 +168,83 @@
                             <thead class="table-light">
                                 <tr>
                                     <th width="50">No</th>
+                                    <th>No Resep</th>
+                                    <th>Tanggal</th>
                                     <th>No RM</th>
                                     <th>Nama Pasien</th>
-                                    <th>Jenis Kelamin</th>
-                                    <th>Umur</th>
-                                    <th>Alamat</th>
                                     <th>Jenis Pembayaran</th>
-                                    <th>No Telp</th>
-                                    <th width="100" class="text-center">Action</th>
+                                    <th>Status Obat</th>
+                                    <th>Total</th>
+                                    <th>Status</th>
+                                    <th width="150" class="text-center">Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @php $rowNumber = $pasiens->firstItem(); @endphp
-                                @forelse($pasiens as $pasien)
+                                @php $rowNumber = $reseps->firstItem(); @endphp
+                                @forelse($reseps as $resep)
                                 <tr>
                                     <td class="text-center">{{ $rowNumber++ }}</td>
                                     <td>
-                                        <strong class="text-primary">{{ $pasien->no_rm }}</strong>
+                                        <strong class="text-primary">{{ $resep->no_resep }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ \Carbon\Carbon::parse($resep->tanggal_resep)->format('d/m/Y H:i') }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ $resep->pasien->no_rm ?? '-' }}</strong>
                                     </td>
                                     <td>
                                         <div class="d-flex align-items-center">
-                                            @if($pasien->foto)
-                                                <img src="{{ asset('storage/' . $pasien->foto) }}" alt="{{ $pasien->nama_lengkap }}" class="rounded-circle me-2" width="35" height="35">
+                                            @if($resep->pasien && $resep->pasien->foto)
+                                                <img src="{{ asset('storage/' . $resep->pasien->foto) }}" alt="{{ $resep->pasien->nama_lengkap }}" class="rounded-circle me-2" width="35" height="35">
                                             @else
                                                 <div class="avatar-sm rounded-circle bg-secondary me-2 d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
-                                                    <span class="text-white fw-bold">{{ strtoupper(substr($pasien->nama_lengkap, 0, 1)) }}</span>
+                                                    <span class="text-white fw-bold">{{ $resep->pasien ? strtoupper(substr($resep->pasien->nama_lengkap, 0, 1)) : '-' }}</span>
                                                 </div>
                                             @endif
                                             <div>
-                                                <strong>{{ $pasien->nama_lengkap }}</strong>
-                                                @if($pasien->nik)
-                                                    <br><small class="text-muted">NIK: {{ $pasien->nik }}</small>
+                                                <strong>{{ $resep->pasien->nama_lengkap ?? '-' }}</strong>
+                                                @if($resep->pasien && $resep->pasien->tanggal_lahir)
+                                                    <br><small class="text-muted">{{ \Carbon\Carbon::parse($resep->pasien->tanggal_lahir)->age }} tahun</small>
                                                 @endif
                                             </div>
                                         </div>
                                     </td>
-                                    <td class="text-center">
-                                        @if($pasien->jenis_kelamin == 'L')
-                                            <span class="badge bg-info">Laki-laki</span>
+                                    <td>
+                                        @if($resep->pasien)
+                                            @php
+                                                $badgeClass = match($resep->pasien->jenis_pembayaran) {
+                                                    'BPJS' => 'bg-success',
+                                                    'Asuransi' => 'bg-info',
+                                                    default => 'bg-secondary'
+                                                };
+                                            @endphp
+                                            <span class="badge {{ $badgeClass }}">{{ $resep->pasien->jenis_pembayaran }}</span>
                                         @else
-                                            <span class="badge bg-pink">Perempuan</span>
-                                        @endif
-                                    </td>
-                                    <td class="text-center">
-                                        @if($pasien->tanggal_lahir)
-                                            {{ \Carbon\Carbon::parse($pasien->tanggal_lahir)->age }} tahun
-                                        @else
-                                            <span class="text-muted">-</span>
+                                            <span class="badge bg-secondary">-</span>
                                         @endif
                                     </td>
                                     <td>
-                                        <small>{{ Str::limit($pasien->alamat, 40) ?? '-' }}</small>
+                                        <span class="badge {{ $resep->status_obat == 'Racik' ? 'bg-warning' : 'bg-info' }}">
+                                            {{ $resep->status_obat }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <strong class="text-success">Rp {{ number_format($resep->total_harga, 0, ',', '.') }}</strong>
                                     </td>
                                     <td>
                                         @php
-                                            $badgeClass = match($pasien->jenis_pembayaran) {
-                                                'BPJS' => 'bg-success',
-                                                'Asuransi' => 'bg-warning',
-                                                default => 'bg-secondary'
-                                            };
+                                            $statusConfig = [
+                                                'menunggu' => ['class' => 'bg-warning', 'icon' => 'ri-time-line', 'text' => 'Menunggu'],
+                                                'proses' => ['class' => 'bg-info', 'icon' => 'ri-loader-4-line', 'text' => 'Diproses'],
+                                                'selesai' => ['class' => 'bg-success', 'icon' => 'ri-checkbox-circle-line', 'text' => 'Selesai'],
+                                                'batal' => ['class' => 'bg-danger', 'icon' => 'ri-close-circle-line', 'text' => 'Dibatalkan'],
+                                            ];
+                                            $config = $statusConfig[$resep->status] ?? $statusConfig['menunggu'];
                                         @endphp
-                                        <span class="badge {{ $badgeClass }}">{{ $pasien->jenis_pembayaran }}</span>
-                                        @if($pasien->jenis_pembayaran == 'BPJS' && $pasien->no_bpjs)
-                                            <br><small class="text-muted">{{ $pasien->no_bpjs }}</small>
-                                        @elseif($pasien->jenis_pembayaran == 'Asuransi' && $pasien->asuransi)
-                                            <br><small class="text-muted">{{ $pasien->asuransi->nama_asuransi }}</small>
-                                        @endif
-                                    </td>
-                                    <td>
-                                        <small>{{ $pasien->no_telp ?? '-' }}</small>
+                                        <span class="badge {{ $config['class'] }}">
+                                            <i class="{{ $config['icon'] }} me-1"></i>{{ $config['text'] }}
+                                        </span>
                                     </td>
                                     <td class="text-center">
                                         <div class="btn-group">
@@ -243,32 +252,57 @@
                                                 <i class="ri-more-2-fill"></i>
                                             </button>
                                             <ul class="dropdown-menu dropdown-menu-end shadow">
-                                               <li>
-                                                    <button type="button" class="dropdown-item btn-resep" 
-                                                        data-pasien-id="{{ $pasien->id_pasien }}">
-                                                        <i class="ri-file-text-line me-2"></i>Buat Resep
+                                                <li>
+                                                    <button type="button" class="dropdown-item btn-detail-resep" 
+                                                        data-resep-id="{{ $resep->id }}">
+                                                        <i class="ri-eye-line me-2"></i>Detail Resep
                                                     </button>
                                                 </li>
+                                                
+                                                @if($resep->status == 'menunggu')
                                                 <li><hr class="dropdown-divider"></li>
                                                 <li>
-                                                    <a href="#" class="dropdown-item">
-                                                        <i class="ri-history-line me-2"></i>Riwayat Resep
-                                                    </a>
+                                                    <button type="button" class="dropdown-item text-success btn-verifikasi" 
+                                                        data-resep-id="{{ $resep->id }}">
+                                                        <i class="ri-checkbox-line me-2"></i>Verifikasi
+                                                    </button>
                                                 </li>
                                                 <li>
-                                                    <a href="#" class="dropdown-item">
-                                                        <i class="ri-eye-line me-2"></i>Detail Pasien
+                                                    <button type="button" class="dropdown-item text-danger btn-tolak" 
+                                                        data-resep-id="{{ $resep->id }}">
+                                                        <i class="ri-close-line me-2"></i>Tolak
+                                                    </button>
+                                                </li>
+                                                @endif
+
+                                                @if($resep->status == 'proses')
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <button type="button" class="dropdown-item text-primary btn-serahkan" 
+                                                        data-resep-id="{{ $resep->id }}">
+                                                        <i class="ri-hand-heart-line me-2"></i>Serahkan Obat
+                                                    </button>
+                                                </li>
+                                                @endif
+
+                                                @if($resep->status == 'selesai')
+                                                <li><hr class="dropdown-divider"></li>
+                                                <li>
+                                                    <a href="{{ route('apotik.print', $resep->id) }}" 
+                                                       class="dropdown-item" target="_blank">
+                                                        <i class="ri-printer-line me-2"></i>Print Bukti
                                                     </a>
                                                 </li>
+                                                @endif
                                             </ul>
                                         </div>
                                     </td>
                                 </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="9" class="text-center py-5">
-                                            <i class="ri-user-line ri-3x text-muted d-block mb-3"></i>
-                                            <p class="text-muted mb-0">Belum ada data pasien untuk hari ini</p>
+                                        <td colspan="10" class="text-center py-5">
+                                            <i class="ri-file-list-3-line ri-3x text-muted d-block mb-3"></i>
+                                            <p class="text-muted mb-0">Belum ada data resep</p>
                                         </td>
                                     </tr>
                                 @endforelse
@@ -277,15 +311,15 @@
                     </div>
 
                     {{-- Pagination --}}
-                    @if($pasiens->hasPages())
+                    @if($reseps->hasPages())
                     <div class="d-flex justify-content-between align-items-center mt-3">
                         <div>
                             <p class="text-muted mb-0 small">
-                                Menampilkan {{ $pasiens->firstItem() }} - {{ $pasiens->lastItem() }} dari {{ $pasiens->total() }} data
+                                Menampilkan {{ $reseps->firstItem() }} - {{ $reseps->lastItem() }} dari {{ $reseps->total() }} data
                             </p>
                         </div>
                         <div>
-                            {{ $pasiens->links() }}
+                            {{ $reseps->links() }}
                         </div>
                     </div>
                     @endif
@@ -295,9 +329,9 @@
     </div>
 </div>
 
-{{-- Include Modal Resep --}}
-@include('apotik.partials.modal_resep')
-{{-- @include('apotik.partials.modal_resep_luar') --}}
+{{-- Include Modal Detail & Verifikasi --}}
+@include('apotik.partials.modal_detail')
+@include('apotik.partials.modal_tolak')
 
 @endsection
 
@@ -312,9 +346,6 @@
     }
     .bg-soft {
         opacity: 0.1;
-    }
-    .bg-pink {
-        background-color: #e83e8c !important;
     }
     .table-hover tbody tr:hover {
         background-color: #f8f9fa;
@@ -336,88 +367,69 @@ $(document).ready(function() {
         $('#myTables').DataTable({
             responsive: true,
             pageLength: 25,
-            order: [[0, 'asc']],
+            order: [[2, 'desc']], // Sort by tanggal
             language: {
                 url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json'
             },
             columnDefs: [
-                { orderable: false, targets: [8] }
+                { orderable: false, targets: [9] }
             ]
         });
     }
     
-    // Button Resep - Fetch data via API
-    $(document).on('click', '.btn-resep', function() {
-        const pasienId = $(this).data('pasien-id');
-        const btnResep = $(this);
-        
-        // Disable button dan show loading
-        btnResep.prop('disabled', true);
-        btnResep.html('<span class="spinner-border spinner-border-sm me-1"></span>Loading...');
-        
-        // Show loading di modal jika sudah terbuka
-        Swal.fire({
-            title: 'Memuat Data Pasien...',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        // Fetch data pasien via AJAX
-        $.ajax({
-            url: `/apotik/get-pasien/${pasienId}`,
-            method: 'GET',
-            success: function(response) {
-                if (response.success) {
-                    const pasien = response.data;
-                    
-                    // Set data to modal
-                    setDataPasien(
-                        pasien.id,
-                        pasien.nama_lengkap,
-                        pasien.no_rm,
-                        pasien.jenis_pembayaran
-                    );
-                    
-                    // Close loading
-                    Swal.close();
-                    
-                    // Switch to Resep Tab
-                    $('#resep-tab').tab('show');
-                    
-                    // Show modal
-                    $('#modalResep').modal('show');
-                } else {
-                    Swal.fire('Error', response.message || 'Gagal memuat data pasien', 'error');
-                }
-            },
-            error: function(xhr) {
-                const errorMsg = xhr.responseJSON?.message || 'Terjadi kesalahan saat memuat data pasien';
-                Swal.fire('Error', errorMsg, 'error');
-            },
-            complete: function() {
-                // Re-enable button
-                btnResep.prop('disabled', false);
-                btnResep.html('<i class="ri-file-text-line me-2"></i>Buat Resep');
-            }
-        });
+    // Button Detail Resep
+    $(document).on('click', '.btn-detail-resep', function() {
+        const resepId = $(this).data('resep-id');
+        loadDetailResep(resepId);
     });
-    
-    // Button Resep Luar - Open Modal Tab Resep Luar
-    $('#btnResepLuar').on('click', function() {
-        // Switch to Resep Luar Tab
-        $('#resep-luar-tab').tab('show');
-        
-        // Show modal
-        $('#modalResep').modal('show');
+
+    // Button Verifikasi
+    $(document).on('click', '.btn-verifikasi', function() {
+        const resepId = $(this).data('resep-id');
+        verifikasiResep(resepId);
     });
-    
+
+    // Button Serahkan
+    $(document).on('click', '.btn-serahkan', function() {
+        const resepId = $(this).data('resep-id');
+        serahkanObat(resepId);
+    });
+
+    // Button Tolak
+    $(document).on('click', '.btn-tolak', function() {
+        const resepId = $(this).data('resep-id');
+        $('#resep_id_tolak').val(resepId);
+        $('#modalTolak').modal('show');
+    });
+
+    // Submit Tolak
+    $('#btnSubmitTolak').on('click', function() {
+        const resepId = $('#resep_id_tolak').val();
+        const reason = $('#rejection_reason').val();
+        
+        if (!reason) {
+            Swal.fire('Error', 'Alasan penolakan harus diisi', 'error');
+            return;
+        }
+        
+        tolakResep(resepId, reason);
+    });
+
     // Export button
     $('#btnExport').on('click', function() {
         Swal.fire({
             title: 'Export Data',
             text: 'Fitur export akan segera tersedia',
+            icon: 'info',
+            confirmButtonText: 'OK'
+        });
+    });
+
+    // Button Resep Luar
+    $('#btnResepLuar').on('click', function() {
+        Swal.fire({
+            title: 'Resep Luar',
+            text: 'Fitur resep luar akan segera tersedia',
             icon: 'info',
             confirmButtonText: 'OK'
         });
@@ -429,32 +441,328 @@ $(document).ready(function() {
     }, 5000);
 });
 
-// Fungsi untuk set data pasien ke modal
-function setDataPasien(pasienId, namaPasien, noRm, jenisPembayaran) {
-    $('#pasien_id').val(pasienId);
-    $('#pasien_nama_display').text(namaPasien);
-    $('#pasien_no_rm_display').text(noRm);
-    $('#jenis_pembayaran_pasien').val(jenisPembayaran);
-    
-    // Update badge jenis pembayaran
-    // let badgeClass = 'bg-secondary';
-    let badgeText = jenisPembayaran;
-    
-    if (jenisPembayaran) {
-        const pembayaran = jenisPembayaran.toLowerCase();
-        if (pembayaran === 'bpjs') {
-            // badgeClass = 'bg-success';
-        } else if (pembayaran === 'asuransi') {
-            // badgeClass = 'bg-warning';
-        } else if (pembayaran === 'umum') {
-            // badgeClass = 'bg-info';
+// Load detail resep
+function loadDetailResep(resepId) {
+    Swal.fire({
+        title: 'Memuat Data...',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
         }
-    }
+    });
+
+    $.ajax({
+        url: `/apotik/detail/${resepId}`,
+        method: 'GET',
+        success: function(response) {
+            if (response.success) {
+                populateDetailModal(response.data);
+                Swal.close();
+                $('#modalDetail').modal('show');
+            } else {
+                Swal.fire('Error', response.message, 'error');
+            }
+        },
+        error: function(xhr) {
+            Swal.fire('Error', 'Gagal memuat detail resep', 'error');
+        }
+    });
+}
+
+// Populate modal detail
+function populateDetailModal(data) {
+    const resep = data.resep;
+    const obatDetails = data.obat_details;
+    const allStockAvailable = data.all_stock_available;
+
+    // Set info resep
+    $('#detail_no_resep').text(resep.no_resep);
+    $('#detail_tanggal').text(formatDateTime(resep.tanggal_resep));
+    $('#detail_status').html(getStatusBadge(resep.status));
     
-    $('#jenis_pembayaran_display')
-        .removeClass('bg-info bg-success bg-warning bg-secondary')
-        // .addClass(badgeClass)
-        .text(badgeText || 'Umum');
+    // Set info pasien
+    $('#detail_no_rm').text(resep.pasien?.no_rm || '-');
+    $('#detail_nama_pasien').text(resep.pasien?.nama_lengkap || '-');
+    $('#detail_jenis_pembayaran').text(resep.pasien?.jenis_pembayaran || '-');
+
+    // Set info obat
+    $('#detail_status_obat').text(resep.status_obat);
+    if (resep.status_obat === 'Racik') {
+        $('#detail_racik_info').show();
+        $('#detail_jenis_racikan').text(resep.jenis_racikan || '-');
+        $('#detail_hasil_racikan').text(resep.hasil_racikan || '-');
+        $('#detail_dosis_signa').text(resep.dosis_signa || '-');
+        $('#detail_aturan_pakai').text(resep.aturan_pakai || '-');
+    } else {
+        $('#detail_racik_info').hide();
+    }
+
+    // Set daftar obat
+    let obatHtml = '';
+    obatDetails.forEach((obat, index) => {
+        const stockClass = obat.stock_cukup ? 'text-success' : 'text-danger';
+        const stockIcon = obat.stock_cukup ? 'ri-checkbox-circle-line' : 'ri-close-circle-line';
+        
+        obatHtml += `
+            <tr>
+                <td>${index + 1}</td>
+                <td>
+                    <strong>${obat.nama_obat}</strong><br>
+                    <small class="text-muted">${obat.judul || ''}</small>
+                </td>
+                <td>${obat.satuan}</td>
+                <td class="text-center">${obat.jumlah_diminta}</td>
+                <td class="text-center ${stockClass}">
+                    <i class="${stockIcon}"></i> ${obat.stock_tersedia}
+                </td>
+                <td class="text-end">Rp ${formatRupiah(obat.harga_satuan)}</td>
+                <td class="text-end"><strong>Rp ${formatRupiah(obat.subtotal)}</strong></td>
+            </tr>
+        `;
+    });
+    $('#tbody_detail_obat').html(obatHtml);
+
+    // Set total
+    $('#detail_embalase').text('Rp ' + formatRupiah(resep.embalase));
+    $('#detail_jasa_racik').text('Rp ' + formatRupiah(resep.jasa_racik));
+    $('#detail_total').text('Rp ' + formatRupiah(resep.total_harga));
+
+    // Set keterangan
+    $('#detail_keterangan').text(resep.keterangan || '-');
+
+    // Show/hide action buttons
+    $('#btn_verifikasi_modal').hide();
+    $('#btn_serahkan_modal').hide();
+    $('#stock_warning').hide();
+
+    if (resep.status === 'menunggu') {
+        if (allStockAvailable) {
+            $('#btn_verifikasi_modal').show().attr('data-resep-id', resep.id);
+        } else {
+            $('#stock_warning').show();
+        }
+    } else if (resep.status === 'proses') {
+        $('#btn_serahkan_modal').show().attr('data-resep-id', resep.id);
+    }
+}
+
+// Verifikasi resep
+function verifikasiResep(resepId) {
+    Swal.fire({
+        title: 'Verifikasi Resep',
+        text: 'Apakah Anda yakin ingin memverifikasi resep ini? Stock akan dicek terlebih dahulu.',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Verifikasi',
+        cancelButtonText: 'Batal'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `/apotik/verifikasi/${resepId}`,
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                beforeSend: function() {
+                    Swal.fire({
+                        title: 'Memverifikasi...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                },
+                success: function(response) {
+                    if (response.success) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: response.message
+                        }).then(() => {
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire('Error', response.message, 'error');
+                    }
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.message || 'Gagal memverifikasi resep';
+                    Swal.fire('Error', errorMsg, 'error');
+                }
+            });
+        }
+    });
+}
+
+// Serahkan obat
+function serahkanObat(resepId) {
+    Swal.fire({
+        title: 'Serahkan Obat',
+        html: `
+            <div class="text-center">
+                <p>Apakah Anda yakin ingin menyerahkan obat?</p>
+                <div class="alert alert-warning mb-2">
+                    <small><i class="ri-information-line me-1"></i>Stock akan otomatis berkurang</small>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <small><i class="ri-shield-check-line me-1"></i>Sistem akan memvalidasi status pembayaran</small>
+                </div>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Ya, Serahkan',
+        cancelButtonText: 'Batal',
+        confirmButtonColor: '#28a745'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $.ajax({
+                url: `/apotik/serahkan/${resepId}`,
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                beforeSend: function() {
+                    Swal.fire({
+                        title: 'Memproses...',
+                        html: 'Memeriksa pembayaran dan stock obat...',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+                },
+                success: function(response) {
+                    if (response.success) {
+                        let messageHtml = response.message;
+                        
+                        // Tambahkan info jika cicilan
+                        if (response.data && response.data.status_pembayaran === 'CICILAN') {
+                            messageHtml += `<br><br>
+                                <div class="alert alert-info mt-2 mb-0">
+                                    <small>
+                                        <i class="ri-information-line me-1"></i>
+                                        Status: <strong>CICILAN</strong><br>
+                                        Sisa Tagihan: <strong>Rp ${formatRupiah(response.data.sisa_tagihan)}</strong>
+                                    </small>
+                                </div>
+                            `;
+                        }
+                        
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil!',
+                            html: messageHtml,
+                            showCancelButton: true,
+                            confirmButtonText: '<i class="ri-printer-line me-1"></i>Print Bukti',
+                            cancelButtonText: 'Tutup'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                window.open(`/apotik/print/${resepId}`, '_blank');
+                            }
+                            location.reload();
+                        });
+                    } else {
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Gagal!',
+                            text: response.message
+                        });
+                    }
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.message || 'Gagal menyerahkan obat';
+                    
+                    // Tampilkan error yang lebih informatif
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Tidak Dapat Menyerahkan Obat',
+                        html: `
+                            <div class="text-start">
+                                <p>${errorMsg}</p>
+                                <div class="alert alert-warning mt-2 mb-0">
+                                    <small>
+                                        <i class="ri-error-warning-line me-1"></i>
+                                        Silakan hubungi bagian kasir untuk menyelesaikan pembayaran
+                                    </small>
+                                </div>
+                            </div>
+                        `,
+                        confirmButtonText: 'Mengerti'
+                    });
+                }
+            });
+        }
+    });
+}
+
+// Tolak resep
+function tolakResep(resepId, reason) {
+    $.ajax({
+        url: `/apotik/tolak/${resepId}`,
+        method: 'POST',
+        data: {
+            rejection_reason: reason
+        },
+        headers: {
+            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+        },
+        beforeSend: function() {
+            Swal.fire({
+                title: 'Menolak Resep...',
+                allowOutsideClick: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+        },
+        success: function(response) {
+            if (response.success) {
+                $('#modalTolak').modal('hide');
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: response.message
+                }).then(() => {
+                    location.reload();
+                });
+            } else {
+                Swal.fire('Error', response.message, 'error');
+            }
+        },
+        error: function(xhr) {
+            const errorMsg = xhr.responseJSON?.message || 'Gagal menolak resep';
+            Swal.fire('Error', errorMsg, 'error');
+        }
+    });
+}
+
+// Helper functions
+function formatRupiah(angka) {
+    return new Intl.NumberFormat('id-ID').format(angka);
+}
+
+function formatDateTime(datetime) {
+    const date = new Date(datetime);
+    return date.toLocaleDateString('id-ID', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function getStatusBadge(status) {
+    const config = {
+        'menunggu': { class: 'bg-warning', icon: 'ri-time-line', text: 'Menunggu' },
+        'proses': { class: 'bg-info', icon: 'ri-loader-4-line', text: 'Diproses' },
+        'selesai': { class: 'bg-success', icon: 'ri-checkbox-circle-line', text: 'Selesai' },
+        'batal': { class: 'bg-danger', icon: 'ri-close-circle-line', text: 'Dibatalkan' }
+    };
+    
+    const c = config[status] || config['menunggu'];
+    return `<span class="badge ${c.class}"><i class="${c.icon} me-1"></i>${c.text}</span>`;
 }
 </script>
 @endpush

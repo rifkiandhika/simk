@@ -8,6 +8,7 @@ use App\Http\Controllers\backend\PenjualanResepController;
 use App\Http\Controllers\backend\PurchaseOrderController;
 use App\Http\Controllers\backend\ReceivingController;
 use App\Http\Controllers\backend\ShippingController;
+use App\Http\Controllers\backend\TagihanPembayaranController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -59,3 +60,17 @@ Route::get('/obat/search', [ApiController::class, 'searchObat'])->name('api.obat
 Route::get('/alkes/search', [ApiController::class, 'searchAlkes'])->name('api.alkes.search');
 Route::get('/reagensia/search', [ApiController::class, 'searchReagensia'])->name('api.reagensia.search');
 Route::get('/supplier/{id}/search-products', [ApiController::class, 'searchSupplierProducts'])->name('api.search.products');
+
+Route::middleware(['auth:sanctum'])->group(function () {
+    // Pembayaran
+    Route::post('/tagihan/pembayaran', [TagihanPembayaranController::class, 'store']);
+    Route::delete('/tagihan/pembayaran/{id}', [TagihanPembayaranController::class, 'destroy']);
+
+    // Lock/Unlock
+    Route::post('/tagihan/{id}/lock', [TagihanPembayaranController::class, 'lock']);
+    Route::post('/tagihan/{id}/unlock', [TagihanPembayaranController::class, 'unlock'])
+        ->middleware('role:admin,supervisor_keuangan');
+
+    // Ringkasan
+    Route::get('/tagihan/{id}/ringkasan', [TagihanPembayaranController::class, 'show']);
+});

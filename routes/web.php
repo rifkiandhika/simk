@@ -14,6 +14,7 @@ use App\Http\Controllers\backend\LoginController;
 use App\Http\Controllers\backend\NotificationController;
 use App\Http\Controllers\backend\ObatMasterController;
 use App\Http\Controllers\backend\ObatrsController;
+use App\Http\Controllers\backend\PasienController;
 use App\Http\Controllers\backend\PenjualanBebasController;
 use App\Http\Controllers\backend\PenjualanResepController;
 use App\Http\Controllers\backend\PermintaanController;
@@ -27,6 +28,7 @@ use App\Http\Controllers\backend\SatuanController;
 use App\Http\Controllers\backend\ShippingController;
 use App\Http\Controllers\backend\StockapotikController;
 use App\Http\Controllers\backend\SupplierController;
+use App\Http\Controllers\backend\TagihanPasienController;
 use App\Http\Controllers\backend\TagihanPoController;
 use App\Http\Controllers\backend\UserController;
 use App\Models\PurchaseOrder;
@@ -75,46 +77,72 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // ========================================
+    // Pasien
+    // ========================================
+    Route::get('/pasien/generate-no-rm', [PasienController::class, 'generateNoRM'])->name('pasiens.generate-no-rm');
+    Route::resource('pasiens', PasienController::class)->parameters([
+        'pasien' => 'pasien:id_pasien'
+    ]);
+    Route::get('/pasien/get-stock-obat', [PasienController::class, 'getStockObat'])->name('pasiens.getStockObat');
+    Route::post('/pasien/store-resep', [PasienController::class, 'storeResep'])->name('pasiens.storeResep');
+    Route::get('/pasien/{pasien}/ajax', [PasienController::class, 'getPasienAjax']);
+    // ========================================
+    // Tagihan Pasien
+    // ========================================
+    Route::get('/tagihan/dashboard', [TagihanPasienController::class, 'dashboard'])
+        ->name('tagihans.dashboard');
+
+    // Tagihan CRUD
+    Route::resource('tagihans', TagihanPasienController::class);
+
+    // Payment Routes
+    Route::get('/tagihan/{id}/payment', [TagihanPasienController::class, 'payment'])
+        ->name('tagihans.payment');
+    Route::post('/tagihan/payment/store', [TagihanPasienController::class, 'storePayment'])
+        ->name('tagihans.payment.store');
+
+    // Print & Export
+    Route::get('/tagihan/{id}/print', [TagihanPasienController::class, 'print'])
+        ->name('tagihans.print');
+    Route::get('/tagihan/export/{format}', [TagihanPasienController::class, 'export'])
+        ->name('tagihans.export');
+    // ========================================
     // SYSTEM MANAGEMENT
     // ========================================
     Route::resource('users', UserController::class);
     Route::patch('users/{id}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::patch('users/{id}/reset-password', [UserController::class, 'resetPassword'])->name('users.reset-password');
-
     // ========================================
     // NOTIFICATIONS
     // ========================================
     Route::get('/notifications', [NotificationController::class, 'getNotifications']);
     Route::post('/notifications/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/auto-cancel', [NotificationController::class, 'autoCancelPendingPO']);
-
     // ========================================
     // ROLE PERMISSON
     // ========================================
     Route::resource('role-permissions', RolePermissionController::class);
     Route::post('role-permissions/assign', [RolePermissionController::class, 'assignRole'])->name('role-permissions.assign');
     Route::post('role-permissions/remove', [RolePermissionController::class, 'removeRole'])->name('role-permissions.remove');
-
     // ========================================
     // MASTER DATA
     // ========================================
-
     Route::resource('karyawans', KaryawanController::class);
     Route::resource('departments', DepartmentController::class);
     Route::resource('asuransis', AsuransiController::class);
-
+    Route::resource('reagens', ReagenController::class);
+    Route::resource('alkes', AlkesController::class);
+    Route::resource('jenis', JenisController::class);
+    Route::resource('satuans', SatuanController::class);
     // ========================================
-    // INVENTORY MANAGEMENT
+    // Supplier
     // ========================================
-
-    // Suppliers
     Route::resource('suppliers', SupplierController::class);
-
-    // Obat (Medicine)
+    // ========================================
+    // Obat
+    // ========================================
     Route::resource('obat-masters', ObatMasterController::class);
     Route::resource('obatrs', ObatrsController::class);
-
-    // Obat Detail Routes
     Route::prefix('obatrs/{obat}/detail/{detail}')->name('obat.detail.')->group(function () {
         Route::get('/edit', [DetailObatrsController::class, 'edit'])->name('edit');
         Route::post('/update-all', [DetailObatrsController::class, 'updateAll'])->name('update-all');
@@ -122,15 +150,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/sync-kfa/{idObatMaster}', [DetailObatrsController::class, 'syncKFA'])->name('sync-kfa');
         Route::get('/kfa-history', [DetailObatrsController::class, 'getKFAHistory'])->name('kfa-history');
     });
-
-    // Reagensia & Alkes
-    Route::resource('reagens', ReagenController::class);
-    Route::resource('alkes', AlkesController::class);
-
-    // Jenis & Satuan
-    Route::resource('jenis', JenisController::class);
-    Route::resource('satuans', SatuanController::class);
-
     // ========================================
     // GUDANG
     // ========================================
@@ -158,38 +177,30 @@ Route::middleware(['auth'])->group(function () {
     // ========================================
     Route::prefix('apotik')->name('apotik.')->middleware(['auth'])->group(function () {
         Route::get('/', [ApotikController::class, 'index'])->name('index');
-        Route::get('/get-pasien/{id}', [ApotikController::class, 'getPasienById'])->name('apotik.get-pasien');
-        Route::get('/get-stock-obat', [ApotikController::class, 'getStockObat'])->name('get-stock-obat');
-        Route::post('/store-resep', [ApotikController::class, 'storeResep'])->name('store-resep');
-        Route::post('/store-resep-luar', [ApotikController::class, 'storeResepLuar'])->name('store-resep-luar');
+        // Route::get('/get-pasien/{id}', [ApotikController::class, 'getPasienById'])->name('apotik.get-pasien');
+        // Route::get('/get-stock-obat', [ApotikController::class, 'getStockObat'])->name('get-stock-obat');
+        // Route::post('/store-resep', [ApotikController::class, 'storeResep'])->name('store-resep');
+        // Route::post('/store-resep-luar', [ApotikController::class, 'storeResepLuar'])->name('store-resep-luar');
+        // Route::get('/export', [ApotikController::class, 'export'])->name('export');
+        // Route::get('/riwayat-resep/{id_pasien}', [ApotikController::class, 'riwayatResep'])->name('riwayat-resep');
+        // Route::get('/detail-pasien/{id_pasien}', [ApotikController::class, 'detailPasien'])->name('detail-pasien');
+        // Route::patch('/update-status-resep/{id}', [ApotikController::class, 'updateStatusResep'])->name('update-status-resep');
+        // Route::get('/print-resep/{id}', [ApotikController::class, 'printResep'])->name('print-resep');
+        // Route::delete('/delete-resep/{id}', [ApotikController::class, 'deleteResep'])->name('delete-resep');
+        Route::get('/', [ApotikController::class, 'index'])->name('index');
+        Route::get('/detail/{resepId}', [ApotikController::class, 'getResepDetail'])->name('apotik.detail');
+        Route::post('/verifikasi/{resepId}', [ApotikController::class, 'verifikasi'])->name('verifikasi');
+        Route::post('/serahkan/{resepId}', [ApotikController::class, 'serahkan'])->name('serahkan');
+        Route::post('/tolak/{resepId}', [ApotikController::class, 'tolak'])->name('tolak');
+        Route::get('/print/{resepId}', [ApotikController::class, 'print'])->name('print');
         Route::get('/export', [ApotikController::class, 'export'])->name('export');
-        Route::get('/riwayat-resep/{id_pasien}', [ApotikController::class, 'riwayatResep'])->name('riwayat-resep');
-        Route::get('/detail-pasien/{id_pasien}', [ApotikController::class, 'detailPasien'])->name('detail-pasien');
-        Route::patch('/update-status-resep/{id}', [ApotikController::class, 'updateStatusResep'])->name('update-status-resep');
-        Route::get('/print-resep/{id}', [ApotikController::class, 'printResep'])->name('print-resep');
-        Route::delete('/delete-resep/{id}', [ApotikController::class, 'deleteResep'])->name('delete-resep');
+
+        // Resep Luar tetap ada
+        Route::post('/store-resep-luar', [ApotikController::class, 'storeResepLuar'])->name('storeResepLuar');
     });
-    Route::prefix('penjualan-bebas')->name('penjualan_bebas.')->group(function () {
-        Route::get('/', [PenjualanBebasController::class, 'index'])->name('index');
-        Route::get('/create', [PenjualanBebasController::class, 'create'])->name('create');
-        Route::get('/{id}', [PenjualanBebasController::class, 'show'])->name('show');
-        Route::get('/{id}/print', [PenjualanBebasController::class, 'print'])->name('print');
-        Route::post('/store', [PenjualanBebasController::class, 'store'])->name('store');
-        Route::delete('/{id}', [PenjualanBebasController::class, 'destroy'])->name('destroy');
-        Route::get('/api/search-obat', [PenjualanBebasController::class, 'searchObat'])->name('search.obat');
-        Route::get('/api/history', [PenjualanBebasController::class, 'history'])->name('history');
-    });
-    Route::prefix('penjualan-resep')->name('penjualan_resep.')->group(function () {
-        Route::get('/', [PenjualanResepController::class, 'index'])->name('index');
-        Route::get('/create', [PenjualanResepController::class, 'create'])->name('create');
-        Route::get('/{id}', [PenjualanResepController::class, 'show'])->name('show');
-        Route::get('/{id}/print', [PenjualanResepController::class, 'print'])->name('print');
-        Route::post('/store', [PenjualanResepController::class, 'store'])->name('store');
-        Route::put('/{id}/status', [PenjualanResepController::class, 'updateStatus'])->name('update.status');
-        Route::delete('/{id}', [PenjualanResepController::class, 'destroy'])->name('destroy');
-        Route::get('/api/search-obat', [PenjualanResepController::class, 'searchObat'])->name('search.obat');
-        Route::get('/api/history', [PenjualanResepController::class, 'history'])->name('history');
-    });
+    // ========================================
+    // STOCK APOTIK
+    // ========================================
     Route::resource('stock_apotiks', StockapotikController::class);
     Route::get('/stock-apotik/supplier/{supplierId}/details', [StockapotikController::class, 'getSupplierProducts']);
     Route::get('/stock-apotik/gudang/{gudangId}/details', [StockApotikController::class, 'getGudangDetails'])
@@ -226,8 +237,6 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/po/{id_po}/store-invoice', [PoexConfirmationController::class, 'storeInvoice'])
             ->name('store-invoice');
     });
-
-
     // ========================================
     // Tagihan
     // ========================================
@@ -241,8 +250,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/payment/{id_pembayaran}/download', [TagihanPoController::class, 'downloadBukti'])->name('payment.download');
         Route::get('/{id_tagihan}/print', [TagihanPoController::class, 'print'])->name('print');
     });
-
-
     // ========================================
     // SHIPPING
     // ========================================

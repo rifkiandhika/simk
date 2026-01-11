@@ -80,9 +80,8 @@
                 </div>
             </div>
 
-            {{-- ===== TEMPAT 1: BUTTON KONFIRMASI PENERIMAAN ===== --}}
+            {{-- Confirmation Receipt Card for Internal PO --}}
             @if($po->tipe_po === 'internal' && $po->status === 'diterima' && !$po->tanggal_diterima)
-            <!-- Confirmation Receipt Card -->
             <div class="card shadow-sm border-0 mb-4 border-warning" style="border-width: 2px !important;">
                 <div class="card-header bg-warning py-3">
                     <h5 class="mb-0">
@@ -129,7 +128,7 @@
             </div>
             @endif
 
-            {{-- Status jika sudah diterima --}}
+            {{-- Status jika sudah diterima (Internal) --}}
             @if($po->tipe_po === 'internal' && $po->status === 'selesai')
             <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
                 <div class="d-flex align-items-start">
@@ -158,329 +157,328 @@
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             </div>
             @endif
+
+            {{-- Confirmation Receipt Card for External PO --}}
             @if($po->tipe_po === 'eksternal' && $po->status === 'diterima' )
-                <!-- Confirmation Receipt Card for External PO -->
-                <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
-                    <div class="card-header bg-success text-white py-3">
-                        <h5 class="mb-0">
-                            <i class="ri-inbox-line me-2"></i>Konfirmasi Penerimaan Barang dari Supplier
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-success mb-3">
-                            <div class="d-flex align-items-start">
-                                <i class="ri-truck-line me-2 fs-4"></i>
-                                <div>
-                                    <strong>Barang Sudah Tiba!</strong> Barang dari supplier <strong>{{ $po->supplier->nama_supplier ?? '-' }}</strong> telah sampai. 
-                                    Silakan lakukan pengecekan dan konfirmasi penerimaan untuk menambahkan stok ke gudang.
-                                </div>
+            <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
+                <div class="card-header bg-success text-white py-3">
+                    <h5 class="mb-0">
+                        <i class="ri-inbox-line me-2"></i>Konfirmasi Penerimaan Barang dari Supplier
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="ri-truck-line me-2 fs-4"></i>
+                            <div>
+                                <strong>Barang Sudah Tiba!</strong> Barang dari supplier <strong>{{ $po->supplier->nama_supplier ?? '-' }}</strong> telah sampai. 
+                                Silakan lakukan pengecekan dan konfirmasi penerimaan untuk menambahkan stok ke gudang.
                             </div>
                         </div>
-                        
-                        <div class="row align-items-center">
-                            <div class="col-md-8">
-                                <div class="mb-2">
-                                    <i class="ri-store-line me-2 text-success"></i>
-                                    <strong>Supplier:</strong> {{ $po->supplier->nama_supplier ?? '-' }}
-                                </div>
-                                <div class="mb-2">
-                                    <i class="ri-box-3-line me-2 text-success"></i>
-                                    <strong>Total Item:</strong> {{ $po->items->count() }} produk
-                                </div>
-                                <div class="mb-2">
-                                    <i class="ri-stack-line me-2 text-success"></i>
-                                    <strong>Total Quantity:</strong> {{ $po->items->sum('qty_diminta') }} unit
-                                </div>
-                                @php
-                                    $lastShipping = $po->shippingActivities()
-                                        ->whereIn('status_shipping', ['diterima', 'selesai'])
-                                        ->latest('tanggal_aktivitas')
-                                        ->first();
-                                @endphp
-                                @if($lastShipping)
-                                <div class="mb-0">
-                                    <i class="ri-calendar-check-line me-2 text-success"></i>
-                                    <strong>Tiba pada:</strong> {{ $lastShipping->tanggal_aktivitas->format('d/m/Y H:i') }}
-                                    @if($lastShipping->karyawan)
-                                        <br><small class="text-muted ms-4">Dicatat oleh: {{ $lastShipping->karyawan->nama_lengkap }}</small>
-                                    @endif
-                                </div>
+                    </div>
+                    
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="mb-2">
+                                <i class="ri-store-line me-2 text-success"></i>
+                                <strong>Supplier:</strong> {{ $po->supplier->nama_supplier ?? '-' }}
+                            </div>
+                            <div class="mb-2">
+                                <i class="ri-box-3-line me-2 text-success"></i>
+                                <strong>Total Item:</strong> {{ $po->items->count() }} produk
+                            </div>
+                            <div class="mb-2">
+                                <i class="ri-stack-line me-2 text-success"></i>
+                                <strong>Total Quantity:</strong> {{ $po->items->sum('qty_diminta') }} unit
+                            </div>
+                            @php
+                                $lastShipping = $po->shippingActivities()
+                                    ->whereIn('status_shipping', ['diterima', 'selesai'])
+                                    ->latest('tanggal_aktivitas')
+                                    ->first();
+                            @endphp
+                            @if($lastShipping)
+                            <div class="mb-0">
+                                <i class="ri-calendar-check-line me-2 text-success"></i>
+                                <strong>Tiba pada:</strong> {{ $lastShipping->tanggal_aktivitas->format('d/m/Y H:i') }}
+                                @if($lastShipping->karyawan)
+                                    <br><small class="text-muted ms-4">Dicatat oleh: {{ $lastShipping->karyawan->nama_lengkap }}</small>
                                 @endif
                             </div>
-                            <div class="col-md-4 text-end">
-                                <a href="{{ route('po.showex-confirmation', $po->id_po) }}" class="btn btn-success btn-lg w-100">
-                                    <i class="ri-checkbox-multiple-line me-2"></i>
-                                    Konfirmasi Penerimaan
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                @endif
-
-                {{-- Status jika sudah diterima (EKSTERNAL) --}}
-                @if($po->tipe_po === 'eksternal' && $po->status === 'selesai')
-                <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
-                    <div class="d-flex align-items-start">
-                        <i class="ri-check-double-line me-3 fs-3"></i>
-                        <div class="flex-grow-1">
-                            <h6 class="alert-heading mb-2"><strong>Penerimaan Dikonfirmasi</strong></h6>
-                            <p class="mb-1">
-                                Barang dari supplier <strong>{{ $po->supplier->nama_supplier ?? '-' }}</strong> telah diterima dan stok gudang telah diupdate pada 
-                                <strong>{{ $po->tanggal_diterima ? \Carbon\Carbon::parse($po->tanggal_diterima)->format('d/m/Y H:i') : '-' }}</strong>
-                            </p>
-                            @if($po->penerima)
-                                <small class="text-muted d-block mb-2">
-                                    <i class="ri-user-line me-1"></i>Dikonfirmasi oleh: <strong>{{ $po->penerima->nama_lengkap }}</strong>
-                                </small>
-                            @endif
-                            @if($po->catatan_penerima)
-                                <div class="mt-2 p-2 bg-white rounded border">
-                                    <small>
-                                        <i class="ri-chat-3-line me-1 text-muted"></i>
-                                        <strong>Catatan:</strong> {{ $po->catatan_penerima }}
-                                    </small>
-                                </div>
                             @endif
                         </div>
-                    </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                </div>
-                @endif
-
-                @if($po->needsInvoice())
-                    <!-- Invoice Input Card -->
-                    <div class="card shadow-sm border-0 mb-4 border-info" style="border-width: 2px !important;">
-                        <div class="card-header bg-info text-white py-3">
-                            <h5 class="mb-0">
-                                <i class="ri-file-text-line me-2"></i>Input Invoice/Faktur Supplier
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            <div class="alert alert-info mb-3">
-                                <div class="d-flex align-items-start">
-                                    <i class="ri-information-line me-2 fs-4"></i>
-                                    <div>
-                                        <strong>Tukar Faktur:</strong> Barang sudah diterima (GR: <strong>{{ $po->no_gr }}</strong>).
-                                        Silakan input nomor invoice/faktur dari supplier untuk melanjutkan ke proses pembayaran.
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="row align-items-center">
-                                <div class="col-md-8">
-                                    <div class="mb-2">
-                                        <i class="ri-check-double-line me-2 text-success"></i>
-                                        <strong>Status:</strong> Barang sudah diterima dan diperiksa
-                                    </div>
-                                    <div class="mb-2">
-                                        <i class="ri-checkbox-circle-line me-2 text-success"></i>
-                                        <strong>No. GR:</strong> <span class="badge bg-primary">{{ $po->no_gr }}</span>
-                                    </div>
-                                    <div class="mb-2">
-                                        <i class="ri-calendar-check-line me-2 text-info"></i>
-                                        <strong>Tanggal Diterima: {{ $po->tanggal_diterima ? \Carbon\Carbon::parse($po->tanggal_diterima)->format('d/m/Y H:i') : '-' }}</strong>
-                                    </div>
-                                    <div class="mb-0">
-                                        <i class="ri-money-dollar-circle-line me-2 text-info"></i>
-                                        <strong>Grand Total:</strong> Rp {{ number_format($po->grand_total, 0, ',', '.') }}
-                                    </div>
-                                </div>
-                                <div class="col-md-4 text-end">
-                                    <a href="{{ route('po.invoice-form', $po->id_po) }}" class="btn btn-info btn-lg w-100">
-                                        <i class="ri-file-add-line me-2"></i>
-                                        Input Invoice/Faktur
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    @endif
-
-                    {{-- ===== STATUS JIKA SUDAH ADA INVOICE ===== --}}
-                    @if($po->hasInvoice())
-                    <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
-                        <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
-                            <h5 class="mb-0">
-                                <i class="ri-file-check-line me-2"></i>Invoice/Faktur Supplier
-                            </h5>
-
-                            <a href="{{ route('po.print-invoice', $po->id_po) }}" 
-                            class="btn btn-light btn-sm"
-                            target="_blank">
-                                <i class="ri-printer-line me-1"></i> Print Invoice
+                        <div class="col-md-4 text-end">
+                            <a href="{{ route('po.showex-confirmation', $po->id_po) }}" class="btn btn-success btn-lg w-100">
+                                <i class="ri-checkbox-multiple-line me-2"></i>
+                                Konfirmasi Penerimaan
                             </a>
                         </div>
-                        <div class="card-body">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td width="150"><strong>No. Invoice</strong></td>
-                                            <td>: <span class="badge bg-success">{{ $po->no_invoice }}</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Tanggal Invoice</strong></td>
-                                            <td>: {{ \Carbon\Carbon::parse($po->tanggal_invoice)->format('d/m/Y') }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Jatuh Tempo</strong></td>
-                                            <td>: 
-                                                @php
-                                                    $dueDate = \Carbon\Carbon::parse($po->tanggal_jatuh_tempo);
-                                                    $today = \Carbon\Carbon::today();
-                                                    $daysLeft = $today->diffInDays($dueDate, false);
-                                                @endphp
-                                                <strong class="{{ $daysLeft < 0 ? 'text-danger' : ($daysLeft <= 3 ? 'text-warning' : 'text-success') }}">
-                                                    {{ $dueDate->format('d/m/Y') }}
-                                                    @if($daysLeft < 0)
-                                                        (Terlambat {{ abs($daysLeft) }} hari)
-                                                    @elseif($daysLeft == 0)
-                                                        (Jatuh tempo hari ini!)
-                                                    @else
-                                                        ({{ $daysLeft }} hari lagi)
-                                                    @endif
-                                                </strong>
-                                            </td>
-                                        </tr>
-                                        @if($po->nomor_faktur_pajak)
-                                        <tr>
-                                            <td><strong>Faktur Pajak</strong></td>
-                                            <td>: {{ $po->nomor_faktur_pajak }}</td>
-                                        </tr>
-                                        @endif
-                                    </table>
-                                </div>
-                                <div class="col-md-6">
-                                    <table class="table table-sm table-borderless">
-                                        <tr>
-                                            <td width="150"><strong>No. GR</strong></td>
-                                            <td>: <span class="badge bg-primary">{{ $po->no_gr }}</span></td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Grand Total</strong></td>
-                                            <td>: <strong class="text-success">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</strong></td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Diinput oleh</strong></td>
-                                            <td>: {{ $po->karyawanInputInvoice->nama_lengkap ?? '-' }}</td>
-                                        </tr>
-                                        <tr>
-                                            <td><strong>Tanggal Input</strong></td>
-                                            <td>: {{ $po->tanggal_input_invoice ? \Carbon\Carbon::parse($po->tanggal_input_invoice)->format('d/m/Y H:i') : '-' }}</td>
-                                        </tr>
-                                    </table>
-                                </div>
-                            </div>
-                            
-                            @if($daysLeft <= 3 && $daysLeft >= 0)
-                            <div class="alert alert-warning mt-3 mb-0">
-                                <i class="ri-time-line me-2"></i>
-                                <strong>Perhatian:</strong> Invoice akan jatuh tempo dalam {{ $daysLeft }} hari. Segera lakukan pembayaran!
-                            </div>
-                            @elseif($daysLeft < 0)
-                            <div class="alert alert-danger mt-3 mb-0">
-                                <i class="ri-error-warning-line me-2"></i>
-                                <strong>Terlambat!</strong> Invoice sudah melewati jatuh tempo {{ abs($daysLeft) }} hari. Segera lakukan pembayaran!
-                            </div>
-                            @endif
-                        </div>
                     </div>
-                    @endif
+                </div>
+            </div>
+            @endif
 
-                    @if($po->status === 'diterima' && $po->items->first() && $po->items->first()->batches->count() > 0)
-                    <!-- Items Table with Batch Details -->
-                    <div class="card shadow-sm border-0 mb-4">
-                        <div class="card-header bg-white py-3">
-                            <h5 class="mb-0"><i class="ri-shopping-cart-line me-2"></i>Item Purchase Order & Batch Details</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-hover mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th width="50">No</th>
-                                            <th>Nama Produk</th>
-                                            <th width="100">Qty Diminta</th>
-                                            <th width="100">Qty Diterima</th>
-                                            <th width="150">Batch Details</th>
-                                            <th width="120" class="text-end">Harga</th>
-                                            <th width="150" class="text-end">Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach($po->items as $index => $item)
-                                        <tr>
-                                            <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
-                                                {{ $index + 1 }}
-                                            </td>
-                                            <td rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
-                                                <strong>{{ $item->nama_produk }}</strong>
-                                            </td>
-                                            <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
-                                                <span class="badge bg-secondary">{{ $item->qty_diminta }}</span>
-                                            </td>
-                                            <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
-                                                <span class="badge bg-success">{{ $item->qty_diterima }}</span>
-                                            </td>
-                                            <td colspan="3" class="bg-light">
-                                                <small class="text-muted"><strong>Detail Batch:</strong></small>
-                                            </td>
-                                        </tr>
-                                        @foreach($item->batches as $batch)
-                                        <tr class="batch-detail-row">
-                                            <td>
-                                                <small>
-                                                    <i class="ri-stack-line me-1"></i>
-                                                    <strong>{{ $batch->batch_number }}</strong>
-                                                    <br>
-                                                    <span class="text-muted">Exp: {{ \Carbon\Carbon::parse($batch->tanggal_kadaluarsa)->format('d/m/Y') }}</span>
-                                                    <br>
-                                                    @if($batch->kondisi === 'baik')
-                                                        <span class="badge badge-sm bg-success">{{ ucfirst($batch->kondisi) }}</span>
-                                                    @elseif($batch->kondisi === 'rusak')
-                                                        <span class="badge badge-sm bg-danger">{{ ucfirst($batch->kondisi) }}</span>
-                                                    @else
-                                                        <span class="badge badge-sm bg-warning text-dark">{{ ucfirst($batch->kondisi) }}</span>
-                                                    @endif
-                                                    @if($batch->catatan)
-                                                        <br><small class="text-muted">Note: {{ $batch->catatan }}</small>
-                                                    @endif
-                                                </small>
-                                            </td>
-                                            <td class="text-end">
-                                                <small>Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</small>
-                                                <br><small class="text-muted">× {{ $batch->qty_diterima }}</small>
-                                            </td>
-                                            <td class="text-end">
-                                                <small>Rp {{ number_format($item->harga_satuan * $batch->qty_diterima, 0, ',', '.') }}</small>
-                                            </td>
-                                        </tr>
-                                        @endforeach
-                                        @endforeach
-                                    </tbody>
-                                    <tfoot class="table-light">
-                                        <tr>
-                                            <th colspan="6" class="text-end">Subtotal:</th>
-                                            <th class="text-end">Rp {{ number_format($po->total_harga, 0, ',', '.') }}</th>
-                                        </tr>
-                                        @if($po->pajak > 0)
-                                        <tr>
-                                            <th colspan="6" class="text-end">Pajak:</th>
-                                            <th class="text-end">Rp {{ number_format($po->pajak, 0, ',', '.') }}</th>
-                                        </tr>
-                                        @endif
-                                        <tr class="table-primary">
-                                            <th colspan="6" class="text-end">Grand Total:</th>
-                                            <th class="text-end">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
+            {{-- Status jika sudah diterima (External) --}}
+            @if($po->tipe_po === 'eksternal' && $po->status === 'selesai')
+            <div class="alert alert-success alert-dismissible fade show mb-4" role="alert">
+                <div class="d-flex align-items-start">
+                    <i class="ri-check-double-line me-3 fs-3"></i>
+                    <div class="flex-grow-1">
+                        <h6 class="alert-heading mb-2"><strong>Penerimaan Dikonfirmasi</strong></h6>
+                        <p class="mb-1">
+                            Barang dari supplier <strong>{{ $po->supplier->nama_supplier ?? '-' }}</strong> telah diterima dan stok gudang telah diupdate pada 
+                            <strong>{{ $po->tanggal_diterima ? \Carbon\Carbon::parse($po->tanggal_diterima)->format('d/m/Y H:i') : '-' }}</strong>
+                        </p>
+                        @if($po->penerima)
+                            <small class="text-muted d-block mb-2">
+                                <i class="ri-user-line me-1"></i>Dikonfirmasi oleh: <strong>{{ $po->penerima->nama_lengkap }}</strong>
+                            </small>
+                        @endif
+                        @if($po->catatan_penerima)
+                            <div class="mt-2 p-2 bg-white rounded border">
+                                <small>
+                                    <i class="ri-chat-3-line me-1 text-muted"></i>
+                                    <strong>Catatan:</strong> {{ $po->catatan_penerima }}
+                                </small>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            @endif
+
+            {{-- Invoice Input Card --}}
+            @if($po->needsInvoice())
+            <div class="card shadow-sm border-0 mb-4 border-info" style="border-width: 2px !important;">
+                <div class="card-header bg-info text-white py-3">
+                    <h5 class="mb-0">
+                        <i class="ri-file-text-line me-2"></i>Input Invoice/Faktur Supplier
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-3">
+                        <div class="d-flex align-items-start">
+                            <i class="ri-information-line me-2 fs-4"></i>
+                            <div>
+                                <strong>Tukar Faktur:</strong> Barang sudah diterima (GR: <strong>{{ $po->no_gr }}</strong>).
+                                Silakan input nomor invoice/faktur dari supplier untuk melanjutkan ke proses pembayaran.
                             </div>
                         </div>
                     </div>
+                    
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="mb-2">
+                                <i class="ri-check-double-line me-2 text-success"></i>
+                                <strong>Status:</strong> Barang sudah diterima dan diperiksa
+                            </div>
+                            <div class="mb-2">
+                                <i class="ri-checkbox-circle-line me-2 text-success"></i>
+                                <strong>No. GR:</strong> <span class="badge bg-primary">{{ $po->no_gr }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <i class="ri-calendar-check-line me-2 text-info"></i>
+                                <strong>Tanggal Diterima: {{ $po->tanggal_diterima ? \Carbon\Carbon::parse($po->tanggal_diterima)->format('d/m/Y H:i') : '-' }}</strong>
+                            </div>
+                            <div class="mb-0">
+                                <i class="ri-money-dollar-circle-line me-2 text-info"></i>
+                                <strong>Grand Total:</strong> Rp {{ number_format($po->grand_total, 0, ',', '.') }}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{{ route('po.invoice-form', $po->id_po) }}" class="btn btn-info btn-lg w-100">
+                                <i class="ri-file-add-line me-2"></i>
+                                Input Invoice/Faktur
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            @endif
+
+            {{-- Invoice Display Card --}}
+            @if($po->hasInvoice())
+            <div class="card shadow-sm border-0 mb-4 border-success" style="border-width: 2px !important;">
+                <div class="card-header bg-success text-white py-3 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="ri-file-check-line me-2"></i>Invoice/Faktur Supplier
+                    </h5>
+                    <a href="{{ route('po.print-invoice', $po->id_po) }}" 
+                       class="btn btn-light btn-sm"
+                       target="_blank">
+                        <i class="ri-printer-line me-1"></i> Print Invoice
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td width="150"><strong>No. Invoice</strong></td>
+                                    <td>: <span class="badge bg-success">{{ $po->no_invoice }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tanggal Invoice</strong></td>
+                                    <td>: {{ \Carbon\Carbon::parse($po->tanggal_invoice)->format('d/m/Y') }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Jatuh Tempo</strong></td>
+                                    <td>: 
+                                        @php
+                                            $dueDate = \Carbon\Carbon::parse($po->tanggal_jatuh_tempo);
+                                            $today = \Carbon\Carbon::today();
+                                            $daysLeft = $today->diffInDays($dueDate, false);
+                                        @endphp
+                                        <strong class="{{ $daysLeft < 0 ? 'text-danger' : ($daysLeft <= 3 ? 'text-warning' : 'text-success') }}">
+                                            {{ $dueDate->format('d/m/Y') }}
+                                            @if($daysLeft < 0)
+                                                (Terlambat {{ abs($daysLeft) }} hari)
+                                            @elseif($daysLeft == 0)
+                                                (Jatuh tempo hari ini!)
+                                            @else
+                                                ({{ $daysLeft }} hari lagi)
+                                            @endif
+                                        </strong>
+                                    </td>
+                                </tr>
+                                @if($po->nomor_faktur_pajak)
+                                <tr>
+                                    <td><strong>Faktur Pajak</strong></td>
+                                    <td>: {{ $po->nomor_faktur_pajak }}</td>
+                                </tr>
+                                @endif
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm table-borderless">
+                                <tr>
+                                    <td width="150"><strong>No. GR</strong></td>
+                                    <td>: <span class="badge bg-primary">{{ $po->no_gr }}</span></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Grand Total</strong></td>
+                                    <td>: <strong class="text-success">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Diinput oleh</strong></td>
+                                    <td>: {{ $po->karyawanInputInvoice->nama_lengkap ?? '-' }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Tanggal Input</strong></td>
+                                    <td>: {{ $po->tanggal_input_invoice ? \Carbon\Carbon::parse($po->tanggal_input_invoice)->format('d/m/Y H:i') : '-' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    @if($daysLeft <= 3 && $daysLeft >= 0)
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <i class="ri-time-line me-2"></i>
+                        <strong>Perhatian:</strong> Invoice akan jatuh tempo dalam {{ $daysLeft }} hari. Segera lakukan pembayaran!
+                    </div>
+                    @elseif($daysLeft < 0)
+                    <div class="alert alert-danger mt-3 mb-0">
+                        <i class="ri-error-warning-line me-2"></i>
+                        <strong>Terlambat!</strong> Invoice sudah melewati jatuh tempo {{ abs($daysLeft) }} hari. Segera lakukan pembayaran!
+                    </div>
                     @endif
-                
+                </div>
+            </div>
+            @endif
+
+            {{-- Items Table with Batch Details --}}
+            @if($po->status === 'diterima' && $po->items->first() && $po->items->first()->batches->count() > 0)
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="ri-shopping-cart-line me-2"></i>Item Purchase Order & Batch Details</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">No</th>
+                                    <th>Nama Produk</th>
+                                    <th width="100">Qty Diminta</th>
+                                    <th width="100">Qty Diterima</th>
+                                    <th width="150">Batch Details</th>
+                                    <th width="120" class="text-end">Harga</th>
+                                    <th width="150" class="text-end">Subtotal</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($po->items as $index => $item)
+                                <tr>
+                                    <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
+                                        {{ $index + 1 }}
+                                    </td>
+                                    <td rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
+                                        <strong>{{ $item->nama_produk }}</strong>
+                                    </td>
+                                    <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
+                                        <span class="badge bg-secondary">{{ $item->qty_diminta }}</span>
+                                    </td>
+                                    <td class="text-center" rowspan="{{ $item->batches->count() > 0 ? $item->batches->count() + 1 : 1 }}">
+                                        <span class="badge bg-success">{{ $item->qty_diterima }}</span>
+                                    </td>
+                                    <td colspan="3" class="bg-light">
+                                        <small class="text-muted"><strong>Detail Batch:</strong></small>
+                                    </td>
+                                </tr>
+                                @foreach($item->batches as $batch)
+                                <tr class="batch-detail-row">
+                                    <td>
+                                        <small>
+                                            <i class="ri-stack-line me-1"></i>
+                                            <strong>{{ $batch->batch_number }}</strong>
+                                            <br>
+                                            <span class="text-muted">Exp: {{ \Carbon\Carbon::parse($batch->tanggal_kadaluarsa)->format('d/m/Y') }}</span>
+                                            <br>
+                                            @if($batch->kondisi === 'baik')
+                                                <span class="badge badge-sm bg-success">{{ ucfirst($batch->kondisi) }}</span>
+                                            @elseif($batch->kondisi === 'rusak')
+                                                <span class="badge badge-sm bg-danger">{{ ucfirst($batch->kondisi) }}</span>
+                                            @else
+                                                <span class="badge badge-sm bg-warning text-dark">{{ ucfirst($batch->kondisi) }}</span>
+                                            @endif
+                                            @if($batch->catatan)
+                                                <br><small class="text-muted">Note: {{ $batch->catatan }}</small>
+                                            @endif
+                                        </small>
+                                    </td>
+                                    <td class="text-end">
+                                        <small>Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</small>
+                                        <br><small class="text-muted">× {{ $batch->qty_diterima }}</small>
+                                    </td>
+                                    <td class="text-end">
+                                        <small>Rp {{ number_format($item->harga_satuan * $batch->qty_diterima, 0, ',', '.') }}</small>
+                                    </td>
+                                </tr>
+                                @endforeach
+                                @endforeach
+                            </tbody>
+                            <tfoot class="table-light">
+                                <tr>
+                                    <th colspan="6" class="text-end">Subtotal:</th>
+                                    <th class="text-end">Rp {{ number_format($po->total_harga, 0, ',', '.') }}</th>
+                                </tr>
+                                @if($po->pajak > 0)
+                                <tr>
+                                    <th colspan="6" class="text-end">Pajak:</th>
+                                    <th class="text-end">Rp {{ number_format($po->pajak, 0, ',', '.') }}</th>
+                                </tr>
+                                @endif
+                                <tr class="table-primary">
+                                    <th colspan="6" class="text-end">Grand Total:</th>
+                                    <th class="text-end">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            @endif
 
             <!-- Items Table -->
             <div class="card shadow-sm border-0 mb-4">
@@ -578,7 +576,7 @@
                 </div>
             </div>
 
-            <!-- Shipping Activities (if exists) -->
+            <!-- Shipping Activities -->
             @if($po->shippingActivities && $po->shippingActivities->count() > 0)
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3">
@@ -827,71 +825,48 @@
     </div>
 </div>
 
-{{-- Approval Modal --}}
-<div class="modal fade" id="approvalModal" tabindex="-1">
+{{-- Universal PIN Modal with OTP-style inputs --}}
+<div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Konfirmasi Approval</h5>
+            <div class="modal-header border-0">
+                <h5 class="modal-title" id="pinModalTitle">
+                    <i class="ri-lock-password-line me-2"></i>Masukkan PIN
+                </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <label class="form-label">PIN (6 digit)</label>
-                    <input type="password" class="form-control" id="pinApproval" maxlength="6" placeholder="Masukkan PIN">
+            <div class="modal-body text-center px-4 py-4">
+                <p class="text-muted mb-4" id="pinModalDescription">Masukkan PIN 6 digit untuk melanjutkan</p>
+                
+                <!-- OTP-style PIN Input -->
+                <div class="otp-container d-flex justify-content-center gap-2 mb-4">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="0">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="1">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="2">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="3">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="4">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="5">
                 </div>
-                <div class="mb-3">
-                    <label class="form-label">Catatan (opsional)</label>
-                    <textarea class="form-control" id="catatanApproval" rows="3" placeholder="Tambahkan catatan..."></textarea>
+
+                <!-- Additional Notes Textarea (hidden by default) -->
+                <div id="notesContainer" class="mb-3" style="display: none;">
+                    <label class="form-label text-start w-100">Catatan (opsional)</label>
+                    <textarea class="form-control" id="modalNotes" rows="3" placeholder="Tambahkan catatan..."></textarea>
                 </div>
-                <input type="hidden" id="approvalRole">
-                <input type="hidden" id="approvalStatus">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary" onclick="confirmApproval()">Konfirmasi</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-{{-- Submit Modal --}}
-<div class="modal fade" id="submitModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Submit Purchase Order</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
+                <!-- Hidden fields to store action context -->
+                <input type="hidden" id="modalAction">
+                <input type="hidden" id="modalPoId">
+                <input type="hidden" id="modalRole">
+                <input type="hidden" id="modalStatus">
             </div>
-            <div class="modal-body">
-                <input type="hidden" id="poIdSubmit">
-                <label class="form-label">PIN (6 digit)</label>
-                <input type="password" id="pinSubmit" class="form-control" maxlength="6">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button class="btn btn-primary" onclick="confirmSubmit()">Submit</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Hapus Purchase Order</h5>
-                <button class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="modal-body">
-                <input type="hidden" id="poIdDelete">
-                <label class="form-label">PIN (6 digit)</label>
-                <input type="password" id="pinDelete" class="form-control" maxlength="6">
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button class="btn btn-danger" onclick="confirmDelete()">Hapus</button>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmPinBtn">
+                    <i class="ri-check-line me-1"></i> Konfirmasi
+                </button>
             </div>
         </div>
     </div>
@@ -900,6 +875,7 @@
 
 @push('styles')
 <style>
+    /* Timeline Styles */
     .timeline {
         position: relative;
         padding-left: 30px;
@@ -940,7 +916,7 @@
         width: 3rem;
         height: 3rem;
         display: flex;
-        align-items: center;
+        align-items-center;
         justify-content: center;
     }
     
@@ -963,25 +939,191 @@
     .border-warning {
         animation: slideInDown 0.5s ease-out;
     }
+
+    /* OTP-style PIN Input Styles */
+    .otp-container {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .otp-input {
+        width: 50px;
+        height: 60px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .otp-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+        transform: scale(1.05);
+    }
+
+    .otp-input.filled {
+        background-color: #f8f9fa;
+        border-color: #198754;
+    }
+
+    .otp-input.error {
+        border-color: #dc3545;
+        animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* Modal Enhancements */
+    #pinModal .modal-content {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    #pinModal .modal-header {
+        padding: 1.5rem;
+    }
+
+    #pinModal .modal-title {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    /* Loading State */
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .btn-loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin-left: -8px;
+        margin-top: -8px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spinner 0.6s linear infinite;
+    }
+
+    @keyframes spinner {
+        to { transform: rotate(360deg); }
+    }
 </style>
 @endpush
 
 @push('scripts')
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-    let approvalModalInstance, submitModalInstance, deleteModalInstance;
-
+    // ============================================
+    // OTP-STYLE PIN INPUT HANDLER
+    // ============================================
     document.addEventListener('DOMContentLoaded', function() {
-        // Initialize all modals
-        approvalModalInstance = new bootstrap.Modal(document.getElementById('approvalModal'));
-        submitModalInstance = new bootstrap.Modal(document.getElementById('submitModal'));
-        deleteModalInstance = new bootstrap.Modal(document.getElementById('deleteModal'));
+        const otpInputs = document.querySelectorAll('.otp-input');
+        
+        otpInputs.forEach((input, index) => {
+            // Handle input
+            input.addEventListener('input', function(e) {
+                const value = e.target.value;
+                
+                // Only allow numbers
+                if (!/^\d$/.test(value)) {
+                    e.target.value = '';
+                    return;
+                }
+                
+                // Add filled class
+                e.target.classList.add('filled');
+                
+                // Move to next input
+                if (value && index < otpInputs.length - 1) {
+                    otpInputs[index + 1].focus();
+                }
+                
+                // Check if all inputs are filled
+                checkPinComplete();
+            });
+            
+            // Handle backspace
+            input.addEventListener('keydown', function(e) {
+                if (e.key === 'Backspace') {
+                    if (!e.target.value && index > 0) {
+                        // Move to previous input if current is empty
+                        otpInputs[index - 1].focus();
+                        otpInputs[index - 1].value = '';
+                        otpInputs[index - 1].classList.remove('filled', 'error');
+                    } else {
+                        // Clear current input
+                        e.target.value = '';
+                        e.target.classList.remove('filled', 'error');
+                    }
+                } else if (e.key === 'ArrowLeft' && index > 0) {
+                    e.preventDefault();
+                    otpInputs[index - 1].focus();
+                } else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+                    e.preventDefault();
+                    otpInputs[index + 1].focus();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const confirmBtn = document.getElementById('confirmPinBtn');
+                    if (!confirmBtn.disabled) {
+                        confirmBtn.click();
+                    }
+                }
+            });
+            
+            // Handle paste
+            input.addEventListener('paste', function(e) {
+                e.preventDefault();
+                const pastedData = e.clipboardData.getData('text').trim();
+                
+                if (/^\d{6}$/.test(pastedData)) {
+                    pastedData.split('').forEach((char, i) => {
+                        if (otpInputs[i]) {
+                            otpInputs[i].value = char;
+                            otpInputs[i].classList.add('filled');
+                        }
+                    });
+                    otpInputs[5].focus();
+                    checkPinComplete();
+                }
+            });
+            
+            // Select all on focus
+            input.addEventListener('focus', function() {
+                this.select();
+            });
+        });
+        
+        function checkPinComplete() {
+            const allFilled = Array.from(otpInputs).every(input => input.value !== '');
+            const confirmBtn = document.getElementById('confirmPinBtn');
+            
+            if (allFilled) {
+                confirmBtn.disabled = false;
+                confirmBtn.classList.remove('disabled');
+            } else {
+                confirmBtn.disabled = true;
+                confirmBtn.classList.add('disabled');
+            }
+        }
 
         // Auto dismiss alerts after 5 seconds
         setTimeout(function() {
             const alerts = document.querySelectorAll('.alert');
             alerts.forEach(alert => {
-                if (!alert.classList.contains('alert-warning')) { // Don't auto-hide warning alerts
+                if (!alert.classList.contains('alert-warning') && !alert.classList.contains('alert-permanent')) {
                     const bsAlert = new bootstrap.Alert(alert);
                     bsAlert.close();
                 }
@@ -989,37 +1131,259 @@
         }, 5000);
     });
 
-    // ========== SUBMIT PO ==========
-    function submitPO(poId) {
-        document.getElementById('poIdSubmit').value = poId;
-        document.getElementById('pinSubmit').value = '';
-        submitModalInstance.show();
+    // ============================================
+    // PIN UTILITY FUNCTIONS
+    // ============================================
+    function getPinValue() {
+        const otpInputs = document.querySelectorAll('.otp-input');
+        return Array.from(otpInputs).map(input => input.value).join('');
     }
 
-    function confirmSubmit() {
-        const pin = document.getElementById('pinSubmit').value;
-        const poId = document.getElementById('poIdSubmit').value;
+    function resetPinInputs() {
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('filled', 'error');
+        });
+        document.getElementById('confirmPinBtn').disabled = true;
+        document.getElementById('confirmPinBtn').classList.add('disabled');
+        
+        // Focus first input
+        setTimeout(() => {
+            if (otpInputs[0]) otpInputs[0].focus();
+        }, 100);
+    }
 
-        if (!pin || pin.length !== 6) {
+    function showPinError() {
+        const otpInputs = document.querySelectorAll('.otp-input');
+        otpInputs.forEach(input => {
+            input.classList.add('error');
+        });
+        
+        setTimeout(() => {
+            otpInputs.forEach(input => {
+                input.classList.remove('error');
+            });
+        }, 500);
+    }
+
+    // ============================================
+    // MODAL SHOW FUNCTIONS
+    // ============================================
+    function showApprovalModal(role, status) {
+        const modal = new bootstrap.Modal(document.getElementById('pinModal'));
+        
+        // Set modal context
+        document.getElementById('modalAction').value = 'approval';
+        document.getElementById('modalRole').value = role;
+        document.getElementById('modalStatus').value = status;
+        document.getElementById('modalPoId').value = '{{ $po->id_po }}';
+        
+        // Update modal title and description
+        const actionText = status === 'disetujui' ? 'Setujui' : 'Tolak';
+        const roleText = role === 'kepala_gudang' ? 'Kepala Gudang' : 'Kasir';
+        const titleText = `${actionText} Purchase Order - ${roleText}`;
+        const descText = status === 'disetujui' 
+            ? `Masukkan PIN untuk menyetujui PO ini sebagai ${roleText}` 
+            : `Masukkan PIN untuk menolak PO ini sebagai ${roleText}`;
+        
+        document.getElementById('pinModalTitle').innerHTML = 
+            `<i class="ri-lock-password-line me-2"></i>${titleText}`;
+        document.getElementById('pinModalDescription').textContent = descText;
+        
+        // Show/hide notes container
+        const notesContainer = document.getElementById('notesContainer');
+        notesContainer.style.display = 'block';
+        document.getElementById('modalNotes').value = '';
+        document.getElementById('modalNotes').placeholder = 
+            status === 'disetujui' ? 'Catatan persetujuan (opsional)' : 'Alasan penolakan (opsional)';
+        
+        // Update confirm button
+        const confirmBtn = document.getElementById('confirmPinBtn');
+        confirmBtn.className = status === 'disetujui' ? 'btn btn-success' : 'btn btn-danger';
+        confirmBtn.innerHTML = status === 'disetujui' 
+            ? '<i class="ri-check-line me-1"></i> Setujui' 
+            : '<i class="ri-close-line me-1"></i> Tolak';
+        
+        resetPinInputs();
+        modal.show();
+    }
+
+    function submitPO(poId) {
+        const modal = new bootstrap.Modal(document.getElementById('pinModal'));
+        
+        document.getElementById('modalAction').value = 'submit';
+        document.getElementById('modalPoId').value = poId;
+        document.getElementById('pinModalTitle').innerHTML = 
+            '<i class="ri-lock-password-line me-2"></i>Submit Purchase Order';
+        document.getElementById('pinModalDescription').textContent = 
+            'Masukkan PIN untuk submit PO ini';
+        
+        document.getElementById('notesContainer').style.display = 'none';
+        document.getElementById('confirmPinBtn').className = 'btn btn-primary';
+        document.getElementById('confirmPinBtn').innerHTML = 
+            '<i class="ri-send-plane-fill me-1"></i> Submit';
+        
+        resetPinInputs();
+        modal.show();
+    }
+
+    function sendToSupplier(poId) {
+        const modal = new bootstrap.Modal(document.getElementById('pinModal'));
+        
+        document.getElementById('modalAction').value = 'send_to_supplier';
+        document.getElementById('modalPoId').value = poId;
+        document.getElementById('pinModalTitle').innerHTML = 
+            '<i class="ri-lock-password-line me-2"></i>Kirim ke Supplier';
+        document.getElementById('pinModalDescription').textContent = 
+            'Masukkan PIN untuk mengirim PO ke supplier';
+        
+        document.getElementById('notesContainer').style.display = 'none';
+        document.getElementById('confirmPinBtn').className = 'btn btn-info';
+        document.getElementById('confirmPinBtn').innerHTML = 
+            '<i class="ri-truck-line me-1"></i> Kirim';
+        
+        resetPinInputs();
+        modal.show();
+    }
+
+    function deletePO(poId) {
+        Swal.fire({
+            title: 'Hapus Purchase Order?',
+            text: "Data yang dihapus tidak dapat dikembalikan!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Ya, Hapus!',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const modal = new bootstrap.Modal(document.getElementById('pinModal'));
+                
+                document.getElementById('modalAction').value = 'delete';
+                document.getElementById('modalPoId').value = poId;
+                document.getElementById('pinModalTitle').innerHTML = 
+                    '<i class="ri-lock-password-line me-2"></i>Konfirmasi Penghapusan';
+                document.getElementById('pinModalDescription').textContent = 
+                    'Masukkan PIN untuk menghapus PO ini';
+                
+                document.getElementById('notesContainer').style.display = 'none';
+                document.getElementById('confirmPinBtn').className = 'btn btn-danger';
+                document.getElementById('confirmPinBtn').innerHTML = 
+                    '<i class="ri-delete-bin-line me-1"></i> Hapus';
+                
+                resetPinInputs();
+                modal.show();
+            }
+        });
+    }
+
+    // ============================================
+    // PIN CONFIRMATION HANDLER
+    // ============================================
+    document.getElementById('confirmPinBtn').addEventListener('click', function() {
+        const pin = getPinValue();
+        const action = document.getElementById('modalAction').value;
+        const poId = document.getElementById('modalPoId').value;
+        const role = document.getElementById('modalRole').value;
+        const status = document.getElementById('modalStatus').value;
+        const notes = document.getElementById('modalNotes').value;
+        const btn = this;
+        
+        if (pin.length !== 6) {
+            showPinError();
             Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'PIN harus 6 digit'
+                icon: 'error',
+                title: 'PIN Tidak Lengkap',
+                text: 'Silakan masukkan 6 digit PIN',
+                timer: 2000,
+                showConfirmButton: false
             });
             return;
         }
+        
+        // Add loading state
+        btn.classList.add('btn-loading');
+        btn.disabled = true;
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
+        
+        // Route actions
+        if (action === 'approval') {
+            handleApproval(poId, role, status, notes, pin, btn, originalHTML);
+        } else if (action === 'submit') {
+            handleSubmit(poId, pin, btn, originalHTML);
+        } else if (action === 'send_to_supplier') {
+            handleSendToSupplier(poId, pin, btn, originalHTML);
+        } else if (action === 'delete') {
+            handleDelete(poId, pin, btn, originalHTML);
+        }
+    });
 
-        // Show loading
-        Swal.fire({
-            title: 'Memproses...',
-            text: 'Mohon tunggu, sedang mengirim PO',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => {
-                Swal.showLoading();
+    // ============================================
+    // ACTION HANDLERS
+    // ============================================
+    function handleApproval(poId, role, status, notes, pin, btn, originalHTML) {
+        const endpoint = role === 'kepala_gudang' 
+            ? `/po/${poId}/approve-kepala-gudang`
+            : `/po/${poId}/approve-kasir`;
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+            },
+            body: JSON.stringify({
+                pin: pin,
+                status_approval: status,
+                catatan: notes
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (data.message) {
+                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: data.message,
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                showPinError();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: data.error || 'PIN tidak valid atau terjadi kesalahan',
+                    confirmButtonText: 'Coba Lagi'
+                });
+                resetPinInputs();
             }
+        })
+        .catch(error => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showPinError();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Terjadi kesalahan sistem',
+                confirmButtonText: 'OK'
+            });
+            console.error('Approval error:', error);
         });
+    }
 
+    function handleSubmit(poId, pin, btn, originalHTML) {
         fetch(`/po/${poId}/submit`, {
             method: 'POST',
             headers: {
@@ -1030,315 +1394,172 @@
         })
         .then(response => response.json())
         .then(data => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
             if (data.message) {
+                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil',
+                    title: 'Berhasil!',
                     text: data.message,
                     confirmButtonText: 'OK'
                 }).then(() => {
                     window.location.reload();
                 });
             } else {
+                showPinError();
                 Swal.fire({
                     icon: 'error',
-                    title: 'Gagal',
-                    text: data.error || 'Terjadi kesalahan'
+                    title: 'Gagal!',
+                    text: data.error || 'PIN tidak valid atau terjadi kesalahan',
+                    confirmButtonText: 'Coba Lagi'
                 });
+                resetPinInputs();
             }
         })
         .catch(error => {
-            console.error('Submit error:', error);
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showPinError();
             Swal.fire({
                 icon: 'error',
-                title: 'Error',
-                text: 'Terjadi kesalahan sistem'
+                title: 'Error!',
+                text: 'Terjadi kesalahan sistem',
+                confirmButtonText: 'OK'
             });
+            console.error('Submit error:', error);
         });
-
-        submitModalInstance.hide();
     }
 
-    // ========== APPROVAL FUNCTIONS ==========
-    function showApprovalModal(role, status) {
-        document.getElementById('approvalRole').value = role;
-        document.getElementById('approvalStatus').value = status;
-        document.getElementById('pinApproval').value = '';
-        document.getElementById('catatanApproval').value = '';
-        
-        // Update modal title based on action
-        const modalTitle = document.querySelector('#approvalModal .modal-title');
-        const actionText = status === 'disetujui' ? 'Menyetujui' : 'Menolak';
-        const roleText = role === 'kepala_gudang' ? 'Kepala Gudang' : 'Kasir';
-        modalTitle.textContent = `${actionText} PO - ${roleText}`;
-        
-        approvalModalInstance.show();
-    }
-
-    function confirmApproval() {
-        const pin = document.getElementById('pinApproval').value;
-        const catatan = document.getElementById('catatanApproval').value;
-        const role = document.getElementById('approvalRole').value;
-        const status = document.getElementById('approvalStatus').value;
-
-        if (!pin || pin.length !== 6) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'PIN harus 6 digit'
-            });
-            return;
-        }
-
-        const endpoint = role === 'kepala_gudang' 
-            ? `/po/{{ $po->id_po }}/approve-kepala-gudang`
-            : `/po/{{ $po->id_po }}/approve-kasir`;
-
-        // Show loading
-        Swal.fire({
-            title: 'Memproses...',
-            text: 'Mohon tunggu, sedang memproses approval',
-            allowOutsideClick: false,
-            allowEscapeKey: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-
-        fetch(endpoint, {
+    function handleSendToSupplier(poId, pin, btn, originalHTML) {
+        fetch(`/po/${poId}/send-to-supplier`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            body: JSON.stringify({ 
-                pin: pin,
-                status_approval: status,
-                catatan: catatan
-            })
+            body: JSON.stringify({ pin: pin })
         })
         .then(response => response.json())
         .then(data => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
             if (data.message) {
+                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
                 Swal.fire({
                     icon: 'success',
-                    title: 'Berhasil',
+                    title: 'Berhasil!',
                     text: data.message,
                     confirmButtonText: 'OK'
                 }).then(() => {
                     window.location.reload();
                 });
             } else {
+                showPinError();
                 Swal.fire({
                     icon: 'error',
-                    title: 'Gagal',
-                    text: data.error || 'Terjadi kesalahan'
+                    title: 'Gagal!',
+                    text: data.error || data.errors?.pin?.[0] || 'PIN tidak valid atau terjadi kesalahan',
+                    confirmButtonText: 'Coba Lagi'
                 });
+                resetPinInputs();
             }
         })
         .catch(error => {
-            console.error('Approval error:', error);
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showPinError();
             Swal.fire({
                 icon: 'error',
-                title: 'Error',
-                text: 'Terjadi kesalahan sistem'
+                title: 'Error!',
+                text: 'Terjadi kesalahan sistem',
+                confirmButtonText: 'OK'
             });
+            console.error('Send to supplier error:', error);
         });
-
-        approvalModalInstance.hide();
     }
 
-    // ========== SEND TO SUPPLIER ==========
-    function sendToSupplier(id_po) {
-        Swal.fire({
-            title: "Konfirmasi Pengiriman",
-            text: "Masukkan PIN untuk mengirim PO ke supplier",
-            input: "password",
-            inputAttributes: {
-                maxlength: 6,
-                minlength: 6,
-                placeholder: "Masukkan PIN 6 digit"
+    function handleDelete(poId, pin, btn, originalHTML) {
+        fetch(`/po/${poId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
             },
-            showCancelButton: true,
-            confirmButtonText: "Kirim ke Supplier",
-            cancelButtonText: "Batal",
-            confirmButtonColor: '#0dcaf0',
-            cancelButtonColor: '#6c757d',
-            preConfirm: (pin) => {
-                if (!pin || pin.length !== 6) {
-                    Swal.showValidationMessage("PIN harus 6 digit");
-                    return false;
-                }
-                return pin;
-            }
-        }).then((result) => {
-            if (!result.isConfirmed) return;
-
-            let pin = result.value;
-
-            // Show loading
-            Swal.fire({
-                title: 'Mengirim ke Supplier...',
-                text: 'Mohon tunggu',
-                allowOutsideClick: false,
-                allowEscapeKey: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            fetch(`/po/${id_po}/send-to-supplier`, {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-CSRF-TOKEN": "{{ csrf_token() }}"
-                },
-                body: JSON.stringify({ pin })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error || data.errors) {
-                    Swal.fire({
-                        icon: "error",
-                        title: "Gagal",
-                        text: data.error ?? data.errors.pin[0]
-                    });
-                } else {
-                    Swal.fire({
-                        icon: "success",
-                        title: "Berhasil",
-                        text: data.message,
-                        confirmButtonText: 'OK'
-                    }).then(() => {
-                        location.reload();
-                    });
-                }
-            })
-            .catch(err => {
-                console.error('Send to supplier error:', err);
+            body: JSON.stringify({ pin: pin })
+        })
+        .then(response => response.json())
+        .then(data => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('pinModal')).hide();
                 Swal.fire({
-                    icon: "error",
-                    title: "Error",
-                    text: "Terjadi kesalahan jaringan"
+                    icon: 'success',
+                    title: 'Berhasil!',
+                    text: data.message,
+                    confirmButtonText: 'OK'
+                }).then(() => {
+                    window.location.href = '{{ route("po.index") }}';
                 });
+            } else {
+                showPinError();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal!',
+                    text: data.message || 'PIN tidak valid atau terjadi kesalahan',
+                    confirmButtonText: 'Coba Lagi'
+                });
+                resetPinInputs();
+            }
+        })
+        .catch(error => {
+            btn.classList.remove('btn-loading');
+            btn.disabled = false;
+            btn.innerHTML = originalHTML;
+            showPinError();
+            Swal.fire({
+                icon: 'error',
+                title: 'Error!',
+                text: 'Terjadi kesalahan sistem',
+                confirmButtonText: 'OK'
             });
+            console.error('Delete error:', error);
         });
     }
 
-    // ========== DELETE PO ==========
-    function deletePO(poId) {
-        document.getElementById('poIdDelete').value = poId;
-        document.getElementById('pinDelete').value = '';
-        deleteModalInstance.show();
-    }
-
-    function confirmDelete() {
-        const pin = document.getElementById('pinDelete').value;
-        const poId = document.getElementById('poIdDelete').value;
-
-        if (!pin || pin.length !== 6) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'PIN harus 6 digit'
-            });
-            return;
-        }
-
-        // Confirm deletion
-        Swal.fire({
-            title: 'Apakah Anda yakin?',
-            text: "PO ini akan dihapus permanen!",
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#dc3545',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Hapus!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Menghapus...',
-                    text: 'Mohon tunggu',
-                    allowOutsideClick: false,
-                    allowEscapeKey: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-
-                fetch(`/po/${poId}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-                    },
-                    body: JSON.stringify({ pin: pin })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        Swal.fire({
-                            icon: 'success',
-                            title: 'Berhasil',
-                            text: data.message,
-                            confirmButtonText: 'OK'
-                        }).then(() => {
-                            window.location.href = '{{ route("po.index") }}';
-                        });
-                    } else {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Gagal',
-                            text: data.message || 'Terjadi kesalahan'
-                        });
-                    }
-                })
-                .catch(error => {
-                    console.error('Delete error:', error);
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Error',
-                        text: 'Terjadi kesalahan sistem'
-                    });
-                });
-            }
-        });
-
-        deleteModalInstance.hide();
-    }
-
-    // ========== HELPER FUNCTIONS ==========
-    
-    // Handle Enter key on PIN inputs
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            const activeModal = document.querySelector('.modal.show');
-            if (activeModal) {
-                if (activeModal.id === 'submitModal') {
-                    confirmSubmit();
-                } else if (activeModal.id === 'approvalModal') {
-                    confirmApproval();
-                } else if (activeModal.id === 'deleteModal') {
-                    confirmDelete();
-                }
-            }
+    // ============================================
+    // KEYBOARD SHORTCUTS
+    // ============================================
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('pinModal');
+        
+        // Escape to close modal
+        if (e.key === 'Escape' && modal.classList.contains('show')) {
+            bootstrap.Modal.getInstance(modal).hide();
         }
     });
 
-    // Clear PIN inputs when modals are closed
-    document.getElementById('submitModal').addEventListener('hidden.bs.modal', function() {
-        document.getElementById('pinSubmit').value = '';
+    // Clear inputs when modal is hidden
+    document.getElementById('pinModal').addEventListener('hidden.bs.modal', function() {
+        resetPinInputs();
+        document.getElementById('modalNotes').value = '';
     });
 
-    document.getElementById('approvalModal').addEventListener('hidden.bs.modal', function() {
-        document.getElementById('pinApproval').value = '';
-        document.getElementById('catatanApproval').value = '';
-    });
-
-    document.getElementById('deleteModal').addEventListener('hidden.bs.modal', function() {
-        document.getElementById('pinDelete').value = '';
+    // Focus first input when modal is shown
+    document.getElementById('pinModal').addEventListener('shown.bs.modal', function() {
+        const firstInput = document.querySelector('.otp-input');
+        if (firstInput) {
+            firstInput.focus();
+        }
     });
 </script>
 @endpush

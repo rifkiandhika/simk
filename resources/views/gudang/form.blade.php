@@ -141,16 +141,31 @@
                 @foreach($gudang->details as $detail)
                     <tr data-id="{{ $detail->barang_id }}" data-type="{{ $detail->barang_type }}">
                       @php
+                        $barang = null;
+                        $nama   = '-';
+                        $jenis  = '-';
+                        $exp    = null;
+
                         if ($detail->barang_type === 'obat') {
                             $barang = $detail->barangObat;
                             $nama   = $barang->nama_obat_rs ?? '-';
                             $jenis  = 'Obat';
                             $exp    = $detail->tanggal_kadaluarsa ?? null;
-                        } else {
-                            $barang = $detail->barangSupplier;
-                            $nama   = $barang->nama ?? '-';
-                            $jenis  = ucfirst($detail->barang_type); // Alkes / Reagensia
+
+                        } elseif ($detail->barang_type === 'alkes') {
+                            $barang = $detail->alkes;
+                            $nama   = $barang->nama_alkes ?? '-';
+                            $jenis  = 'Alkes';
                             $exp    = $barang->exp_date ?? null;
+
+                        } elseif ($detail->barang_type === 'reagensia') {
+                            $barang = $detail->reagensia;
+                            $nama   = $barang->nama_reagensia ?? '-';
+                            $jenis  = 'Reagensia';
+                            $exp    = $barang->exp_date ?? null;
+
+                        } else {
+                            $jenis = ucfirst($detail->barang_type); // fallback
                         }
                     @endphp
                         <td>
