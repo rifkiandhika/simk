@@ -154,7 +154,7 @@ class PinVerificationController extends Controller
             'pin_karyawan_nip'
         ]);
 
-        return redirect()->route('pin.verify.form')
+        return redirect()->route('pin.verify')
             ->with('success', 'PIN telah di-logout. Silakan verifikasi ulang.');
     }
 

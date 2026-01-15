@@ -278,6 +278,8 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     window.showPinInfo = function(message) {
+        console.log('ℹ️ Showing info:', message);
+        dismissError(); // Clear error dulu
         infoMessage.textContent = message;
         infoAlert.style.display = 'block';
         infoAlert.classList.add('show');
@@ -323,20 +325,26 @@ document.addEventListener('DOMContentLoaded', function() {
                 modal.hide();
                 clearAllPin();
                 
-                // Show success notification
-                Swal.fire({
-                    icon: 'success',
-                    title: 'Berhasil!',
-                    text: data.message || 'PIN terverifikasi',
-                    timer: 1500,
-                    showConfirmButton: false,
-                    toast: true,
-                    position: 'top-end'
-                });
+                // Show success notification (toast, tidak ganggu)
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'PIN Terverifikasi',
+                        text: data.message || 'Anda dapat melanjutkan aktivitas',
+                        timer: 2000,
+                        showConfirmButton: false,
+                        toast: true,
+                        position: 'top-end',
+                        timerProgressBar: true
+                    });
+                }
 
                 // Reset submit button
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="ri-check-line me-2"></i>Verifikasi PIN';
+                
+                // PENTING: Tidak ada reload, user tetap di halaman yang sama
+                console.log('PIN verified successfully - no page reload');
             } else {
                 // Error
                 showError(data.message || 'PIN tidak valid');
@@ -359,8 +367,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Expose function untuk dipanggil dari inactivity script
     window.showPinModalForInactivity = function() {
-        showPinInfo('Sesi Anda tidak aktif selama 10 menit. Silakan masukkan PIN untuk melanjutkan.');
-        modal.show();
+        console.log('📱 showPinModalForInactivity called');
+        
+        // Clear semua input dulu
+        if (typeof window.clearAllPin === 'function') {
+            window.clearAllPin();
+        }
+        
+        // Show info message
+        showPinInfo('Sesi Anda tidak aktif. Silakan masukkan PIN untuk melanjutkan.');
+        
+        // Show modal
+        let modalInstance = bootstrap.Modal.getInstance(document.getElementById('pinVerificationModal'));
+        if (!modalInstance) {
+            modalInstance = new bootstrap.Modal(document.getElementById('pinVerificationModal'), {
+                backdrop: 'static',
+                keyboard: false
+            });
+        }
+        modalInstance.show();
+        
+        console.log('✅ Modal shown for inactivity');
     };
+    
+    console.log('✅ PIN Modal functions ready');
 });
 </script>
