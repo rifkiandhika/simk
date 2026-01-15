@@ -63,6 +63,19 @@
                     </div>
                 </div>
 
+                <!-- Info Non Racik -->
+                <div class="card border-success mb-3" id="detail_non_racik_info" style="display: none;">
+                    <div class="card-header bg-success text-white py-2">
+                        <h6 class="mb-0">
+                            <i class="ri-medicine-bottle-line me-2"></i>Informasi Obat (Non Racik)
+                        </h6>
+                    </div>
+                    <div class="card-body" id="detail_non_racik_body">
+                        <!-- Diisi via JS -->
+                    </div>
+                </div>
+
+
                 {{-- <div class="card mb-3" id="detail_pembayaran_info">
                     <div class="card-header py-2" id="pembayaran_header">
                         <h6 class="mb-0"><i class="ri-wallet-line me-2"></i>Status Pembayaran</h6>
@@ -173,19 +186,34 @@
                     <div class="col-md-4">
                         <div class="card bg-light">
                             <div class="card-body">
-                                <div class="d-flex justify-content-between mb-2">
+
+                                {{-- <div class="d-flex justify-content-between mb-2">
                                     <span>Embalase:</span>
-                                    <strong id="detail_embalase">Rp 0</strong>
+                                    <strong id="summary_embalase">Rp 0</strong>
                                 </div>
-                                <div class="d-flex justify-content-between mb-2">
+
+                                <div class="d-flex justify-content-between mb-2" id="summary_jasa_racik_row" style="display:none;">
                                     <span>Jasa Racik:</span>
-                                    <strong id="detail_jasa_racik">Rp 0</strong>
+                                    <strong id="summary_jasa_racik">Rp 0</strong>
+                                </div> --}}
+
+                                <div class="d-flex justify-content-between mb-2 text-danger" id="detail_diskon_row" style="display:none;">
+                                    <span id="detail_diskon_label">Diskon:</span>
+                                    <strong id="detail_diskon">Rp 0</strong>
                                 </div>
+
+                                <div class="d-flex justify-content-between mb-2 text-success" id="detail_pajak_row" style="display:none;">
+                                    <span id="detail_pajak_label">Pajak:</span>
+                                    <strong id="detail_pajak">Rp 0</strong>
+                                </div>
+
                                 <hr>
+
                                 <div class="d-flex justify-content-between">
                                     <strong class="text-primary">Total Bayar:</strong>
                                     <strong class="text-primary fs-5" id="detail_total">Rp 0</strong>
                                 </div>
+
                             </div>
                         </div>
                     </div>

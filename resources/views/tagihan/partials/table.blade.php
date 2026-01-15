@@ -109,7 +109,7 @@
                     <table class="table table-striped" id="tagihanTable">
                         <thead class="table-light">
                             <tr>
-                                <th width="50">No</th>
+                                <th>No</th>
                                 <th>No Tagihan</th>
                                 <th>No PO/GR</th>
                                 <th>No Invoice</th>
@@ -164,18 +164,20 @@
                                     <td>
                                         @if($t->tanggal_jatuh_tempo)
                                             @php
-                                                $isOverdue = now()->isAfter($t->tanggal_jatuh_tempo) && !in_array($t->status, ['lunas', 'dibatalkan']);
-                                                $daysLeft = now()->diffInDays($t->tanggal_jatuh_tempo, false);
+                                                $dueDate = \Carbon\Carbon::parse($t->tanggal_jatuh_tempo);
+                                                $today = \Carbon\Carbon::today();
+                                                $daysLeft = $today->diffInDays($dueDate, false);
                                             @endphp
-                                            <small class="{{ $isOverdue ? 'text-danger fw-bold' : 'text-muted' }}">
-                                                <i class="ri-time-line"></i>
-                                                {{ $t->tanggal_jatuh_tempo->format('d/m/Y') }}
-                                            </small>
-                                            @if($isOverdue)
-                                                <br><span class="badge badge-sm bg-danger">Lewat {{ abs($daysLeft) }} hari</span>
-                                            @elseif($daysLeft <= 7 && $daysLeft > 0 && !in_array($t->status, ['lunas', 'dibatalkan']))
-                                                <br><span class="badge badge-sm bg-warning text-dark">{{ $daysLeft }} hari lagi</span>
-                                            @endif
+                                            <strong class="{{ $daysLeft < 0 ? 'text-danger' : ($daysLeft <= 3 ? 'text-warning' : 'text-success') }}">
+                                                {{ $dueDate->format('d/m/Y') }}
+                                                @if($daysLeft < 0)
+                                                    (Terlambat {{ abs($daysLeft) }} hari)
+                                                @elseif($daysLeft == 0)
+                                                    (Jatuh tempo hari ini!)
+                                                @else
+                                                    ({{ $daysLeft }} hari lagi)
+                                                @endif
+                                            </strong>
                                         @else
                                             <small class="text-muted">-</small>
                                         @endif

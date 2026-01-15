@@ -192,7 +192,10 @@
                                         <td>
                                             <strong class="text-primary">
                                                 @if($po->status === 'selesai')
-                                                    {{ $po->no_gr }}
+                                                     {{ $po->no_gr }}
+                                                    @if(!empty($po->no_invoice))
+                                                       / {{ $po->no_invoice }}
+                                                    @endif
                                                 @else
                                                     {{ $po->no_po }}
                                                 @endif
@@ -211,10 +214,23 @@
                                             </small>
                                         </td>
                                         <td>
-                                            <small class="text-muted">
-                                                <i class="ri-calendar-line"></i> 
-                                                {{ $po->tanggal_jatuh_tempo?->format('d/m/Y') ?? '-' }}
-                                            </small>
+                                            @if(in_array($po->status, ['diterima', 'selesai']))
+                                                @php
+                                                        $dueDate = \Carbon\Carbon::parse($po->tanggal_jatuh_tempo);
+                                                        $today = \Carbon\Carbon::today();
+                                                        $daysLeft = $today->diffInDays($dueDate, false);
+                                                    @endphp
+                                                    <strong class="{{ $daysLeft < 0 ? 'text-danger' : ($daysLeft <= 3 ? 'text-warning' : 'text-success') }}">
+                                                        {{ $dueDate->format('d/m/Y') }}
+                                                        @if($daysLeft < 0)
+                                                            (Terlambat {{ abs($daysLeft) }} hari)
+                                                        @elseif($daysLeft == 0)
+                                                            (Jatuh tempo hari ini!)
+                                                        @else
+                                                            ({{ $daysLeft }} hari lagi)
+                                                        @endif
+                                                    </strong>
+                                            @endif
                                         </td>
                                         <td>
                                             <div class="d-flex align-items-center">

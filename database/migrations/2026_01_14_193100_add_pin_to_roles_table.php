@@ -2,7 +2,6 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -12,9 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('apotiks', function (Blueprint $table) {
-            $table->string('status')->comment('status pasien pada halaman apotik')->after('pasien_id');
-            $table->date('tanggal');
+        Schema::table('roles', function (Blueprint $table) {
+             $table->string('pin', 10)->nullable()->after('name');
         });
     }
 
@@ -23,7 +21,7 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('apotiks', function (Blueprint $table) {
+        Schema::table('roles', function (Blueprint $table) {
             //
         });
     }

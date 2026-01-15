@@ -148,6 +148,21 @@
                                 @enderror
                                 <small class="text-muted">Opsional, jika ada faktur pajak</small>
                             </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
+                                    Nomor Kwitansi
+                                </label>
+                                <input type="text" 
+                                       class="form-control @error('no_kwitansi') is-invalid @enderror" 
+                                       name="no_kwitansi" 
+                                       placeholder="Contoh: KW-1024/12"
+                                       value="{{ old('no_kwitansi') }}">
+                                @error('no_kwitansi')
+                                    <div class="invalid-feedback">{{ $message }}</div>
+                                @enderror
+                                <small class="text-muted">Opsional, jika ada nomor kwitansi</small>
+                            </div>
                         </div>
 
                         <div class="alert alert-info">

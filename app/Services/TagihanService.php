@@ -19,26 +19,63 @@ class TagihanService
         DB::beginTransaction();
         try {
             $pasien = $resep->pasien;
-
             
             // Generate nomor tagihan
             $noTagihan = $this->generateNoTagihan();
             
             // Tentukan jenis tagihan berdasarkan konteks
-            // Karena dari resep pasien, defaultnya RAWAT_JALAN
             $jenisTagihan = 'RAWAT_JALAN';
+            
+            // ✅ HITUNG TOTAL DARI ITEM (belum termasuk diskon/pajak)
+            $totalObat = 0;
+            foreach ($resep->details as $detail) {
+                $totalObat += $detail->subtotal;
+            }
+            
+            // ✅ HITUNG DISKON
+            $nilaiDiskon = 0;
+            if ($resep->diskon > 0) {
+                if ($resep->diskon_type === 'percent') {
+                    $nilaiDiskon = ($totalObat * $resep->diskon) / 100;
+                } else {
+                    $nilaiDiskon = $resep->diskon;
+                }
+            }
+            
+            // ✅ SUBTOTAL SETELAH DISKON (belum + jasa racik)
+            $subtotalSetelahDiskon = $totalObat - $nilaiDiskon;
+            
+            // ✅ TAMBAH JASA RACIK (jika ada)
+            $subtotalDenganJasaRacik = $subtotalSetelahDiskon + ($resep->jasa_racik ?? 0);
+            
+            // ✅ HITUNG PAJAK (dari subtotal setelah diskon + jasa racik)
+            $nilaiPajak = 0;
+            if ($resep->pajak > 0) {
+                if ($resep->pajak_type === 'percent') {
+                    $nilaiPajak = ($subtotalDenganJasaRacik * $resep->pajak) / 100;
+                } else {
+                    $nilaiPajak = $resep->pajak;
+                }
+            }
+            
+            // ✅ TOTAL AKHIR
+            $totalTagihan = $subtotalDenganJasaRacik + $nilaiPajak;
             
             // Buat tagihan utama
             $tagihan = Tagihan::create([
                 'no_tagihan' => $noTagihan,
-                'id_registrasi' => null, // Tidak ada registrasi terpisah
-                'resep_id' => $resep->id, // Tidak ada registrasi terpisah
+                'id_registrasi' => null,
+                'resep_id' => $resep->id,
                 'id_pasien' => $pasien->id_pasien,
                 'tanggal_tagihan' => Carbon::now(),
                 'jenis_tagihan' => $jenisTagihan,
-                'total_tagihan' => $resep->total_harga,
+                'diskon' => $resep->diskon ?? 0,
+                'diskon_type' => $resep->diskon_type ?? 'percent',
+                'pajak' => $resep->pajak ?? 0,
+                'pajak_type' => $resep->pajak_type ?? 'percent',
+                'total_tagihan' => $totalTagihan, // ✅ GUNAKAN TOTAL YANG DIHITUNG ULANG
                 'total_dibayar' => 0,
-                'sisa_tagihan' => $resep->total_harga,
+                'sisa_tagihan' => $totalTagihan, // ✅ GUNAKAN TOTAL YANG DIHITUNG ULANG
                 'status' => 'BELUM_LUNAS',
                 'status_klaim' => $this->determineStatusKlaim($pasien),
                 'catatan' => "Tagihan untuk resep: {$resep->no_resep}",
@@ -46,17 +83,27 @@ class TagihanService
                 'locked' => false,
             ]);
             
-            // Buat tagihan items dari detail resep
+            // Buat tagihan items dari detail resep (obat-obatan)
             $this->createTagihanItemsFromResep($resep, $tagihan);
             
-            // Buat item untuk embalase jika ada
-            if ($resep->embalase > 0) {
-                $this->createEmbalaseItem($tagihan, $resep);
+            // ✅ Buat item untuk DISKON (jika ada) - sebagai PENGURANG
+            if ($nilaiDiskon > 0) {
+                $this->createDiskonItem($tagihan, $resep, $nilaiDiskon);
             }
             
             // Buat item untuk jasa racik jika ada
             if ($resep->jasa_racik > 0) {
                 $this->createJasaRacikItem($tagihan, $resep);
+            }
+            
+            // ✅ Buat item untuk PAJAK (jika ada) - sebagai PENAMBAH
+            if ($nilaiPajak > 0) {
+                $this->createPajakItem($tagihan, $resep, $nilaiPajak);
+            }
+            
+            // Buat item untuk embalase jika ada (opsional, jika masih dipakai)
+            if (isset($resep->embalase) && $resep->embalase > 0) {
+                $this->createEmbalaseItem($tagihan, $resep);
             }
             
             DB::commit();
@@ -95,7 +142,7 @@ class TagihanService
             
             TagihanItem::create([
                 'id_tagihan' => $tagihan->id_tagihan,
-                'kategori' => 'APOTIK',
+                // 'kategori' => 'APOTIK',
                 'referensi_tipe' => 'resep',
                 'referensi_id' => $resep->id,
                 'deskripsi' => $deskripsi,
@@ -109,20 +156,72 @@ class TagihanService
     }
     
     /**
+     * ✅ BARU: Buat item untuk diskon (sebagai pengurang)
+     */
+    private function createDiskonItem(Tagihan $tagihan, Resep $resep, $nilaiDiskon)
+    {
+        $deskripsi = "Diskon ";
+        if ($resep->diskon_type === 'percent') {
+            $deskripsi .= "({$resep->diskon}%)";
+        } else {
+            $deskripsi .= "(Rp " . number_format($resep->diskon, 0, ',', '.') . ")";
+        }
+        
+        TagihanItem::create([
+            'id_tagihan' => $tagihan->id_tagihan,
+            // 'kategori' => 'DISKON',
+            'referensi_tipe' => 'resep',
+            'referensi_id' => $resep->id,
+            'deskripsi' => $deskripsi,
+            'qty' => 1,
+            'harga' => -$nilaiDiskon, // ✅ NEGATIF untuk pengurang
+            'subtotal' => -$nilaiDiskon, // ✅ NEGATIF untuk pengurang
+            'ditanggung' => false,
+            'created_by' => auth()->user()->id_karyawan,
+        ]);
+    }
+    
+    /**
+     * ✅ BARU: Buat item untuk pajak (sebagai penambah)
+     */
+    private function createPajakItem(Tagihan $tagihan, Resep $resep, $nilaiPajak)
+    {
+        $deskripsi = "Pajak ";
+        if ($resep->pajak_type === 'percent') {
+            $deskripsi .= "({$resep->pajak}%)";
+        } else {
+            $deskripsi .= "(Rp " . number_format($resep->pajak, 0, ',', '.') . ")";
+        }
+        
+        TagihanItem::create([
+            'id_tagihan' => $tagihan->id_tagihan,
+            // 'kategori' => 'PAJAK',
+            'referensi_tipe' => 'resep',
+            'referensi_id' => $resep->id,
+            'deskripsi' => $deskripsi,
+            'qty' => 1,
+            'harga' => $nilaiPajak, // ✅ POSITIF untuk penambah
+            'subtotal' => $nilaiPajak, // ✅ POSITIF untuk penambah
+            'ditanggung' => false,
+            'created_by' => auth()->user()->id_karyawan,
+        ]);
+    }
+    
+    /**
      * Buat item untuk embalase
      */
     private function createEmbalaseItem(Tagihan $tagihan, Resep $resep)
     {
         TagihanItem::create([
             'id_tagihan' => $tagihan->id_tagihan,
-            'kategori' => 'APOTIK',
+            // 'kategori' => 'APOTIK',
             'referensi_tipe' => 'resep',
             'referensi_id' => $resep->id,
             'deskripsi' => 'Embalase Obat',
             'qty' => 1,
             'harga' => $resep->embalase,
             'subtotal' => $resep->embalase,
-            'ditanggung' => false, // Embalase biasanya tidak ditanggung
+            'ditanggung' => false,
             'created_by' => auth()->user()->id_karyawan,
         ]);
     }
@@ -139,7 +238,7 @@ class TagihanService
         
         TagihanItem::create([
             'id_tagihan' => $tagihan->id_tagihan,
-            'kategori' => 'APOTIK',
+            // 'kategori' => 'APOTIK',
             'referensi_tipe' => 'resep',
             'referensi_id' => $resep->id,
             'deskripsi' => $deskripsi,

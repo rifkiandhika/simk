@@ -20,6 +20,7 @@ class PurchaseOrder extends Model
         'tanggal_approval_kepala_gudang' => 'datetime',
         'tanggal_approval_kasir' => 'datetime',
         'tanggal_dikirim_ke_supplier' => 'datetime',
+        'tanggal_upload_bukti_invoice' => 'datetime',
     ];
 
     protected static function boot()
@@ -77,6 +78,21 @@ class PurchaseOrder extends Model
     public function penerima()
     {
         return $this->belongsTo(Karyawan::class, 'id_penerima', 'id_karyawan');
+    }
+    public function karyawanUploadBukti()
+    {
+        return $this->belongsTo(Karyawan::class, 'id_karyawan_upload_bukti', 'id_karyawan');
+    }
+    public function getBuktiInvoiceUrlAttribute()
+    {
+        if ($this->bukti_invoice) {
+            return asset('storage/' . $this->bukti_invoice);
+        }
+        return null;
+    }
+    public function hasBuktiInvoice()
+    {
+        return !empty($this->bukti_invoice);
     }
     public function needsReceiptConfirmation()
     {

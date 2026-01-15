@@ -207,6 +207,26 @@
                                         <input type="text" name="harga_bpjs" class="form-control format-rupiah" 
                                             value="{{ number_format($hargaObat->harga_bpjs ?? 0, 0, ',', '.') }}">
                                     </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Embalase (IDR)</label>
+                                        <input type="text" name="embalase" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->embalase ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Jasa Racik (IDR)</label>
+                                        <input type="text" name="jasa_racik" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->jasa_racik ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <b>
+                                            <label class="form-label">Total (IDR)</label>
+                                            <input type="text" class="form-control format-rupiah read-only:" 
+                                                value="{{ number_format($hargaObat->total ?? 0, 0, ',', '.') }}">
+                                        </b>
+                                    </div>
                                 </div>
 
                                 {{-- Harga Asuransi --}}

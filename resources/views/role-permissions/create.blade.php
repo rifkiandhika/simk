@@ -22,7 +22,7 @@
                         </h5>
                     </div>
                     <div class="card-body">
-                        <div class="mb-4">
+                        <div class="mb-2">
                             <label for="name" class="form-label fw-bold">
                                 Nama Role <span class="text-danger">*</span>
                             </label>
@@ -38,6 +38,25 @@
                             @enderror
                             <small class="text-muted">
                                 <i class="ri-information-line"></i> Nama role harus unik dan deskriptif
+                            </small>
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="pin" class="form-label fw-bold">
+                                PIN <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   class="form-control @error('pin') is-invalid @enderror" 
+                                   id="pin" 
+                                   name="pin" 
+                                   value="{{ old('pin') }}"
+                                   placeholder="Contoh: 012"
+                                   required>
+                            @error('pin')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+                            <small class="text-muted">
+                                <i class="ri-information-line"></i> Pin harus unik untuk masing-masing role
                             </small>
                         </div>
 
@@ -197,6 +216,7 @@
             // Form validation
             $('#roleForm').on('submit', function(e) {
                 const roleName = $('#name').val().trim();
+                const pin = $('#pin').val().trim();
                 
                 if (roleName === '') {
                     e.preventDefault();
@@ -204,6 +224,15 @@
                         icon: 'error',
                         title: 'Oops...',
                         text: 'Nama role harus diisi!'
+                    });
+                    return false;
+                }
+                if (pin === '') {
+                    e.preventDefault();
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Oops...',
+                        text: 'PIN harus diisi!'
                     });
                     return false;
                 }

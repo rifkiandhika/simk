@@ -13,6 +13,7 @@ use App\Models\ObatRs;
 use App\Models\PoAuditTrail;
 use App\Models\PurchaseOrder;
 use App\Models\PurchaseOrderItem;
+use App\Models\ShippingActivity;
 use App\Models\StockApotik;
 use App\Models\Supplier;
 use Illuminate\Http\Request;
@@ -22,6 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use App\Services\TagihanPoServices;
+use Illuminate\Support\Facades\Storage;
 
 class PurchaseOrderController extends Controller
 {
@@ -791,6 +793,95 @@ class PurchaseOrderController extends Controller
         }
     }
 
+    public function markAsReceived(Request $request, $id_po)
+    {
+        $validator = Validator::make($request->all(), [
+            'pin' => 'required|size:6',
+            'catatan' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Verifikasi PIN
+        $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
+            ->where('pin', $request->pin)
+            ->first();
+
+        if (!$karyawan) {
+            return response()->json(['error' => 'PIN tidak valid'], 403);
+        }
+
+        DB::beginTransaction();
+        try {
+            $po = PurchaseOrder::with('shippingActivities')->findOrFail($id_po);
+
+            // Validasi status PO
+            if (!in_array($po->status, ['dikirim_ke_supplier', 'dalam_pengiriman'])) {
+                return response()->json([
+                    'error' => 'PO tidak dapat ditandai sebagai diterima. Status saat ini: ' . $po->status
+                ], 400);
+            }
+
+            $dataBefore = $po->toArray();
+
+            // Update status PO ke 'diterima'
+            $po->update([
+                'status' => 'diterima',
+            ]);
+
+            // Create shipping activity record
+            $shippingActivity = ShippingActivity::create([
+                'id_po' => $po->id_po,
+                'status_shipping' => 'diterima',
+                'deskripsi_aktivitas' => 'Barang dari supplier telah diterima di gudang',
+                'catatan' => $request->catatan,
+                'tanggal_aktivitas' => now(),
+                'id_karyawan_input' => Auth::user()->id_karyawan,
+            ]);
+
+            // Create audit trail
+            PoAuditTrail::create([
+                'id_po' => $po->id_po,
+                'id_karyawan' => Auth::user()->id_karyawan,
+                'pin_karyawan' => $request->pin,
+                'aksi' => 'terima_barang',
+                'deskripsi_aksi' => 'Menandai barang dari supplier sudah diterima' . 
+                                ($request->catatan ? ' - Catatan: ' . $request->catatan : ''),
+                'data_sebelum' => $dataBefore,
+                'data_sesudah' => $po->fresh()->toArray(),
+            ]);
+
+            DB::commit();
+
+            Log::info('PO Marked as Received', [
+                'po_id' => $po->id_po,
+                'no_po' => $po->no_po,
+                'by_user' => Auth::user()->id_karyawan,
+                'shipping_activity_id' => $shippingActivity->id
+            ]);
+
+            return response()->json([
+                'message' => 'Barang dari supplier berhasil ditandai sebagai diterima. Silakan lakukan konfirmasi penerimaan untuk update stok gudang.',
+                'data' => $po->fresh()->load(['shippingActivities', 'items'])
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            
+            Log::error('Mark as Received Error', [
+                'po_id' => $id_po,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Gagal menandai barang sebagai diterima: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     public function printInvoice($id_po)
     {
         $po = PurchaseOrder::with([
@@ -1405,5 +1496,299 @@ class PurchaseOrderController extends Controller
     public function approveByKasir(Request $request, $id_po)
     {
         return $this->approveKasir($request, $id_po);
+    }
+
+    // Tambahkan method ini di PurchaseOrderController.php
+
+       public function uploadInvoiceProof(Request $request, $id_po)
+        {
+            try {
+                // Log request untuk debugging
+                Log::info('Upload Invoice Proof Request', [
+                    'po_id' => $id_po,
+                    'user_id' => Auth::id(),
+                    'has_file' => $request->hasFile('bukti_invoice'),
+                    'file_size' => $request->file('bukti_invoice') ? $request->file('bukti_invoice')->getSize() : null,
+                ]);
+
+                // Validasi input dengan pesan error yang lebih jelas
+                $validator = Validator::make($request->all(), [
+                    'bukti_invoice' => [
+                        'required',
+                        'file',
+                        'mimes:jpeg,jpg,png,pdf',
+                        'max:5120', // 5MB in kilobytes
+                    ],
+                    'pin' => [
+                        'required',
+                        'string',
+                        'size:6',
+                        'regex:/^[0-9]{6}$/'
+                    ]
+                ], [
+                    'bukti_invoice.required' => 'File bukti invoice harus diupload',
+                    'bukti_invoice.file' => 'File harus berupa file yang valid',
+                    'bukti_invoice.mimes' => 'Format file harus JPEG, JPG, PNG, atau PDF',
+                    'bukti_invoice.max' => 'Ukuran file maksimal 5MB',
+                    'pin.required' => 'PIN harus diisi',
+                    'pin.size' => 'PIN harus 6 digit',
+                    'pin.regex' => 'PIN harus berupa 6 digit angka',
+                ]);
+
+                if ($validator->fails()) {
+                    Log::warning('Validation failed for invoice upload', [
+                        'errors' => $validator->errors()->toArray(),
+                        'po_id' => $id_po
+                    ]);
+                    
+                    return response()->json([
+                        'error' => $validator->errors()->first(),
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                // Verifikasi PIN
+                $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
+                    ->where('pin', $request->pin)
+                    ->first();
+
+                if (!$karyawan) {
+                    Log::warning('Invalid PIN for invoice upload', [
+                        'user_id' => Auth::user()->id_karyawan,
+                        'po_id' => $id_po
+                    ]);
+                    
+                    return response()->json([
+                        'error' => 'PIN yang Anda masukkan tidak valid'
+                    ], 403);
+                }
+
+                // Cari PO
+                $po = PurchaseOrder::find($id_po);
+                
+                if (!$po) {
+                    Log::error('PO not found', ['po_id' => $id_po]);
+                    return response()->json([
+                        'error' => 'Purchase Order tidak ditemukan'
+                    ], 404);
+                }
+
+                // Validasi: Hanya PO yang sudah ada invoice yang bisa upload bukti
+                if (!$po->hasInvoice()) {
+                    return response()->json([
+                        'error' => 'Invoice belum diinput. Silakan input invoice terlebih dahulu.'
+                    ], 400);
+                }
+
+                DB::beginTransaction();
+                try {
+                    $dataBefore = $po->toArray();
+
+                    // Hapus file lama jika ada
+                    if ($po->bukti_invoice && Storage::disk('public')->exists($po->bukti_invoice)) {
+                        Storage::disk('public')->delete($po->bukti_invoice);
+                        Log::info('Old invoice proof deleted', ['old_file' => $po->bukti_invoice]);
+                    }
+
+                    // Upload file baru dengan error handling
+                    $file = $request->file('bukti_invoice');
+                    
+                    // Sanitize filename
+                    $invoiceNo = preg_replace('/[^A-Za-z0-9\-_]/', '_', $po->no_invoice);
+                    $extension = $file->getClientOriginalExtension();
+                    $fileName = 'invoice_' . $invoiceNo . '_' . time() . '.' . $extension;
+                    
+                    // Pastikan direktori exists
+                    Storage::disk('public')->makeDirectory('invoices');
+                    
+                    // Store file
+                    $filePath = $file->storeAs('invoices', $fileName, 'public');
+
+                    if (!$filePath) {
+                        throw new \Exception('Gagal menyimpan file ke storage');
+                    }
+
+                    // Verify file exists after upload
+                    if (!Storage::disk('public')->exists($filePath)) {
+                        throw new \Exception('File gagal tersimpan di storage');
+                    }
+
+                    // Update PO
+                    $po->update([
+                        'bukti_invoice' => $filePath,
+                        'tanggal_upload_bukti' => now(),
+                        'id_karyawan_upload_bukti' => Auth::user()->id_karyawan
+                    ]);
+
+                    // Audit Trail
+                    PoAuditTrail::create([
+                        'id_po' => $po->id_po,
+                        'id_karyawan' => Auth::user()->id_karyawan,
+                        'pin_karyawan' => $request->pin,
+                        'aksi' => 'upload_bukti_invoice',
+                        'deskripsi_aksi' => 'Upload bukti invoice: ' . $fileName,
+                        'data_sebelum' => json_encode($dataBefore),
+                        'data_sesudah' => json_encode($po->fresh()->toArray()),
+                    ]);
+
+                    DB::commit();
+
+                    Log::info('Invoice Proof Uploaded Successfully', [
+                        'po_id' => $po->id_po,
+                        'no_invoice' => $po->no_invoice,
+                        'file_path' => $filePath,
+                        'uploaded_by' => Auth::user()->id_karyawan
+                    ]);
+
+                    return response()->json([
+                        'message' => 'Bukti invoice berhasil diupload',
+                        'data' => [
+                            'file_path' => $filePath,
+                            'file_url' => asset('storage/' . $filePath),
+                            'file_name' => $fileName
+                        ]
+                    ], 200);
+
+                } catch (\Exception $e) {
+                    DB::rollBack();
+                    
+                    // Hapus file yang sudah terupload jika ada error
+                    if (isset($filePath) && Storage::disk('public')->exists($filePath)) {
+                        Storage::disk('public')->delete($filePath);
+                    }
+                    
+                    Log::error('Transaction failed during invoice upload', [
+                        'po_id' => $id_po,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString()
+                    ]);
+                    
+                    throw $e;
+                }
+
+            } catch (\Exception $e) {
+                Log::error('Upload Invoice Proof Error', [
+                    'po_id' => $id_po,
+                    'user_id' => Auth::user()->id_karyawan ?? null,
+                    'error' => $e->getMessage(),
+                    'file' => $e->getFile(),
+                    'line' => $e->getLine(),
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                return response()->json([
+                    'error' => 'Gagal upload bukti invoice: ' . $e->getMessage()
+                ], 500);
+            }
+        }
+
+    public function deleteInvoiceProof(Request $request, $id_po)
+    {
+        try {
+            // Validasi PIN
+            $validator = Validator::make($request->all(), [
+                'pin' => 'required|digits:6'
+            ], [
+                'pin.required' => 'PIN harus diisi',
+                'pin.digits' => 'PIN harus 6 digit angka'
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'error' => $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Verifikasi PIN
+            $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
+                ->where('pin', $request->pin)
+                ->first();
+
+            if (!$karyawan) {
+                Log::warning('Invalid PIN for delete invoice proof', [
+                    'user_id' => Auth::user()->id_karyawan,
+                    'po_id' => $id_po
+                ]);
+                
+                return response()->json(['error' => 'PIN tidak valid'], 403);
+            }
+
+            DB::beginTransaction();
+            try {
+                $po = PurchaseOrder::findOrFail($id_po);
+
+                if (!$po->bukti_invoice) {
+                    return response()->json([
+                        'error' => 'Tidak ada bukti invoice yang dapat dihapus'
+                    ], 400);
+                }
+
+                $dataBefore = $po->toArray();
+                $oldFilePath = $po->bukti_invoice;
+
+                // Hapus file dari storage
+                if (Storage::disk('public')->exists($oldFilePath)) {
+                    Storage::disk('public')->delete($oldFilePath);
+                    Log::info('Invoice proof file deleted', ['file' => $oldFilePath]);
+                }
+
+                // Update PO
+                $po->update([
+                    'bukti_invoice' => null,
+                    'tanggal_upload_bukti' => null,
+                    'id_karyawan_upload_bukti' => null
+                ]);
+
+                // Audit Trail
+                PoAuditTrail::create([
+                    'id_po' => $po->id_po,
+                    'id_karyawan' => Auth::user()->id_karyawan,
+                    'pin_karyawan' => $request->pin,
+                    'aksi' => 'hapus_bukti_invoice',
+                    'deskripsi_aksi' => 'Menghapus bukti invoice: ' . basename($oldFilePath),
+                    'data_sebelum' => json_encode($dataBefore),
+                    'data_sesudah' => json_encode($po->fresh()->toArray()),
+                ]);
+
+                DB::commit();
+
+                Log::info('Invoice Proof Deleted Successfully', [
+                    'po_id' => $po->id_po,
+                    'file_deleted' => $oldFilePath,
+                    'deleted_by' => Auth::user()->id_karyawan
+                ]);
+
+                return response()->json([
+                    'message' => 'Bukti invoice berhasil dihapus'
+                ], 200);
+
+            } catch (\Exception $e) {
+                DB::rollBack();
+                throw $e;
+            }
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            Log::error('PO not found for delete invoice proof', [
+                'po_id' => $id_po,
+                'error' => $e->getMessage()
+            ]);
+            
+            return response()->json([
+                'error' => 'Purchase Order tidak ditemukan'
+            ], 404);
+            
+        } catch (\Exception $e) {
+            Log::error('Delete Invoice Proof Error', [
+                'po_id' => $id_po,
+                'user_id' => Auth::user()->id_karyawan ?? null,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            return response()->json([
+                'error' => 'Gagal menghapus bukti invoice. Silakan coba lagi.'
+            ], 500);
+        }
     }
 }

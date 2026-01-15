@@ -285,6 +285,7 @@ class PoexConfirmationController extends Controller
             'tanggal_invoice' => 'required|date',
             'tanggal_jatuh_tempo' => 'required|date|after_or_equal:tanggal_invoice',
             'nomor_faktur_pajak' => 'nullable|string|max:100',
+            'no_kwitansi' => 'nullable|string|max:100',
         ]);
 
         // Verifikasi PIN
@@ -314,6 +315,7 @@ class PoexConfirmationController extends Controller
                 'tanggal_invoice' => $request->tanggal_invoice,
                 'tanggal_jatuh_tempo' => $request->tanggal_jatuh_tempo,
                 'nomor_faktur_pajak' => $request->nomor_faktur_pajak,
+                'no_kwitansi' => $request->no_kwitansi,
                 'id_karyawan_input_invoice' => Auth::user()->id_karyawan,
                 'tanggal_input_invoice' => now(),
             ]);

@@ -59,6 +59,7 @@
 
 <body>
     @include('sweetalert::alert')
+    @include('components.pin-modal')
 
     <!-- Loading starts -->
     {{-- <div id="loading-wrapper">
@@ -198,6 +199,126 @@
         }, 1000); // 5000ms = 5 detik
     });
 </script> --}}
+
+        <script>
+        // Inactivity Detection & PIN Modal System - Final Version
+        (function() {
+            let inactivityTimer;
+            const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 10 menit dalam milliseconds
+            
+            // Fungsi untuk reset timer
+            function resetInactivityTimer() {
+                clearTimeout(inactivityTimer);
+                
+                // Set timer baru
+                inactivityTimer = setTimeout(function() {
+                    showPinModalDueToInactivity();
+                }, INACTIVITY_TIMEOUT);
+            }
+            
+            // Fungsi untuk menampilkan modal PIN karena inactivity
+            function showPinModalDueToInactivity() {
+                // Hapus status pin verified dari session
+                fetch('/pin/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
+                    }
+                }).then(response => response.json())
+                .then(data => {
+                    // Panggil function dari pin-modal untuk show dengan info message
+                    if (typeof window.showPinModalForInactivity === 'function') {
+                        window.showPinModalForInactivity();
+                    } else {
+                        // Fallback jika function belum ready
+                        const pinModal = document.getElementById('pinVerificationModal');
+                        if (pinModal) {
+                            const modal = new bootstrap.Modal(pinModal, {
+                                backdrop: 'static',
+                                keyboard: false
+                            });
+                            modal.show();
+                            
+                            // Clear PIN inputs
+                            setTimeout(() => {
+                                if (typeof window.clearAllPin === 'function') {
+                                    window.clearAllPin();
+                                }
+                                
+                                // Show info message
+                                if (typeof window.showPinInfo === 'function') {
+                                    window.showPinInfo('Sesi Anda tidak aktif selama 10 menit. Silakan masukkan PIN untuk melanjutkan.');
+                                }
+                            }, 300);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error('Error clearing PIN session:', error);
+                });
+            }
+            
+            // Event listeners untuk mendeteksi aktivitas user
+            const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+            
+            events.forEach(function(event) {
+                document.addEventListener(event, resetInactivityTimer, true);
+            });
+            
+            // Mulai timer saat halaman dimuat
+            resetInactivityTimer();
+            
+            // Reset timer ketika PIN berhasil diverifikasi
+            document.addEventListener('DOMContentLoaded', function() {
+                const pinModal = document.getElementById('pinVerificationModal');
+                if (pinModal) {
+                    // Reset timer ketika modal ditutup (berarti PIN sukses diverifikasi)
+                    pinModal.addEventListener('hidden.bs.modal', function() {
+                        resetInactivityTimer();
+                    });
+                }
+            });
+            
+            // Handle AJAX requests yang ditolak karena PIN
+            if (typeof $ !== 'undefined') {
+                $(document).ajaxComplete(function(event, xhr, settings) {
+                    if (xhr.status === 403) {
+                        try {
+                            const response = JSON.parse(xhr.responseText);
+                            if (response.pin_required) {
+                                showPinModalDueToInactivity();
+                            }
+                        } catch (e) {
+                            // Bukan JSON response
+                        }
+                    }
+                });
+            }
+            
+            // Expose reset function untuk debugging
+            window.resetPinTimer = resetInactivityTimer;
+            
+            // Debug info (comment out di production)
+            console.log('Inactivity PIN System initialized. Timeout:', INACTIVITY_TIMEOUT / 1000 / 60, 'minutes');
+        })();
+        </script>
+
+        <script>
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                const pinModal = document.getElementById('pinVerificationModal');
+                if (pinModal) {
+                    pinModal.addEventListener('shown.bs.modal', function() {
+                        
+                        const pinInput = document.getElementById('pin_input');
+                        if (pinInput) {
+                            pinInput.focus();
+                        }
+                    });
+                }
+            });
+        </script>
 
 
     <script>

@@ -43,11 +43,12 @@ class DetailObatrsController extends Controller
     public function updateAll(Request $request, $obatId, $detailId)
     {
         // dd($request->all());
-        foreach (['harga_obat', 'harga_khusus', 'harga_bpjs'] as $field) {
+        foreach (['harga_obat', 'harga_khusus', 'harga_bpjs', 'embalase', 'jasa_racik'] as $field) {
             if ($request->filled($field)) {
                 $request[$field] = preg_replace('/\D/', '', $request[$field]);
             }
         }
+
         $validated = $request->validate([
             'kode_obat_rs' => 'required|string|max:50|unique:detail_obat_rs,kode_obat_rs,' . $detailId . ',id_detail_obat_rs',
             'nama_obat_rs' => 'nullable|string|min:0',
@@ -59,6 +60,9 @@ class DetailObatrsController extends Controller
             'harga_obat' => 'nullable|integer|min:0',
             'harga_khusus' => 'nullable|integer|min:0',
             'harga_bpjs' => 'nullable|integer|min:0',
+            'embalase' => 'nullable|integer|min:0',
+            'jasa_racik' => 'nullable|integer|min:0',
+            'total' => 'nullable|integer|min:0',
             'harga_asuransi' => 'nullable|array',
             'harga_asuransi.*.id' => 'nullable|uuid',
             'harga_asuransi.*.asuransi_id' => 'required|uuid|exists:asuransis,id',
@@ -68,6 +72,18 @@ class DetailObatrsController extends Controller
             'harga_asuransi.*.aktif' => 'nullable|boolean',
             'harga_asuransi.*.keterangan' => 'nullable|string',
         ]);
+
+        $hargaObat  = $validated['harga_obat'] ?? 0;
+        $hargaBpjs  = $validated['harga_bpjs'] ?? 0;
+        $hargaKhusus  = $validated['harga_khusus'] ?? 0;
+        $embalase   = $validated['embalase'] ?? 0;
+        $jasaRacik  = $validated['jasa_racik'] ?? 0;
+
+        // Jika embalase & jasa racik kosong → total = harga obat
+        // Jika ada isinya → otomatis ikut terjumlah
+        $total = $hargaObat + $embalase + $jasaRacik;
+        $totalBpjs = $hargaBpjs + $embalase + $jasaRacik;
+        $totalKhusus = $hargaKhusus + $embalase + $jasaRacik;
 
         DB::beginTransaction();
 
@@ -94,6 +110,11 @@ class DetailObatrsController extends Controller
                     'harga_obat' => $validated['harga_obat'] ?? 0,
                     'harga_khusus' => $validated['harga_khusus'] ?? 0,
                     'harga_bpjs' => $validated['harga_bpjs'] ?? 0,
+                    'embalase'    => $embalase,
+                    'jasa_racik'  => $jasaRacik,
+                    'total'       => $total,
+                    'total_bpjs'       => $totalBpjs,
+                    'total_khusus'       => $totalKhusus,
                 ]
             );
 

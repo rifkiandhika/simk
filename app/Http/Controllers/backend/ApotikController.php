@@ -107,7 +107,7 @@ class ApotikController extends Controller
                     'stock_tersedia' => $stockTersedia,
                     'harga_satuan' => $detail->harga_satuan,
                     'subtotal' => $detail->subtotal,
-                    'stock_cukup' => $stockTersedia >= $detail->jumlah
+                    'stock_cukup' => $stockTersedia >= $detail->jumlah,
                 ];
             });
 

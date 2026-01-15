@@ -6,6 +6,7 @@ use App\Http\Controllers\backend\ApprovalController;
 use App\Http\Controllers\backend\AsuransiController;
 use App\Http\Controllers\backend\DepartmentController;
 use App\Http\Controllers\backend\DetailObatrsController;
+use App\Http\Controllers\backend\DosisController;
 use App\Http\Controllers\backend\GudangController;
 use App\Http\Controllers\backend\HistoryGudangController;
 use App\Http\Controllers\backend\JenisController;
@@ -18,6 +19,7 @@ use App\Http\Controllers\backend\PasienController;
 use App\Http\Controllers\backend\PenjualanBebasController;
 use App\Http\Controllers\backend\PenjualanResepController;
 use App\Http\Controllers\backend\PermintaanController;
+use App\Http\Controllers\backend\PinVerificationController;
 use App\Http\Controllers\backend\PoConfirmationController;
 use App\Http\Controllers\backend\PoexConfirmationController;
 use App\Http\Controllers\backend\PurchaseOrderController;
@@ -26,6 +28,7 @@ use App\Http\Controllers\backend\ReceivingController;
 use App\Http\Controllers\backend\RolePermissionController;
 use App\Http\Controllers\backend\SatuanController;
 use App\Http\Controllers\backend\ShippingController;
+use App\Http\Controllers\backend\SignaController;
 use App\Http\Controllers\backend\StockapotikController;
 use App\Http\Controllers\backend\SupplierController;
 use App\Http\Controllers\backend\TagihanPasienController;
@@ -62,19 +65,38 @@ Route::get('/', function () {
     return redirect('/login');
 });
 
+
+// ========================================
+// AUTHENTICATED PIN
+// ========================================
+Route::middleware(['auth'])->group(function () {
+    // Dashboard - TANPA pin.verified middleware (modal akan muncul di sini)
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    // Logout tetap bisa diakses tanpa PIN
+    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    
+    // PIN Routes
+    Route::post('/pin/verify', [PinVerificationController::class, 'verify'])
+        ->name('pin.verify');
+    Route::post('/pin/logout', [PinVerificationController::class, 'logoutPin'])
+        ->name('pin.logout');
+});
 // ========================================
 // AUTHENTICATED ROUTES
 // ========================================
 
-Route::middleware(['auth'])->group(function () {
+Route::middleware(['auth', 'pin.verified'])->group(function () {
 
     // ========================================
     // DASHBOARD
     // ========================================
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
-    Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+    // Route::get('/dashboard', function () {
+    //     return view('dashboard');
+    // })->name('dashboard');
+    // Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
     // ========================================
     // Pasien
@@ -134,6 +156,12 @@ Route::middleware(['auth'])->group(function () {
     Route::resource('alkes', AlkesController::class);
     Route::resource('jenis', JenisController::class);
     Route::resource('satuans', SatuanController::class);
+    Route::resource('dosis', DosisController::class)
+    ->parameters([
+        'dosis' => 'dosis'
+    ]);
+
+    Route::resource('signas', SignaController::class);
     // ========================================
     // Supplier
     // ========================================
@@ -236,6 +264,12 @@ Route::middleware(['auth'])->group(function () {
             ->name('invoice-form');
         Route::post('/po/{id_po}/store-invoice', [PoexConfirmationController::class, 'storeInvoice'])
             ->name('store-invoice');
+        Route::post('/po/{id_po}/mark-received', [PurchaseOrderController::class, 'markAsReceived'])
+        ->name('mark-received');
+        Route::post('/{id_po}/upload-invoice-proof', [PurchaseOrderController::class, 'uploadInvoiceProof'])
+            ->name('upload-invoice-proof');
+        Route::post('/po/{id_po}/delete-invoice-proof', [PurchaseOrderController::class, 'deleteInvoiceProof'])
+            ->name('delete-invoice-proof');
     });
     // ========================================
     // Tagihan

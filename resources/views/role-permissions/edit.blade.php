@@ -48,6 +48,33 @@
                                 </small>
                             @endif
                         </div>
+                        <div class="mb-4">
+                            <label for="pin" class="form-label fw-bold">
+                                PIN <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                class="form-control @error('pin') is-invalid @enderror" 
+                                id="pin" 
+                                name="pin" 
+                                value="{{ old('pin', $role->pin) }}"
+                                placeholder="Masukkan PIN baru"
+                                {{ $role->name == 'Superadmin' ? 'readonly' : '' }}
+                                required>
+
+                            @error('pin')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
+
+                            @if($role->name == 'Superadmin')
+                                <small class="text-danger">
+                                    <i class="ri-lock-line"></i> PIN Superadmin tidak dapat diubah
+                                </small>
+                            @else
+                                <small class="text-muted">
+                                    <i class="ri-information-line"></i> PIN harus unik untuk setiap role
+                                </small>
+                            @endif
+                        </div>
 
                         <div class="alert alert-light border">
                             <div class="mb-2">

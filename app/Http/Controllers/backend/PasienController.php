@@ -7,8 +7,10 @@ use App\Models\Apotik;
 use App\Models\Asuransi;
 use App\Models\DetailResep;
 use App\Models\DetailstockApotik;
+use App\Models\Dosis;
 use App\Models\Pasien;
 use App\Models\Resep;
+use App\Models\Signa;
 use App\Services\TagihanService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -254,16 +256,20 @@ class PasienController extends Controller
                         'satuan' => $item->detailSupplier?->satuan ?? '-',
                         'no_batch' => $item->no_batch,
                         'stock' => $item->stock_tersedia,
-                        'harga_obat' => $item->detailSupplier?->hargaObat?->harga_obat ?? 0,
-                        'harga_khusus' => $item->detailSupplier?->hargaObat?->harga_khusus ?? 0,
-                        'harga_bpjs' => $item->detailSupplier?->hargaObat?->harga_bpjs ?? 0,
+                        'harga_obat' => $item->detailSupplier?->hargaObat?->total ?? 0,
+                        'harga_khusus' => $item->detailSupplier?->hargaObat?->total_khusus ?? 0,
+                        'harga_bpjs' => $item->detailSupplier?->hargaObat?->total_bpjs ?? 0,
                         'detail_supplier_id' => $item->detailSupplier?->id ?? null,
                     ];
                 });
+                $dosis = Dosis::all();
+                $signa = Signa::all();
 
             return response()->json([
                 'success' => true,
-                'data' => $stockObat
+                'data' => $stockObat,
+                'dosis' => $dosis,
+                'signa' => $signa,
             ]);
         } catch (\Exception $e) {
             return response()->json([
@@ -275,10 +281,13 @@ class PasienController extends Controller
 
     /**
      * Store resep dari halaman pasien
-     * ✅ UPDATED: Dengan pembuatan tagihan otomatis
+     * 
      */
     public function storeResep(Request $request)
     {
+        // UNCOMMENT untuk debugging
+        // dd($request->all());
+        
         $validator = Validator::make($request->all(), [
             'pasien_id' => 'required|exists:pasiens,id_pasien',
             'obat_non_racik' => 'nullable|array',
@@ -286,19 +295,24 @@ class PasienController extends Controller
             'obat_non_racik.*.jumlah' => 'required_with:obat_non_racik|numeric|min:1',
             'obat_non_racik.*.harga' => 'required_with:obat_non_racik|numeric|min:0',
             'obat_non_racik.*.subtotal' => 'required_with:obat_non_racik|numeric|min:0',
-            'obat_non_racik.*.dosis' => 'nullable|string',
+            'obat_non_racik.*.dosis_signa' => 'nullable|string',  
+            'obat_non_racik.*.aturan_pakai' => 'nullable|string', 
             'racikan' => 'nullable|array',
             'racikan.*.nama_racikan' => 'required_with:racikan|string',
             'racikan.*.hasil_racikan' => 'required_with:racikan|string',
             'racikan.*.jumlah_racikan' => 'required_with:racikan|numeric|min:1',
-            'racikan.*.dosis' => 'nullable|string',
-            'racikan.*.aturan_pakai' => 'nullable|string',
             'racikan.*.jasa_racik' => 'required_with:racikan|numeric|min:0',
             'racikan.*.obat' => 'required_with:racikan|array|min:1',
             'racikan.*.obat.*.id' => 'required',
             'racikan.*.obat.*.jumlah' => 'required|numeric|min:1',
             'racikan.*.obat.*.harga' => 'required|numeric|min:0',
+            'racikan.*.obat.*.dosis_signa' => 'nullable|string',   
+            'racikan.*.obat.*.aturan_pakai' => 'nullable|string',  
             'embalase' => 'nullable|numeric|min:0',
+            'diskon' => 'nullable|numeric|min:0',
+            'diskon_type' => 'required|in:percent,idr',
+            'pajak' => 'nullable|numeric|min:0',
+            'pajak_type' => 'required|in:percent,idr',
             'keterangan' => 'nullable|string',
         ]);
 
@@ -335,37 +349,76 @@ class PasienController extends Controller
             $totalObat = 0;
             $totalJasaRacik = 0;
 
+            
+            $dosisSigmaArray = [];
+            $aturanPakaiArray = [];
+
             // Total dari obat non racik
             if (!empty($request->obat_non_racik)) {
                 foreach ($request->obat_non_racik as $obat) {
                     $totalObat += $obat['subtotal'];
+                    
+                    
+                    if (!empty($obat['dosis_signa'])) {
+                        $dosisSigmaArray[] = $obat['dosis_signa'];
+                    }
+                    if (!empty($obat['aturan_pakai'])) {
+                        $aturanPakaiArray[] = $obat['aturan_pakai'];
+                    }
                 }
             }
 
             // Total dari racikan
             $jenisRacikanArray = [];
             $hasilRacikanArray = [];
-            $dosisSigmaArray = [];
-            $aturanPakaiArray = [];
 
             if (!empty($request->racikan)) {
                 foreach ($request->racikan as $racikan) {
                     $jenisRacikanArray[] = $racikan['nama_racikan'];
                     $hasilRacikanArray[] = $racikan['hasil_racikan'];
-                    $dosisSigmaArray[] = $racikan['dosis'] ?? '';
-                    $aturanPakaiArray[] = $racikan['aturan_pakai'] ?? '';
 
                     foreach ($racikan['obat'] as $obat) {
                         $totalObat += ($obat['jumlah'] * $obat['harga']);
+                        
+                        // ✅ TAMBAH: Kumpulkan dosis_signa dan aturan_pakai dari obat racikan
+                        if (!empty($obat['dosis_signa'])) {
+                            $dosisSigmaArray[] = $obat['dosis_signa'];
+                        }
+                        if (!empty($obat['aturan_pakai'])) {
+                            $aturanPakaiArray[] = $obat['aturan_pakai'];
+                        }
                     }
                     $totalJasaRacik += $racikan['jasa_racik'];
                 }
             }
 
-            $embalase = $request->embalase ?? 0;
-            $totalBayar = $totalObat + $embalase + $totalJasaRacik;
+            $diskonInput = $request->diskon ?? 0;
+            $diskonType = $request->diskon_type ?? 'percent';
+            $nilaiDiskon = 0;
 
-            // Simpan resep utama
+            if ($diskonType === 'percent') {
+                $nilaiDiskon = ($totalObat * $diskonInput) / 100;
+            } else {
+                $nilaiDiskon = $diskonInput;
+            }
+
+            $subtotalSetelahDiskon = $totalObat - $nilaiDiskon;
+
+            
+            $pajakInput = $request->pajak ?? 0;
+            $pajakType = $request->pajak_type ?? 'percent';
+            $nilaiPajak = 0;
+
+            if ($pajakType === 'percent') {
+                $nilaiPajak = ($subtotalSetelahDiskon * $pajakInput) / 100;
+            } else {
+                $nilaiPajak = $pajakInput;
+            }
+
+            
+            $totalBayar = $subtotalSetelahDiskon + $nilaiPajak + $totalJasaRacik;
+
+            
             $resep = Resep::create([
                 'no_resep' => $noResep,
                 'pasien_id' => $request->pasien_id,
@@ -373,10 +426,14 @@ class PasienController extends Controller
                 'status_obat' => $statusObat,
                 'jenis_racikan' => !empty($jenisRacikanArray) ? implode(', ', $jenisRacikanArray) : null,
                 'hasil_racikan' => !empty($hasilRacikanArray) ? implode(', ', $hasilRacikanArray) : null,
-                'dosis_signa' => !empty($dosisSigmaArray) ? implode(', ', array_filter($dosisSigmaArray)) : null,
-                'aturan_pakai' => !empty($aturanPakaiArray) ? implode(', ', array_filter($aturanPakaiArray)) : null,
-                'embalase' => $embalase,
+                'dosis_signa' => !empty($dosisSigmaArray) ? implode(', ', array_unique($dosisSigmaArray)) : null,  
+                'aturan_pakai' => !empty($aturanPakaiArray) ? implode(', ', array_unique($aturanPakaiArray)) : null, 
+                // 'embalase' => $embalase,
                 'jasa_racik' => $totalJasaRacik,
+                'diskon' => $diskonInput,
+                'diskon_type' => $diskonType,
+                'pajak' => $pajakInput,
+                'pajak_type' => $pajakType,
                 'total_harga' => $totalBayar,
                 'keterangan' => $request->keterangan,
                 'status' => 'menunggu',
@@ -463,14 +520,11 @@ class PasienController extends Controller
                     'total_tagihan' => $tagihan->total_tagihan
                 ]);
             } catch (\Exception $e) {
-                // Log error tapi jangan rollback resep
                 \Log::error('Gagal membuat tagihan otomatis', [
                     'no_resep' => $noResep,
                     'error' => $e->getMessage()
                 ]);
                 
-                // Bisa pilih: throw error atau lanjut tanpa tagihan
-                // Untuk sekarang, kita throw error agar konsisten
                 throw new \Exception("Resep berhasil dibuat, tetapi gagal membuat tagihan: " . $e->getMessage());
             }
 

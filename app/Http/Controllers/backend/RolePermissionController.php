@@ -46,17 +46,23 @@ class RolePermissionController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name',
+            'pin'  => 'required|string|max:10|unique:roles,pin',
         ]);
 
         DB::beginTransaction();
 
         try {
-            $permissions = $request->except(['_token', 'name', 'langs']);
-            $role = Role::create(['name' => $request->name]);
+            // $permissions = $request->except(['_token', 'name', 'langs']);
+            $role = Role::create([
+                'name' => $request->name,
+                'pin'  => $request->pin,
+            ]);
 
-            foreach ($permissions as $permission) {
-                $role->givePermissionTo($permission);
-            }
+
+             $role->syncPermissions($request->permissions ?? []);
+            // foreach ($permissions as $permission) {
+            //     $role->givePermissionTo($permission);
+            // }
 
             DB::commit();
             toast('Role created successfully!', 'success');
@@ -119,6 +125,7 @@ class RolePermissionController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:roles,name,' . $id,
+            'pin'  => 'required|string|max:10|unique:roles,pin,' . $id,
         ]);
 
         DB::beginTransaction();
@@ -126,15 +133,16 @@ class RolePermissionController extends Controller
         try {
             $role = Role::findOrFail($id);
             $role->name = $request->name;
+            $role->pin  = $request->pin;
             $role->save();
 
             // Sync permissions
-            $role->syncPermissions([]);
-            $permissions = $request->except(['_token', 'name', '_method', 'langs']);
+            $role->syncPermissions([$request->permission ?? []]);
+            // $permissions = $request->except(['_token', 'name', '_method', 'langs']);
 
-            foreach ($permissions as $permission) {
-                $role->givePermissionTo($permission);
-            }
+            // foreach ($permissions as $permission) {
+            //     $role->givePermissionTo($permission);
+            // }
 
             DB::commit();
             toast('Role updated successfully!', 'success');

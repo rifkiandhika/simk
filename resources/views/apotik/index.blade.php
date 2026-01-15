@@ -487,6 +487,7 @@ function populateDetailModal(data) {
 
     // Set info obat
     $('#detail_status_obat').text(resep.status_obat);
+    
     if (resep.status_obat === 'Racik') {
         $('#detail_racik_info').show();
         $('#detail_jenis_racikan').text(resep.jenis_racikan || '-');
@@ -495,6 +496,38 @@ function populateDetailModal(data) {
         $('#detail_aturan_pakai').text(resep.aturan_pakai || '-');
     } else {
         $('#detail_racik_info').hide();
+    }
+
+    // ===== INFORMASI NON RACIK =====
+    if (resep.status_obat === 'Non Racik') {
+        $('#detail_racik_info').hide();
+        $('#detail_non_racik_info').show();
+
+        let html = '';
+
+        obatDetails.forEach((obat, index) => {
+            html += `
+                <div class="border rounded p-3 mb-2">
+                    <strong class="text-success">
+                        ${index + 1}. ${obat.nama_obat}
+                    </strong>
+                    <div class="row mt-2">
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Dosis</small>
+                            <strong>${resep.dosis_signa ?? '-'}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <small class="text-muted d-block">Aturan Pakai</small>
+                            <strong>${resep.aturan_pakai ?? '-'}</strong>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        $('#detail_non_racik_body').html(html);
+    } else {
+        $('#detail_non_racik_info').hide();
     }
 
     // Set daftar obat
@@ -522,10 +555,74 @@ function populateDetailModal(data) {
     });
     $('#tbody_detail_obat').html(obatHtml);
 
-    // Set total
-    $('#detail_embalase').text('Rp ' + formatRupiah(resep.embalase));
-    $('#detail_jasa_racik').text('Rp ' + formatRupiah(resep.jasa_racik));
-    $('#detail_total').text('Rp ' + formatRupiah(resep.total_harga));
+    // ✅ HITUNG DAN TAMPILKAN DISKON & PAJAK
+    let totalObat = 0;
+    obatDetails.forEach(obat => {
+        totalObat += parseFloat(obat.subtotal);
+    });
+
+    // Hitung diskon
+    let nilaiDiskon = 0;
+    if (resep.diskon > 0) {
+        if (resep.diskon_type === 'percent') {
+            nilaiDiskon = (totalObat * resep.diskon) / 100;
+        } else {
+            nilaiDiskon = parseFloat(resep.diskon);
+        }
+    }
+
+    // Subtotal setelah diskon
+    const subtotalSetelahDiskon = totalObat - nilaiDiskon;
+    
+    // Tambah jasa racik
+    const jasaRacik = parseFloat(resep.jasa_racik) || 0;
+    const subtotalDenganJasaRacik = subtotalSetelahDiskon + jasaRacik;
+
+    // Hitung pajak
+    let nilaiPajak = 0;
+    if (resep.pajak > 0) {
+        if (resep.pajak_type === 'percent') {
+            nilaiPajak = (subtotalDenganJasaRacik * resep.pajak) / 100;
+        } else {
+            nilaiPajak = parseFloat(resep.pajak);
+        }
+    }
+
+    // Total akhir
+    const totalAkhir = subtotalDenganJasaRacik + nilaiPajak;
+
+    // ✅ SET NILAI KE MODAL
+    $('#detail_total_obat').text('Rp ' + formatRupiah(totalObat));
+    
+    // Diskon
+    if (resep.diskon > 0) {
+        const diskonLabel = resep.diskon_type === 'percent' ? `${resep.diskon}%` : 'IDR';
+        $('#detail_diskon_label').text(`Diskon (${diskonLabel}):`);
+        $('#detail_diskon').text('- Rp ' + formatRupiah(nilaiDiskon));
+        $('#detail_diskon_row').show();
+    } else {
+        $('#detail_diskon_row').hide();
+    }
+
+    // Jasa Racik
+    if (jasaRacik > 0) {
+        $('#detail_jasa_racik').text('Rp ' + formatRupiah(jasaRacik));
+        $('#detail_jasa_racik_row').show();
+    } else {
+        $('#detail_jasa_racik_row').hide();
+    }
+
+    // Pajak
+    if (resep.pajak > 0) {
+        const pajakLabel = resep.pajak_type === 'percent' ? `${resep.pajak}%` : 'IDR';
+        $('#detail_pajak_label').text(`Pajak (${pajakLabel}):`);
+        $('#detail_pajak').text('Rp ' + formatRupiah(nilaiPajak));
+        $('#detail_pajak_row').show();
+    } else {
+        $('#detail_pajak_row').hide();
+    }
+
+    $('#detail_total').text('Rp ' + formatRupiah(totalAkhir));
 
     // Set keterangan
     $('#detail_keterangan').text(resep.keterangan || '-');

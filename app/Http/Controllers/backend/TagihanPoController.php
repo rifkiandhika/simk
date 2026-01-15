@@ -59,8 +59,14 @@ class TagihanPoController extends Controller
         }
 
         // Get results - using get() instead of paginate
-        $tagihanAktif = $queryAktif->latest()->get();
-        $tagihanDraft = $queryDraft->latest()->get();
+        $tagihanAktif = $queryAktif
+            ->orderBy('tanggal_jatuh_tempo', 'asc')
+            ->get();
+
+        $tagihanDraft = $queryDraft
+            ->orderBy('tanggal_jatuh_tempo', 'asc')
+            ->get();
+
 
         return view('tagihan.index', compact(
             'tagihanAktif',
