@@ -192,12 +192,60 @@
                 </div>
             </div>
 
-            <!-- Data Pembayaran -->
+            <!-- Data Ruangan & Pembayaran -->
             <div class="row mb-4">
                 <div class="col-12">
                     <h6 class="border-bottom pb-2 mb-3">
-                        <i class="ri-bank-card-line"></i> Data Pembayaran
+                        <i class="ri-building-line"></i> Data Ruangan & Pembayaran
                     </h6>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Jenis Ruangan</label>
+                    <select name="jenis_ruangan" id="jenis_ruangan" class="form-select @error('jenis_ruangan') is-invalid @enderror">
+                        <option value="">Pilih Jenis Ruangan</option>
+                        <option value="rawat_jalan" {{ old('jenis_ruangan', $pasien->jenis_ruangan ?? '') == 'rawat_jalan' ? 'selected' : '' }}>Rawat Jalan</option>
+                        <option value="rawat_inap" {{ old('jenis_ruangan', $pasien->jenis_ruangan ?? '') == 'rawat_inap' ? 'selected' : '' }}>Rawat Inap</option>
+                        <option value="igd" {{ old('jenis_ruangan', $pasien->jenis_ruangan ?? '') == 'igd' ? 'selected' : '' }}>IGD</option>
+                        <option value="penunjang" {{ old('jenis_ruangan', $pasien->jenis_ruangan ?? '') == 'penunjang' ? 'selected' : '' }}>Penunjang</option>
+                    </select>
+                    @error('jenis_ruangan')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <small class="text-muted">Filter ruangan berdasarkan jenis</small>
+                </div>
+
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Ruangan</label>
+                    <select name="ruangan_id" id="ruangan_id" class="form-select @error('ruangan_id') is-invalid @enderror">
+                        <option value="">Pilih Ruangan</option>
+                        @foreach($ruangans as $ruangan)
+                            <option value="{{ $ruangan->id }}" 
+                                    data-jenis="{{ $ruangan->jenis }}"
+                                    data-kapasitas="{{ $ruangan->kapasitas }}"
+                                    data-kode="{{ $ruangan->kode_ruangan }}"
+                                    {{ old('ruangan_id', $pasien->ruangan_id ?? '') == $ruangan->id ? 'selected' : '' }}>
+                                [{{ $ruangan->kode_ruangan }}] {{ $ruangan->nama_ruangan }} 
+                                @if($ruangan->jenis == 'rawat_inap')
+                                    (Kapasitas: {{ $ruangan->kapasitas }})
+                                @endif
+                            </option>
+                        @endforeach
+                    </select>
+                    @error('ruangan_id')
+                        <div class="invalid-feedback">{{ $message }}</div>
+                    @enderror
+                    <div id="ruangan-info" class="mt-2" style="display: none;">
+                        <div class="alert alert-info py-2 mb-0">
+                            <small>
+                                <i class="ri-information-line"></i>
+                                <strong>Info Ruangan:</strong>
+                                <span id="info-kode"></span> - 
+                                <span id="info-jenis"></span>
+                                <span id="info-kapasitas"></span>
+                            </small>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="col-md-4 mb-3">
@@ -316,6 +364,75 @@ $(document).ready(function() {
 
     $('#jenis_pembayaran').change(togglePembayaranFields);
     togglePembayaranFields(); // Initial call
+
+    // Filter ruangan berdasarkan jenis
+    function filterRuangan() {
+        const jenisRuangan = $('#jenis_ruangan').val();
+        const $ruanganSelect = $('#ruangan_id');
+        
+        // Show all options first
+        $ruanganSelect.find('option').each(function() {
+            if ($(this).val() !== '') {
+                if (jenisRuangan === '') {
+                    $(this).show();
+                } else {
+                    const optionJenis = $(this).data('jenis');
+                    if (optionJenis === jenisRuangan) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                }
+            }
+        });
+
+        // Reset selection if current selection is hidden
+        const currentOption = $ruanganSelect.find('option:selected');
+        if (currentOption.val() !== '' && !currentOption.is(':visible')) {
+            $ruanganSelect.val('');
+            $('#ruangan-info').hide();
+        }
+    }
+
+    $('#jenis_ruangan').change(filterRuangan);
+
+    // Show ruangan info
+    function showRuanganInfo() {
+        const $selected = $('#ruangan_id option:selected');
+        
+        if ($selected.val() !== '') {
+            const kode = $selected.data('kode');
+            const jenis = $selected.data('jenis');
+            const kapasitas = $selected.data('kapasitas');
+            
+            // Map jenis to label
+            const jenisLabels = {
+                'rawat_jalan': 'Rawat Jalan',
+                'rawat_inap': 'Rawat Inap',
+                'igd': 'IGD',
+                'penunjang': 'Penunjang'
+            };
+            
+            $('#info-kode').text(kode);
+            $('#info-jenis').text(jenisLabels[jenis] || jenis);
+            
+            if (jenis === 'rawat_inap') {
+                $('#info-kapasitas').text(' | Kapasitas: ' + kapasitas + ' orang');
+            } else {
+                $('#info-kapasitas').text('');
+            }
+            
+            $('#ruangan-info').slideDown();
+        } else {
+            $('#ruangan-info').slideUp();
+        }
+    }
+
+    $('#ruangan_id').change(showRuanganInfo);
+    
+    // Initial calls
+    filterRuangan();
+    showRuanganInfo();
 });
 </script>
 @endpush

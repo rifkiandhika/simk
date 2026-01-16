@@ -170,6 +170,16 @@
           <a href="{{ route('signas.index') }}">Signa</a>
         </li>
       </ul>
+      <ul class="treeview-menu">
+        <li class="{{ Request::is('ruangans') ? 'active' : '' }}">
+          <a href="{{ route('ruangans.index') }}">Ruangan</a>
+        </li>
+      </ul>
+      <ul class="treeview-menu">
+        <li class="{{ Request::is('dokters') ? 'active' : '' }}">
+          <a href="{{ route('dokters.index') }}">Dokter</a>
+        </li>
+      </ul>
     </li>
     {{-- Users --}}
     <li class="treeview {{ Request::is('karyawans*') || Request::is('role-permissions*') || Request::is('users*') ? 'active' : '' }}">

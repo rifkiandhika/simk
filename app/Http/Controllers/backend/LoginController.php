@@ -74,6 +74,7 @@ class LoginController extends Controller
             $user->update(['last_login' => now()]);
 
             // Redirect based on role
+            // return $this->redirectBasedOnRole($user);
            return redirect()->route('dashboard')
                 ->with('show_pin_modal', true);
             }

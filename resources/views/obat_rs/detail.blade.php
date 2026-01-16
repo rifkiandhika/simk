@@ -215,16 +215,56 @@
                                     </div>
 
                                     <div class="col-md-4">
+                                        <label class="form-label">Embalase Khusus (IDR)</label>
+                                        <input type="text" name="embalase_khusus" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->embalase_khusus ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Embalase BPJS (IDR)</label>
+                                        <input type="text" name="embalase_bpjs" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->embalase_bpjs ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
                                         <label class="form-label">Jasa Racik (IDR)</label>
                                         <input type="text" name="jasa_racik" class="form-control format-rupiah" 
                                             value="{{ number_format($hargaObat->jasa_racik ?? 0, 0, ',', '.') }}">
                                     </div>
 
                                     <div class="col-md-4">
+                                        <label class="form-label">Jasa Racik Khusus (IDR)</label>
+                                        <input type="text" name="jasa_racik_khusus" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->jasa_racik_khusus ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <label class="form-label">Jasa Racik BPJS (IDR)</label>
+                                        <input type="text" name="jasa_racik_bpjs" class="form-control format-rupiah" 
+                                            value="{{ number_format($hargaObat->jasa_racik_bpjs ?? 0, 0, ',', '.') }}">
+                                    </div>
+
+                                    <div class="col-md-4">
                                         <b>
-                                            <label class="form-label">Total (IDR)</label>
+                                            <label class="form-label">Total Harga Umum (IDR)</label>
                                             <input type="text" class="form-control format-rupiah read-only:" 
                                                 value="{{ number_format($hargaObat->total ?? 0, 0, ',', '.') }}">
+                                        </b>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <b>
+                                            <label class="form-label">Total Harga Khusus (IDR)</label>
+                                            <input type="text" class="form-control format-rupiah read-only:" 
+                                                value="{{ number_format($hargaObat->total_khusus ?? 0, 0, ',', '.') }}">
+                                        </b>
+                                    </div>
+
+                                    <div class="col-md-4">
+                                        <b>
+                                            <label class="form-label">Total Harga BPJS (IDR)</label>
+                                            <input type="text" class="form-control format-rupiah read-only:" 
+                                                value="{{ number_format($hargaObat->total_bpjs ?? 0, 0, ',', '.') }}">
                                         </b>
                                     </div>
                                 </div>

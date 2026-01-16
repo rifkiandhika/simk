@@ -153,7 +153,6 @@ document.addEventListener('DOMContentLoaded', function() {
         box.addEventListener('input', function(e) {
             let value = this.value;
 
-            // Only allow numbers - PENTING untuk keamanan
             if (!/^\d*$/.test(value)) {
                 this.value = '';
                 return;
@@ -167,11 +166,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (value) {
                 this.classList.add('filled');
                 
-                // Move to next box
                 if (index < pinBoxes.length - 1) {
                     pinBoxes[index + 1].focus();
                 } else {
-                    this.blur();
+                    // JANGAN blur, biarkan tetap focus di box terakhir
+                    // Sehingga user bisa langsung Enter
                 }
             } else {
                 this.classList.remove('filled');
@@ -180,7 +179,18 @@ document.addEventListener('DOMContentLoaded', function() {
             updateHiddenInput();
         });
 
+        // PENTING: keydown harus menangkap Enter SEBELUM form submit
         box.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                const pin = getPin();
+                if (pin.length === 6 && !submitBtn.disabled) {
+                    submitPin();
+                }
+                return false;
+            }
+
             if (e.key === 'Backspace') {
                 if (!this.value && index > 0) {
                     pinBoxes[index - 1].focus();
@@ -191,13 +201,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     this.classList.remove('filled');
                 }
                 updateHiddenInput();
-            }
-
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                if (getPin().length === 6) {
-                    submitPin();
-                }
             }
 
             if (e.key === 'ArrowLeft' && index > 0) {
@@ -214,7 +217,6 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             const pastedData = e.clipboardData.getData('text').trim();
             
-            // KEAMANAN: Hanya izinkan paste 6 digit angka
             if (/^\d{6}$/.test(pastedData)) {
                 pastedData.split('').forEach((char, i) => {
                     if (pinBoxes[i]) {
@@ -228,7 +230,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         box.addEventListener('keypress', function(e) {
-            // KEAMANAN: Hanya izinkan digit
             if (!/\d/.test(e.key) && e.key !== 'Enter') {
                 e.preventDefault();
             }
@@ -279,7 +280,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.showPinInfo = function(message) {
         console.log('ℹ️ Showing info:', message);
-        dismissError(); // Clear error dulu
+        dismissError();
         infoMessage.textContent = message;
         infoAlert.style.display = 'block';
         infoAlert.classList.add('show');
@@ -302,7 +303,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 600);
     }
 
-    // Submit PIN via AJAX
     function submitPin() {
         const pin = getPin();
         if (pin.length !== 6) return;
@@ -321,11 +321,9 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Success - tutup modal TANPA reload
                 modal.hide();
                 clearAllPin();
                 
-                // Show success notification (toast, tidak ganggu)
                 if (typeof Swal !== 'undefined') {
                     Swal.fire({
                         icon: 'success',
@@ -339,14 +337,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                 }
 
-                // Reset submit button
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="ri-check-line me-2"></i>Verifikasi PIN';
                 
-                // PENTING: Tidak ada reload, user tetap di halaman yang sama
                 console.log('PIN verified successfully - no page reload');
             } else {
-                // Error
                 showError(data.message || 'PIN tidak valid');
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = '<i class="ri-check-line me-2"></i>Verifikasi PIN';
@@ -360,24 +355,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // PENTING: Form submit handler
     pinForm.addEventListener('submit', function(e) {
         e.preventDefault();
+        e.stopPropagation();
         submitPin();
+        return false;
     });
 
-    // Expose function untuk dipanggil dari inactivity script
     window.showPinModalForInactivity = function() {
         console.log('📱 showPinModalForInactivity called');
         
-        // Clear semua input dulu
         if (typeof window.clearAllPin === 'function') {
             window.clearAllPin();
         }
         
-        // Show info message
         showPinInfo('Sesi Anda tidak aktif. Silakan masukkan PIN untuk melanjutkan.');
         
-        // Show modal
         let modalInstance = bootstrap.Modal.getInstance(document.getElementById('pinVerificationModal'));
         if (!modalInstance) {
             modalInstance = new bootstrap.Modal(document.getElementById('pinVerificationModal'), {

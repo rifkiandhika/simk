@@ -42,10 +42,24 @@ class DetailObatrsController extends Controller
      */
     public function updateAll(Request $request, $obatId, $detailId)
     {
-        // dd($request->all());
-        foreach (['harga_obat', 'harga_khusus', 'harga_bpjs', 'embalase', 'jasa_racik'] as $field) {
+        // Bersihkan format rupiah untuk semua field harga
+        $priceFields = [
+            'harga_obat', 
+            'harga_khusus', 
+            'harga_bpjs', 
+            'embalase', 
+            'embalase_khusus', 
+            'embalase_bpjs',
+            'jasa_racik',
+            'jasa_racik_khusus',
+            'jasa_racik_bpjs'
+        ];
+
+        foreach ($priceFields as $field) {
             if ($request->filled($field)) {
-                $request[$field] = preg_replace('/\D/', '', $request[$field]);
+                $request->merge([
+                    $field => preg_replace('/\D/', '', $request->input($field))
+                ]);
             }
         }
 
@@ -57,12 +71,25 @@ class DetailObatrsController extends Controller
             'lokasi_penyimpanan' => 'nullable|string|max:100',
             'catatan_khusus' => 'nullable|string',
             'status_aktif' => 'required|in:Aktif,Nonaktif,Diskontinyu',
+            
+            // Harga Umum
             'harga_obat' => 'nullable|integer|min:0',
-            'harga_khusus' => 'nullable|integer|min:0',
-            'harga_bpjs' => 'nullable|integer|min:0',
             'embalase' => 'nullable|integer|min:0',
             'jasa_racik' => 'nullable|integer|min:0',
+            
+            // Harga Khusus/Promo
+            'harga_khusus' => 'nullable|integer|min:0',
+            'embalase_khusus' => 'nullable|integer|min:0',
+            'jasa_racik_khusus' => 'nullable|integer|min:0',
+            
+            // Harga BPJS
+            'harga_bpjs' => 'nullable|integer|min:0',
+            'embalase_bpjs' => 'nullable|integer|min:0',
+            'jasa_racik_bpjs' => 'nullable|integer|min:0',
+            
             'total' => 'nullable|integer|min:0',
+            
+            // Harga Asuransi
             'harga_asuransi' => 'nullable|array',
             'harga_asuransi.*.id' => 'nullable|uuid',
             'harga_asuransi.*.asuransi_id' => 'required|uuid|exists:asuransis,id',
@@ -73,17 +100,26 @@ class DetailObatrsController extends Controller
             'harga_asuransi.*.keterangan' => 'nullable|string',
         ]);
 
-        $hargaObat  = $validated['harga_obat'] ?? 0;
-        $hargaBpjs  = $validated['harga_bpjs'] ?? 0;
-        $hargaKhusus  = $validated['harga_khusus'] ?? 0;
-        $embalase   = $validated['embalase'] ?? 0;
-        $jasaRacik  = $validated['jasa_racik'] ?? 0;
+        // Ambil nilai untuk perhitungan total
+        // UMUM
+        $hargaObat = $validated['harga_obat'] ?? 0;
+        $embalase = $validated['embalase'] ?? 0;
+        $jasaRacik = $validated['jasa_racik'] ?? 0;
+        
+        // KHUSUS/PROMO
+        $hargaKhusus = $validated['harga_khusus'] ?? 0;
+        $embalaseKhusus = $validated['embalase_khusus'] ?? 0;
+        $jasaRacikKhusus = $validated['jasa_racik_khusus'] ?? 0;
+        
+        // BPJS
+        $hargaBpjs = $validated['harga_bpjs'] ?? 0;
+        $embalaseBpjs = $validated['embalase_bpjs'] ?? 0;
+        $jasaRacikBpjs = $validated['jasa_racik_bpjs'] ?? 0;
 
-        // Jika embalase & jasa racik kosong → total = harga obat
-        // Jika ada isinya → otomatis ikut terjumlah
+        // Hitung total untuk masing-masing kategori
         $total = $hargaObat + $embalase + $jasaRacik;
-        $totalBpjs = $hargaBpjs + $embalase + $jasaRacik;
-        $totalKhusus = $hargaKhusus + $embalase + $jasaRacik;
+        $totalKhusus = $hargaKhusus + $embalaseKhusus + $jasaRacikKhusus;
+        $totalBpjs = $hargaBpjs + $embalaseBpjs + $jasaRacikBpjs;
 
         DB::beginTransaction();
 
@@ -103,22 +139,50 @@ class DetailObatrsController extends Controller
                 // 'updated_by' => auth()->user()->id_karyawan ?? null,
             ]);
 
-            // 2. Update/Create Harga Obat Umum
+            // 2. Update/Create Harga Obat
             HargaObat::updateOrCreate(
                 ['id_detail_obat_rs' => $detailId, 'aktif' => true],
                 [
-                    'harga_obat' => $validated['harga_obat'] ?? 0,
-                    'harga_khusus' => $validated['harga_khusus'] ?? 0,
-                    'harga_bpjs' => $validated['harga_bpjs'] ?? 0,
-                    'embalase'    => $embalase,
-                    'jasa_racik'  => $jasaRacik,
-                    'total'       => $total,
-                    'total_bpjs'       => $totalBpjs,
-                    'total_khusus'       => $totalKhusus,
+                    // Harga Umum
+                    'harga_obat' => $hargaObat,
+                    'embalase' => $embalase,
+                    'jasa_racik' => $jasaRacik,
+                    'total' => $total,
+                    
+                    // Harga Khusus/Promo
+                    'harga_khusus' => $hargaKhusus,
+                    'embalase_khusus' => $embalaseKhusus,
+                    'jasa_racik_khusus' => $jasaRacikKhusus,
+                    'total_khusus' => $totalKhusus,
+                    
+                    // Harga BPJS
+                    'harga_bpjs' => $hargaBpjs,
+                    'embalase_bpjs' => $embalaseBpjs,
+                    'jasa_racik_bpjs' => $jasaRacikBpjs,
+                    'total_bpjs' => $totalBpjs,
                 ]
             );
 
-            Log::info('Harga masuk:', $request->only('harga_obat', 'harga_khusus', 'harga_bpjs'));
+            Log::info('Harga masuk:', [
+                'umum' => [
+                    'harga' => $hargaObat,
+                    'embalase' => $embalase,
+                    'jasa_racik' => $jasaRacik,
+                    'total' => $total
+                ],
+                'khusus' => [
+                    'harga' => $hargaKhusus,
+                    'embalase' => $embalaseKhusus,
+                    'jasa_racik' => $jasaRacikKhusus,
+                    'total' => $totalKhusus
+                ],
+                'bpjs' => [
+                    'harga' => $hargaBpjs,
+                    'embalase' => $embalaseBpjs,
+                    'jasa_racik' => $jasaRacikBpjs,
+                    'total' => $totalBpjs
+                ]
+            ]);
 
             // 3. Update/Create Harga Asuransi
             if (!empty($validated['harga_asuransi'])) {
@@ -151,13 +215,20 @@ class DetailObatrsController extends Controller
 
             DB::commit();
 
-
             return response()->json([
                 'success' => true,
-                'message' => 'Data berhasil disimpan'
+                'message' => 'Data berhasil disimpan',
+                'data' => [
+                    'total_umum' => $total,
+                    'total_khusus' => $totalKhusus,
+                    'total_bpjs' => $totalBpjs
+                ]
             ]);
         } catch (\Exception $e) {
             DB::rollBack();
+            Log::error('Error updating obat: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
 
             return response()->json([
                 'success' => false,

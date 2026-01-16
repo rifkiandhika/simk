@@ -55,7 +55,7 @@
                         </tr>
                         <tr>
                             <td><strong>Tanggal Lahir</strong></td>
-                            <td>: {{ $tagihan->pasien->tanggal_lahir->format('d/m/Y') }}</td>
+                            <td>: {{ $tagihan->pasien->tanggal_lahir->format('d/m/Y') ?? '-'}}</td>
                         </tr>
                         <tr>
                             <td><strong>Alamat</strong></td>

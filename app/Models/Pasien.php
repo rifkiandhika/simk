@@ -31,6 +31,11 @@ class Pasien extends Model
     /**
      * Relasi ke Resep
      */
+    public function ruangan()
+    {
+        return $this->belongsTo(Ruangan::class, 'ruangan_id');
+    }
+
     public function reseps()
     {
         return $this->hasMany(Resep::class, 'pasien_id', 'id_pasien');

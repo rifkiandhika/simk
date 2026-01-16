@@ -58,6 +58,11 @@ class Tagihan extends Model
         return $this->belongsTo(Karyawan::class, 'locked_by', 'id_karyawan');
     }
 
+    public function karyawan()
+    {
+        return $this->belongsTo(Karyawan::class, 'id_karyawan', 'id_karyawan');
+    }
+
     // Scopes
     public function scopeBelumLunas($query)
     {

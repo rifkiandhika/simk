@@ -10,6 +10,7 @@ use App\Models\DetailstockApotik;
 use App\Models\Dosis;
 use App\Models\Pasien;
 use App\Models\Resep;
+use App\Models\Ruangan;
 use App\Models\Signa;
 use App\Services\TagihanService;
 use Carbon\Carbon;
@@ -33,7 +34,7 @@ class PasienController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Pasien::with('asuransi');
+        $query = Pasien::with(['asuransi', 'ruangan']);
 
         // Filter pencarian
         if ($request->filled('search')) {
@@ -56,9 +57,25 @@ class PasienController extends Controller
             $query->where('status_aktif', $request->status_aktif);
         }
 
+        // Filter jenis ruangan
+        if ($request->filled('jenis_ruangan')) {
+            $query->where('jenis_ruangan', $request->jenis_ruangan);
+        }
+
+        // Filter ruangan
+        if ($request->filled('ruangan_id')) {
+            $query->where('ruangan_id', $request->ruangan_id);
+        }
+
         $pasiens = $query->orderBy('created_at', 'desc')->paginate(15);
 
-        return view('pasien.index', compact('pasiens'));
+        // Data untuk filter dropdown
+        $ruangans = Ruangan::where('status', 1)
+                          ->orderBy('jenis', 'asc')
+                          ->orderBy('kode_ruangan', 'asc')
+                          ->get();
+
+        return view('pasien.index', compact('pasiens', 'ruangans'));
     }
 
     /**
@@ -67,7 +84,14 @@ class PasienController extends Controller
     public function create()
     {
         $asuransis = Asuransi::where('status', 'Aktif')->get();
-        return view('pasien.create', compact('asuransis'));
+        
+        // Ambil ruangan yang aktif
+        $ruangans = Ruangan::where('status', 1)
+                          ->orderBy('jenis', 'asc')
+                          ->orderBy('kode_ruangan', 'asc')
+                          ->get();
+        
+        return view('pasien.create', compact('asuransis', 'ruangans'));
     }
 
     /**
@@ -90,6 +114,8 @@ class PasienController extends Controller
             'hubungan_kontak_darurat' => 'nullable|string|max:50',
             'status_perkawinan' => 'nullable|in:Belum Kawin,Kawin,Cerai Hidup,Cerai Mati',
             'pekerjaan' => 'nullable|string|max:100',
+            'jenis_ruangan' => 'nullable|in:rawat_jalan,rawat_inap,igd,penunjang',
+            'ruangan_id' => 'nullable|exists:ruangans,id',
             'jenis_pembayaran' => 'required|in:BPJS,Umum,Asuransi',
             'no_bpjs' => 'nullable|string|max:20',
             'asuransi_id' => 'nullable|exists:asuransis,id',
@@ -97,7 +123,26 @@ class PasienController extends Controller
             'foto' => 'nullable|image|max:2048',
             'status_aktif' => 'required|in:Aktif,Nonaktif',
             'tanggal' => 'nullable|date',
+        ], [
+            'ruangan_id.exists' => 'Ruangan yang dipilih tidak valid',
         ]);
+
+        // Validasi kapasitas ruangan untuk rawat inap
+        if (!empty($validated['ruangan_id'])) {
+            $ruangan = Ruangan::find($validated['ruangan_id']);
+            
+            if ($ruangan && $ruangan->jenis === 'rawat_inap') {
+                $pasienAktif = Pasien::where('ruangan_id', $ruangan->id)
+                                    ->where('status_aktif', 'Aktif')
+                                    ->count();
+                
+                if ($pasienAktif >= $ruangan->kapasitas) {
+                    return back()->withErrors([
+                        'ruangan_id' => "Ruangan {$ruangan->nama_ruangan} sudah penuh (kapasitas: {$ruangan->kapasitas})"
+                    ])->withInput();
+                }
+            }
+        }
 
         // Handle foto upload
         if ($request->hasFile('foto')) {
@@ -121,7 +166,7 @@ class PasienController extends Controller
      */
     public function show(Pasien $pasien)
     {
-        $pasien->load('asuransi');
+        $pasien->load(['asuransi', 'ruangan']);
         return view('pasien.show', compact('pasien'));
     }
 
@@ -129,10 +174,9 @@ class PasienController extends Controller
     {
         return response()->json([
             'success' => true,
-            'data' => $pasien->load('asuransi')
+            'data' => $pasien->load(['asuransi', 'ruangan.dokters'])
         ]);
     }
-
 
     /**
      * Show the form for editing the specified resource.
@@ -140,7 +184,14 @@ class PasienController extends Controller
     public function edit(Pasien $pasien)
     {
         $asuransis = Asuransi::where('status', 'Aktif')->get();
-        return view('pasien.edit', compact('pasien', 'asuransis'));
+        
+        // Ambil ruangan yang aktif
+        $ruangans = Ruangan::where('status', 1)
+                          ->orderBy('jenis', 'asc')
+                          ->orderBy('kode_ruangan', 'asc')
+                          ->get();
+        
+        return view('pasien.edit', compact('pasien', 'asuransis', 'ruangans'));
     }
 
     /**
@@ -163,6 +214,8 @@ class PasienController extends Controller
             'hubungan_kontak_darurat' => 'nullable|string|max:50',
             'status_perkawinan' => 'nullable|in:Belum Kawin,Kawin,Cerai Hidup,Cerai Mati',
             'pekerjaan' => 'nullable|string|max:100',
+            'jenis_ruangan' => 'nullable|in:rawat_jalan,rawat_inap,igd,penunjang',
+            'ruangan_id' => 'nullable|exists:ruangans,id',
             'jenis_pembayaran' => 'required|in:BPJS,Umum,Asuransi',
             'no_bpjs' => 'nullable|string|max:20',
             'asuransi_id' => 'nullable|exists:asuransis,id',
@@ -171,6 +224,24 @@ class PasienController extends Controller
             'status_aktif' => 'required|in:Aktif,Nonaktif',
             'tanggal' => 'nullable|date',
         ]);
+
+        // Validasi kapasitas ruangan untuk rawat inap (jika ruangan berubah)
+        if (!empty($validated['ruangan_id']) && $validated['ruangan_id'] != $pasien->ruangan_id) {
+            $ruangan = Ruangan::find($validated['ruangan_id']);
+            
+            if ($ruangan && $ruangan->jenis === 'rawat_inap') {
+                $pasienAktif = Pasien::where('ruangan_id', $ruangan->id)
+                                    ->where('status_aktif', 'Aktif')
+                                    ->where('id_pasien', '!=', $pasien->id_pasien)
+                                    ->count();
+                
+                if ($pasienAktif >= $ruangan->kapasitas) {
+                    return back()->withErrors([
+                        'ruangan_id' => "Ruangan {$ruangan->nama_ruangan} sudah penuh (kapasitas: {$ruangan->kapasitas})"
+                    ])->withInput();
+                }
+            }
+        }
 
         // Handle foto upload
         if ($request->hasFile('foto')) {
@@ -314,6 +385,7 @@ class PasienController extends Controller
             'pajak' => 'nullable|numeric|min:0',
             'pajak_type' => 'required|in:percent,idr',
             'keterangan' => 'nullable|string',
+            'dokter_resep' => 'required|string|max:100',
         ]);
 
         if ($validator->fails()) {
@@ -429,6 +501,7 @@ class PasienController extends Controller
                 'dosis_signa' => !empty($dosisSigmaArray) ? implode(', ', array_unique($dosisSigmaArray)) : null,  
                 'aturan_pakai' => !empty($aturanPakaiArray) ? implode(', ', array_unique($aturanPakaiArray)) : null, 
                 // 'embalase' => $embalase,
+                'dokter_resep' => $request->dokter_resep,
                 'jasa_racik' => $totalJasaRacik,
                 'diskon' => $diskonInput,
                 'diskon_type' => $diskonType,

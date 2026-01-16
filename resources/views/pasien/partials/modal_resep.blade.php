@@ -28,9 +28,34 @@
                                 <small class="text-muted d-block">Jenis Pembayaran</small>
                                 <span id="display_jenis_pembayaran" class="badge bg-secondary">-</span>
                             </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Jenis Ruangan</small>
+                                <strong id="display_jenis_ruangan">-</strong>
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">Nama Ruangan</small>
+                                <span id="display_nama_ruangan" class="badge bg-info">-</span>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <div class="card border-info mb-3">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold">
+                                        <i class="ri-stethoscope-line me-1"></i>Pilih Dokter Penanggung Jawab
+                                        <span class="text-danger">*</span>
+                                    </label>
+                                    <select class="form-select" id="dokter_id" name="dokter_resep" required>
+                                        <option value="">-- Pilih Dokter --</option>
+                                    </select>
+                                    <small class="text-muted">Dokter yang bertanggung jawab atas resep ini</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                 <!-- Form Resep -->
                 <form id="formResep">
@@ -300,16 +325,43 @@ $(document).ready(function() {
     $('#modalResep').on('hidden.bs.modal', resetForm);
 });
 
+function renderDokterSelect(dokters) {
+    let options = '<option value="">-- Pilih Dokter --</option>';
+
+    dokters.forEach(d => {
+        options += `<option value="${d.nama_dokter}">
+            ${d.nama_dokter}
+        </option>`;
+    });
+
+    $('#dokter_id').html(options).select2({
+        dropdownParent: $('#modalResep'),
+        width: '100%',
+        placeholder: '-- Pilih Dokter --'
+    });
+}
+
+
 function setJenisResep(jenis) {
     document.getElementById('status_obat').value = jenis;
 }
+function formatJenisRuangan(jenis) {
+    const map = {
+        rawat_jalan: 'Rawat Jalan',
+        rawat_inap: 'Rawat Inap',
+        igd: 'IGD',
+        penunjang: 'Penunjang'
+    };
+    return map[jenis] ?? '-';
+}
+
 
 function loadDataPasien(pasienId) {
     $.ajax({
         url: `/pasien/${pasienId}/ajax`,
         method: 'GET',
         beforeSend: function() {
-            $('#display_no_rm, #display_nama_pasien, #display_jenis_pembayaran')
+            $('#display_no_rm, #display_nama_pasien, #display_jenis_pembayaran, #display_jenis_ruangan, #display_nama_ruangan')
                 .html('<span class="spinner-border spinner-border-sm"></span>');
         },
         success: function(response) {
@@ -321,12 +373,18 @@ function loadDataPasien(pasienId) {
                 
                 $('#display_no_rm').text(p.no_rm);
                 $('#display_nama_pasien').text(p.nama_lengkap);
+                $('#display_jenis_ruangan').text(formatJenisRuangan(p.jenis_ruangan));
+                $('#display_nama_ruangan').text(p.ruangan?.nama_ruangan ?? '-');
                 
                 let badgeClass = p.jenis_pembayaran === 'BPJS' ? 'bg-success' : 
                                 p.jenis_pembayaran === 'Asuransi' ? 'bg-info' : 'bg-secondary';
                 $('#display_jenis_pembayaran').removeClass('bg-secondary bg-success bg-info')
                     .addClass(badgeClass).text(p.jenis_pembayaran);
+                if (p.ruangan && p.ruangan.dokters) {
+                        renderDokterSelect(p.ruangan.dokters);
+                    }
             }
+            
         },
         error: function() {
             Swal.fire('Error', 'Gagal memuat data pasien', 'error')
@@ -784,6 +842,7 @@ function simpanResep() {
     const formData = {
         pasien_id: $('#pasien_id').val(),
         obat_non_racik: obatNonRacikList,
+        dokter_resep: $('#dokter_id').val(),
         status_obat: statusObat,
         racikan: racikanList,
         diskon: parseFloat($('#diskon').val()) || 0,

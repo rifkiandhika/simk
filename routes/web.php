@@ -6,6 +6,7 @@ use App\Http\Controllers\backend\ApprovalController;
 use App\Http\Controllers\backend\AsuransiController;
 use App\Http\Controllers\backend\DepartmentController;
 use App\Http\Controllers\backend\DetailObatrsController;
+use App\Http\Controllers\backend\DokterController;
 use App\Http\Controllers\backend\DosisController;
 use App\Http\Controllers\backend\GudangController;
 use App\Http\Controllers\backend\HistoryGudangController;
@@ -26,6 +27,7 @@ use App\Http\Controllers\backend\PurchaseOrderController;
 use App\Http\Controllers\backend\ReagenController;
 use App\Http\Controllers\backend\ReceivingController;
 use App\Http\Controllers\backend\RolePermissionController;
+use App\Http\Controllers\backend\RuanganController;
 use App\Http\Controllers\backend\SatuanController;
 use App\Http\Controllers\backend\ShippingController;
 use App\Http\Controllers\backend\SignaController;
@@ -116,17 +118,16 @@ Route::middleware(['auth', 'pin.verified'])->group(function () {
 
     // Tagihan CRUD
     Route::resource('tagihans', TagihanPasienController::class);
-
     // Payment Routes
-    Route::get('/tagihan/{id}/payment', [TagihanPasienController::class, 'payment'])
+    Route::get('/tagihans/{id}/payment', [TagihanPasienController::class, 'payment'])
         ->name('tagihans.payment');
-    Route::post('/tagihan/payment/store', [TagihanPasienController::class, 'storePayment'])
+    Route::post('/tagihans/payment/store', [TagihanPasienController::class, 'storePayment'])
         ->name('tagihans.payment.store');
 
     // Print & Export
-    Route::get('/tagihan/{id}/print', [TagihanPasienController::class, 'print'])
+    Route::get('/tagihans/{id}/print', [TagihanPasienController::class, 'print'])
         ->name('tagihans.print');
-    Route::get('/tagihan/export/{format}', [TagihanPasienController::class, 'export'])
+    Route::get('/tagihans/export/{format}', [TagihanPasienController::class, 'export'])
         ->name('tagihans.export');
     // ========================================
     // SYSTEM MANAGEMENT
@@ -160,8 +161,9 @@ Route::middleware(['auth', 'pin.verified'])->group(function () {
     ->parameters([
         'dosis' => 'dosis'
     ]);
-
     Route::resource('signas', SignaController::class);
+    Route::resource('ruangans', RuanganController::class);
+    Route::resource('dokters', DokterController::class);
     // ========================================
     // Supplier
     // ========================================

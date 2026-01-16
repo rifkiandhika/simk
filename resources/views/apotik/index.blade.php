@@ -469,6 +469,16 @@ function loadDetailResep(resepId) {
     });
 }
 
+function formatJenisRuangan(jenis) {
+    const map = {
+        rawat_jalan: 'Rawat Jalan',
+        rawat_inap: 'Rawat Inap',
+        igd: 'IGD',
+        penunjang: 'Penunjang'
+    };
+    return map[jenis] ?? '-';
+}
+
 // Populate modal detail
 function populateDetailModal(data) {
     const resep = data.resep;
@@ -484,6 +494,9 @@ function populateDetailModal(data) {
     $('#detail_no_rm').text(resep.pasien?.no_rm || '-');
     $('#detail_nama_pasien').text(resep.pasien?.nama_lengkap || '-');
     $('#detail_jenis_pembayaran').text(resep.pasien?.jenis_pembayaran || '-');
+    $('#detail_jenis_ruangan').text(formatJenisRuangan(resep.pasien?.jenis_ruangan || '-'));
+    $('#detail_nama_ruangan').text(resep.pasien?.ruangan?.nama_ruangan || '-');
+    $('#detail_dokter').text(resep.dokter_resep || '-');
 
     // Set info obat
     $('#detail_status_obat').text(resep.status_obat);

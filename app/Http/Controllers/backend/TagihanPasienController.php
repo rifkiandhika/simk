@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\backend;
 
 use App\Http\Controllers\Controller;
+use App\Models\Karyawan;
 use App\Models\Pasien;
 use App\Models\Registrasi;
 use App\Models\Tagihan;
@@ -300,19 +301,34 @@ class TagihanPasienController extends Controller
             'id_tagihan' => 'required|exists:tagihans,id_tagihan',
             'tanggal_bayar' => 'nullable|date',
             'jumlah_bayar' => 'required|numeric|min:0.01',
-            'metode' => 'required|in:TUNAI,DEBIT,CREDIT,TRANSFER,BPJS,ASURANSI',
+            'metode' => 'required|in:TUNAI,DEBIT,CREDIT,TRANSFER,BPJS,ASURANSI,GIRO',
             'no_referensi' => 'nullable|string|max:100',
             'keterangan' => 'nullable|string|max:500',
+            'bukti_pembayaran' => 'nullable|file|mimes:jpg,jpeg,png,pdf|max:5120',
+            'pin' => 'required|digits:6',
         ]);
 
         try {
+            // Upload bukti (jika ada)
+            if ($request->hasFile('bukti_pembayaran')) {
+                $validated['bukti_pembayaran'] = $request->file('bukti_pembayaran')
+                    ->store('pembayaran/bukti', 'public');
+            }
+
+            // 👉 SERAHKAN SEMUA KE SERVICE
             $result = $this->pembayaranService->prosesPembayaran($validated);
 
-            return redirect()->route('tagihans.show', $validated['id_tagihan'])
-                ->with('success', 'Pembayaran berhasil diproses');
-        } catch (Exception $e) {
-            return back()->withInput()
-                ->with('error', $e->getMessage());
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran berhasil diproses',
+                'karyawan' => $result['karyawan'],
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage()
+            ], 422);
         }
     }
 

@@ -53,7 +53,7 @@
     <div class="row">
         <!-- Form Pembayaran -->
         <div class="col-lg-8">
-            <form action="{{ route('tagihans.payment.store') }}" method="POST" enctype="multipart/form-data" id="paymentForm">
+            <form id="paymentForm" enctype="multipart/form-data">
                 @csrf
                 <input type="hidden" name="id_tagihan" value="{{ $tagihan->id_tagihan }}">
                 
@@ -201,7 +201,7 @@
                             <a href="{{ route('tagihans.show', $tagihan->id_tagihan) }}" class="btn btn-secondary btn-sm">
                                 <i class="ri-close-line me-1"></i>Batal
                             </a>
-                            <button type="submit" class="btn btn-success btn-sm px-5" id="submitBtn">
+                            <button type="button" class="btn btn-success btn-sm px-5" id="submitBtn" onclick="showPinModal()">
                                 <i class="ri-save-line me-1"></i>Simpan Pembayaran
                             </button>
                         </div>
@@ -230,7 +230,7 @@
                         @else
                             <div class="avatar-md rounded-circle bg-secondary me-3 d-flex align-items-center justify-content-center">
                                 <span class="text-white fw-bold fs-5">
-                                    {{ strtoupper(substr($tagihan->pasien->nama, 0, 1)) }}
+                                    {{ strtoupper(substr($tagihan->pasien->nama ?? 'P', 0, 1)) }}
                                 </span>
                             </div>
                         @endif
@@ -239,17 +239,17 @@
                             <strong class="text-primary">{{ $tagihan->no_tagihan }}</strong>
                             <br>
                             <small class="text-muted d-block mt-2">Nama Pasien</small>
-                            <strong>{{ $tagihan->pasien->nama_lengkap }}</strong>
+                            <strong>{{ $tagihan->pasien->nama_lengkap ?? '-' }}</strong>
                             <br>
                             <small class="text-muted d-block mt-2">No. RM</small>
-                            <strong>{{ $tagihan->pasien->no_rm }}</strong>
+                            <strong>{{ $tagihan->pasien->no_rm ?? '-' }}</strong>
                         </div>
                     </div>
                     
                     <div class="mb-3">
                         <small class="text-muted d-block mb-1">Jenis Tagihan</small>
                         @php
-                            $badgeClass = match($tagihan->jenis_tagihan) {
+                            $badgeClass = match($tagihan->jenis_tagihan ?? '') {
                                 'IGD' => 'bg-danger',
                                 'RAWAT_JALAN' => 'bg-info',
                                 'RAWAT_INAP' => 'bg-warning',
@@ -257,7 +257,7 @@
                             };
                         @endphp
                         <span class="badge {{ $badgeClass }} fs-6">
-                            {{ str_replace('_', ' ', $tagihan->jenis_tagihan) }}
+                            {{ str_replace('_', ' ', $tagihan->jenis_tagihan ?? '-') }}
                         </span>
                     </div>
                     
@@ -272,7 +272,7 @@
                     <div class="mb-2">
                         <div class="d-flex justify-content-between">
                             <span class="text-muted">Sudah Dibayar:</span>
-                            <strong class="text-success">Rp {{ number_format($tagihan->total_dibayar, 0, ',', '.') }}</strong>
+                            <strong class="text-success">Rp {{ number_format($tagihan->total_dibayar ?? 0, 0, ',', '.') }}</strong>
                         </div>
                     </div>
                     
@@ -316,6 +316,10 @@
                         <li class="mb-2">
                             <i class="ri-checkbox-circle-line text-success me-2"></i>
                             Status tagihan akan langsung terupdate
+                        </li>
+                        <li class="mb-2">
+                            <i class="ri-checkbox-circle-line text-success me-2"></i>
+                            Masukkan PIN untuk verifikasi
                         </li>
                         <li class="mb-0">
                             <i class="ri-checkbox-circle-line text-success me-2"></i>
@@ -361,6 +365,49 @@
         </div>
     </div>
 </div>
+
+{{-- PIN Modal --}}
+<div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="ri-lock-password-line me-2"></i>Verifikasi PIN Karyawan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center px-4 py-4">
+                <p class="text-muted mb-4">Masukkan PIN 6 digit untuk memproses pembayaran</p>
+                
+                <!-- OTP-style PIN Input -->
+                <div class="otp-container d-flex justify-content-center gap-2 mb-4">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="0" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="1" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="2" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="3" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="4" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="5" autocomplete="off">
+                </div>
+
+                <div class="alert alert-info">
+                    <small>
+                        <i class="ri-information-line me-1"></i>
+                        PIN akan digunakan untuk mencatat karyawan yang memproses pembayaran
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-success" id="confirmPinBtn" disabled>
+                    <i class="ri-check-line me-1"></i> Konfirmasi Pembayaran
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -387,14 +434,85 @@
         font-weight: 600;
     }
 
-    .form-control-lg, .form-select-lg {
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
+    /* OTP-style PIN Input Styles */
+    .otp-container {
+        max-width: 400px;
+        margin: 0 auto;
     }
-    
-    .input-group-lg .input-group-text {
-        font-size: 1rem;
-        padding: 0.75rem 1rem;
+
+    .otp-input {
+        width: 50px;
+        height: 60px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .otp-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+        transform: scale(1.05);
+    }
+
+    .otp-input.filled {
+        background-color: #f8f9fa;
+        border-color: #198754;
+    }
+
+    .otp-input.error {
+        border-color: #dc3545;
+        animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* Modal Enhancements */
+    #pinModal .modal-content {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    #pinModal .modal-header {
+        padding: 1.5rem;
+    }
+
+    #pinModal .modal-title {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    /* Loading State */
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .btn-loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin-left: -8px;
+        margin-top: -8px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spinner 0.6s linear infinite;
+    }
+
+    @keyframes spinner {
+        to { transform: rotate(360deg); }
     }
 </style>
 @endpush
@@ -483,108 +601,181 @@
             }
         });
 
-        // Form validation
-        const form = document.getElementById('paymentForm');
-        form.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const jumlahBayar = unformatRupiah(document.getElementById('jumlahBayar').value);
-            const sisaTagihan = {{ $tagihan->sisa_tagihan }};
-
-            if (jumlahBayar <= 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Jumlah Tidak Valid',
-                    text: 'Jumlah pembayaran harus lebih dari 0',
-                    confirmButtonColor: '#dc3545'
-                });
-                return false;
-            }
-
-            if (jumlahBayar > sisaTagihan) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Pembayaran Melebihi Sisa Tagihan',
-                    html: `
-                        <p>Jumlah pembayaran <strong class="text-danger">Rp ${formatRupiah(jumlahBayar)}</strong></p>
-                        <p>Melebihi sisa tagihan <strong class="text-primary">Rp ${formatRupiah(sisaTagihan)}</strong></p>
-                    `,
-                    confirmButtonColor: '#f59e0b'
-                });
-                return false;
-            }
-
-            // Confirmation
-            const metode = document.getElementById('metodePembayaran');
-            const newSisa = sisaTagihan - jumlahBayar;
-            const statusBadge = newSisa <= 0 
-                ? '<span class="badge bg-success fs-6"><i class="ri-checkbox-circle-line me-1"></i>LUNAS</span>' 
-                : '<span class="badge bg-info fs-6"><i class="ri-time-line me-1"></i>CICILAN</span>';
-
-            Swal.fire({
-                title: 'Konfirmasi Pembayaran',
-                html: `
-                    <div class="text-start">
-                        <div class="card mb-3">
-                            <div class="card-body">
-                                <table class="table table-sm table-borderless mb-0">
-                                    <tr>
-                                        <td width="45%"><strong>Jumlah Bayar</strong></td>
-                                        <td>: <span class="text-primary fw-bold">Rp ${formatRupiah(jumlahBayar)}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Metode</strong></td>
-                                        <td>: ${metode.options[metode.selectedIndex].text}</td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Sisa Setelah Bayar</strong></td>
-                                        <td>: <span class="fw-bold">Rp ${formatRupiah(Math.max(0, newSisa))}</span></td>
-                                    </tr>
-                                    <tr>
-                                        <td><strong>Status</strong></td>
-                                        <td>: ${statusBadge}</td>
-                                    </tr>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                `,
-                icon: 'question',
-                showCancelButton: true,
-                confirmButtonColor: '#28a745',
-                cancelButtonColor: '#6c757d',
-                cancelButtonText: '<i class="ri-close-line me-1"></i> Batal',
-                confirmButtonText: '<i class="ri-check-line me-1"></i> Ya, Proses Pembayaran!',
-                customClass: {
-                    confirmButton: 'btn btn-success ',
-                    cancelButton: 'btn btn-secondary'
-                },
-                buttonsStyling: false
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    // Show loading
-                    const submitBtn = document.getElementById('submitBtn');
-                    submitBtn.disabled = true;
-                    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
-                    
-                    // Convert formatted number back to plain number
-                    document.getElementById('jumlahBayar').value = jumlahBayar;
-                    
-                    // Submit form
-                    form.submit();
-                }
-            });
-        });
-
         // Auto-hide alerts
         setTimeout(function() {
-            const alerts = document.querySelectorAll('.alert');
+            const alerts = document.querySelectorAll('.alert-dismissible');
             alerts.forEach(alert => {
-                alert.style.transition = 'opacity 0.5s';
-                alert.style.opacity = '0';
-                setTimeout(() => alert.remove(), 500);
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
             });
         }, 5000);
+    });
+
+    // ============================================
+    // OTP-STYLE PIN INPUT HANDLER
+    // ============================================
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const confirmPinBtn = document.getElementById('confirmPinBtn');
+    const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+
+    otpInputs.forEach((input, index) => {
+        input.addEventListener('input', function (e) {
+            const value = e.target.value;
+
+            if (!/^\d$/.test(value)) {
+                e.target.value = '';
+                return;
+            }
+
+            e.target.classList.add('filled');
+
+            if (index < otpInputs.length - 1) {
+                otpInputs[index + 1].focus();
+            }
+
+            checkPinComplete();
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace') {
+                if (!e.target.value && index > 0) {
+                    otpInputs[index - 1].focus();
+                    otpInputs[index - 1].value = '';
+                    otpInputs[index - 1].classList.remove('filled', 'error');
+                } else {
+                    e.target.value = '';
+                    e.target.classList.remove('filled', 'error');
+                }
+                checkPinComplete();
+            } 
+            else if (e.key === 'ArrowLeft' && index > 0) {
+                e.preventDefault();
+                otpInputs[index - 1].focus();
+            } 
+            else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+                e.preventDefault();
+                otpInputs[index + 1].focus();
+            }
+        });
+
+        // Handle paste 6 digit PIN
+        input.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text');
+            if (!/^\d{6}$/.test(pasted)) return;
+
+            pasted.split('').forEach((char, i) => {
+                if (otpInputs[i]) {
+                    otpInputs[i].value = char;
+                    otpInputs[i].classList.add('filled');
+                }
+            });
+
+            otpInputs[5].focus();
+            checkPinComplete();
+        });
+    });
+
+    function checkPinComplete() {
+        const pin = Array.from(otpInputs).map(i => i.value).join('');
+        confirmPinBtn.disabled = pin.length !== 6;
+    }
+
+    function resetPinInput(error = false) {
+        otpInputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('filled', 'error');
+            if (error) input.classList.add('error');
+        });
+        otpInputs[0].focus();
+        confirmPinBtn.disabled = true;
+    }
+    function isPinComplete() {
+        return Array.from(otpInputs).every(input => input.value !== '');
+    }
+    otpInputs.forEach(input => {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+
+                if (isPinComplete()) {
+                    confirmPinBtn.click();
+                }
+            }
+        });
+    });
+
+
+
+    // ============================================
+    // SHOW PIN MODAL
+    // ============================================
+    function showPinModal() {
+        const jumlah = unformatRupiah(document.getElementById('jumlahBayar').value);
+        const sisa = {{ $tagihan->sisa_tagihan }};
+
+        if (!jumlah || jumlah <= 0) {
+            Swal.fire('Perhatian', 'Jumlah bayar tidak boleh kosong', 'warning');
+            return;
+        }
+
+        if (jumlah > sisa) {
+            Swal.fire('Perhatian', 'Jumlah bayar melebihi sisa tagihan', 'warning');
+            return;
+        }
+
+        resetPinInput();
+        pinModal.show();
+    }
+
+    // ============================================
+    // SUBMIT PEMBAYARAN
+    // ============================================
+    confirmPinBtn.addEventListener('click', function () {
+        const pin = Array.from(otpInputs).map(i => i.value).join('');
+        const form = document.getElementById('paymentForm');
+        const formData = new FormData(form);
+
+        formData.append('pin', pin);
+        formData.set('jumlah_bayar', unformatRupiah(document.getElementById('jumlahBayar').value));
+
+        confirmPinBtn.classList.add('btn-loading');
+        confirmPinBtn.disabled = true;
+
+        fetch("{{ route('tagihans.payment.store') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: res.message,
+                    confirmButtonColor: '#198754'
+                }).then(() => {
+                    window.location.href = "{{ route('tagihans.show', $tagihan->id_tagihan) }}";
+                });
+            } else {
+                throw new Error(res.message || 'PIN salah');
+            }
+        })
+        .catch(err => {
+            resetPinInput(true);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: err.message || 'PIN tidak valid'
+            });
+        })
+        .finally(() => {
+            confirmPinBtn.classList.remove('btn-loading');
+            confirmPinBtn.disabled = false;
+        });
     });
 </script>
 @endpush

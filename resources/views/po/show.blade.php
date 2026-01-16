@@ -887,7 +887,7 @@
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                {{-- Preview Area (when file already exists) --}}
+                
                 <div id="invoiceProofPreview" style="{{ $po->bukti_invoice ? '' : 'display: none;' }}">
                     <div class="text-center">
                         <div class="position-relative d-inline-block">
@@ -937,7 +937,7 @@
                     </div>
                 </div>
 
-                {{-- Upload Form (when uploading new file) --}}
+                
                 <div id="invoiceProofUploadForm" style="{{ $po->bukti_invoice ? 'display: none;' : '' }}">
                     <form id="uploadInvoiceForm" enctype="multipart/form-data">
                         @csrf
@@ -946,7 +946,7 @@
                                 Upload Bukti Invoice <span class="text-danger">*</span>
                             </label>
                             
-                            {{-- Upload Area dengan Drag & Drop --}}
+                            
                             <div class="upload-area border-2 border-dashed rounded-3 p-5 text-center position-relative" 
                                  id="uploadArea"
                                  onclick="document.getElementById('buktiInvoiceInput').click()"
@@ -960,7 +960,7 @@
                                     </p>
                                 </div>
                                 
-                                {{-- Preview Thumbnail --}}
+                                
                                 <div id="filePreviewThumb" style="display: none;">
                                     <div class="d-flex align-items-center justify-content-center gap-3 p-3 bg-light rounded">
                                         <div class="file-icon">
@@ -989,57 +989,58 @@
                             <div class="invalid-feedback d-block" id="buktiInvoiceError" style="display: none !important;"></div>
                         </div>
 
-                        {{-- PIN Input OTP Style --}}
+                        
+                        {{-- PIN Input dengan class yang BERBEDA: otp-input-invoice --}}
                         <div class="mb-4">
                             <label class="form-label fw-semibold">
                                 <i class="ri-lock-password-line me-1"></i>
                                 PIN Karyawan <span class="text-danger">*</span>
                             </label>
                             
-                            {{-- OTP Input Boxes --}}
+                            {{-- OTP Input Boxes dengan class INVOICE SPECIFIC --}}
                             <div class="otp-input-container d-flex justify-content-center gap-2 mb-2">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="0"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="0"
+                                    autocomplete="off">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="1"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="1"
+                                    autocomplete="off">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="2"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="2"
+                                    autocomplete="off">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="3"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="3"
+                                    autocomplete="off">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="4"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="4"
+                                    autocomplete="off">
                                 <input type="password" 
-                                       class="otp-input form-control text-center" 
-                                       maxlength="1" 
-                                       pattern="[0-9]" 
-                                       inputmode="numeric"
-                                       data-index="5"
-                                       autocomplete="off">
+                                    class="otp-input-invoice form-control text-center" 
+                                    maxlength="1" 
+                                    pattern="[0-9]" 
+                                    inputmode="numeric"
+                                    data-index="5"
+                                    autocomplete="off">
                             </div>
                             
                             {{-- Hidden input untuk menyimpan PIN lengkap --}}
@@ -1344,6 +1345,33 @@
             opacity: 1;
             transform: translateY(0);
         }
+    }
+    /* OTP Input untuk Invoice Modal - SEPARATED */
+    .otp-input-invoice {
+        width: 50px;
+        height: 60px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .otp-input-invoice:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+        transform: scale(1.05);
+    }
+
+    .otp-input-invoice.filled {
+        background-color: #f8f9fa;
+        border-color: #198754;
+    }
+
+    .otp-input-invoice.error {
+        border-color: #dc3545;
+        animation: shake 0.5s;
     }
 </style>
 @endpush
@@ -1987,6 +2015,10 @@
 </script>
 
 <script>
+// ============================================
+// INVOICE MODAL OTP HANDLER - COMPLETELY SEPARATED
+// ============================================
+
 function showInvoiceProofModal() {
     const modalElement = document.getElementById('invoiceProofModal');
     const modal = new bootstrap.Modal(modalElement);
@@ -2003,19 +2035,8 @@ function showInvoiceProofModal() {
         document.getElementById('invoiceProofUploadForm').style.display = 'block';
         document.getElementById('btnUploadInvoice').style.display = 'block';
         clearFileInput();
-        clearOtpInputs();
+        clearInvoiceOtpInputs();
     }
-    
-    // Prevent focus issues
-    modalElement.addEventListener('shown.bs.modal', function (e) {
-        // Focus pada elemen pertama yang sesuai
-        if (!hasBukti) {
-            const firstOtpInput = document.querySelector('.otp-input');
-            if (firstOtpInput) {
-                setTimeout(() => firstOtpInput.focus(), 100);
-            }
-        }
-    }, { once: true });
     
     modal.show();
 }
@@ -2026,14 +2047,29 @@ function changeInvoiceProof() {
     document.getElementById('btnUploadInvoice').style.display = 'block';
     document.getElementById('invoiceProofModalTitle').textContent = 'Ganti Bukti Invoice';
     clearFileInput();
-    clearOtpInputs();
+    clearInvoiceOtpInputs();
 }
 
-// OTP Input Handler
-function initOtpInputs() {
-    const otpInputs = document.querySelectorAll('.otp-input');
+// ============================================
+// INVOICE OTP INPUT INITIALIZATION
+// ============================================
+function initInvoiceOtpInputs() {
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    if (!invoiceModal) return;
     
+    const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
+    if (otpInputs.length === 0) return;
+    
+    // Remove existing listeners dengan clone
     otpInputs.forEach((input, index) => {
+        const newInput = input.cloneNode(true);
+        input.parentNode.replaceChild(newInput, input);
+    });
+    
+    // Get fresh references
+    const freshInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
+    
+    freshInputs.forEach((input, index) => {
         // Handle input
         input.addEventListener('input', function(e) {
             const value = this.value;
@@ -2046,37 +2082,44 @@ function initOtpInputs() {
                 this.classList.remove('error');
                 
                 // Auto focus next input
-                if (index < otpInputs.length - 1) {
-                    otpInputs[index + 1].focus();
+                if (index < freshInputs.length - 1) {
+                    freshInputs[index + 1].focus();
                 }
             } else {
                 this.classList.remove('filled');
             }
             
             // Update hidden input
-            updatePinValue();
-            
-            // Clear error
-            clearPinError();
+            updateInvoicePinValue();
+            clearInvoicePinError();
         });
         
         // Handle keydown for backspace
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Backspace' && !this.value && index > 0) {
-                otpInputs[index - 1].focus();
-                otpInputs[index - 1].value = '';
-                otpInputs[index - 1].classList.remove('filled');
-                updatePinValue();
+                freshInputs[index - 1].focus();
+                freshInputs[index - 1].value = '';
+                freshInputs[index - 1].classList.remove('filled');
+                updateInvoicePinValue();
             }
             
             // Handle arrow keys
             if (e.key === 'ArrowLeft' && index > 0) {
                 e.preventDefault();
-                otpInputs[index - 1].focus();
+                freshInputs[index - 1].focus();
             }
-            if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+            if (e.key === 'ArrowRight' && index < freshInputs.length - 1) {
                 e.preventDefault();
-                otpInputs[index + 1].focus();
+                freshInputs[index + 1].focus();
+            }
+            
+            // Handle Enter key
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const uploadBtn = document.getElementById('btnUploadInvoice');
+                if (uploadBtn && uploadBtn.style.display !== 'none') {
+                    uploadBtn.click();
+                }
             }
         });
         
@@ -2087,17 +2130,16 @@ function initOtpInputs() {
             const numbers = pastedData.replace(/[^0-9]/g, '').slice(0, 6);
             
             numbers.split('').forEach((num, i) => {
-                if (otpInputs[i]) {
-                    otpInputs[i].value = num;
-                    otpInputs[i].classList.add('filled');
+                if (freshInputs[i]) {
+                    freshInputs[i].value = num;
+                    freshInputs[i].classList.add('filled');
                 }
             });
             
-            // Focus last filled input or next empty
-            const lastIndex = Math.min(numbers.length, otpInputs.length - 1);
-            otpInputs[lastIndex].focus();
+            const lastIndex = Math.min(numbers.length, freshInputs.length - 1);
+            freshInputs[lastIndex].focus();
             
-            updatePinValue();
+            updateInvoicePinValue();
         });
         
         // Handle focus - select all
@@ -2105,55 +2147,81 @@ function initOtpInputs() {
             this.select();
         });
     });
+    
+    // Focus first input
+    if (freshInputs[0]) {
+        setTimeout(() => freshInputs[0].focus(), 100);
+    }
 }
 
-function updatePinValue() {
-    const otpInputs = document.querySelectorAll('.otp-input');
+function updateInvoicePinValue() {
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
     const pin = Array.from(otpInputs).map(input => input.value).join('');
-    document.getElementById('pinInput').value = pin;
+    
+    const hiddenInput = document.getElementById('pinInput');
+    if (hiddenInput) {
+        hiddenInput.value = pin;
+    }
 }
 
-function clearOtpInputs() {
-    const otpInputs = document.querySelectorAll('.otp-input');
+function clearInvoiceOtpInputs() {
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
+    
     otpInputs.forEach(input => {
         input.value = '';
         input.classList.remove('filled', 'error');
     });
-    document.getElementById('pinInput').value = '';
-    clearPinError();
+    
+    const pinInput = document.getElementById('pinInput');
+    if (pinInput) {
+        pinInput.value = '';
+    }
+    
+    clearInvoicePinError();
 }
 
-function clearPinError() {
+function clearInvoicePinError() {
     const pinError = document.getElementById('pinError');
     if (pinError) {
         pinError.style.display = 'none';
         pinError.textContent = '';
     }
     
-    const otpInputs = document.querySelectorAll('.otp-input');
-    otpInputs.forEach(input => {
-        input.classList.remove('error');
-    });
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    if (invoiceModal) {
+        const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
+        otpInputs.forEach(input => {
+            input.classList.remove('error');
+        });
+    }
 }
 
-function showPinError(message) {
+function showInvoicePinError(message) {
     const pinError = document.getElementById('pinError');
     if (pinError) {
         pinError.textContent = message;
         pinError.style.display = 'block';
     }
     
-    const otpInputs = document.querySelectorAll('.otp-input');
-    otpInputs.forEach(input => {
-        input.classList.add('error');
-    });
-    
-    // Focus first input
-    if (otpInputs[0]) {
-        otpInputs[0].focus();
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    if (invoiceModal) {
+        const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
+        otpInputs.forEach(input => {
+            input.classList.add('error');
+        });
+        
+        // Focus first input
+        if (otpInputs[0]) {
+            otpInputs[0].focus();
+        }
     }
 }
 
+// ============================================
+// FILE HANDLING
+// ============================================
 function previewFile(input) {
     const file = input.files[0];
     if (!file) return;
@@ -2234,45 +2302,12 @@ function formatFileSize(bytes) {
     return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const uploadArea = document.getElementById('uploadArea');
-    
-    if (uploadArea) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, preventDefaults, false);
-        });
-
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        uploadArea.addEventListener('dragenter', () => {
-            uploadArea.classList.add('drag-over');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('drag-over');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            uploadArea.classList.remove('drag-over');
-            const dt = e.dataTransfer;
-            const files = dt.files;
-            
-            if (files.length > 0) {
-                document.getElementById('buktiInvoiceInput').files = files;
-                previewFile(document.getElementById('buktiInvoiceInput'));
-            }
-        });
-    }
-    
-    // Initialize OTP inputs
-    initOtpInputs();
-});
-
+// ============================================
+// UPLOAD HANDLER
+// ============================================
 function directUploadInvoice(e) {
     if (e) e.preventDefault(); 
+    
     const fileInput = document.getElementById('buktiInvoiceInput');
     const pinInput = document.getElementById('pinInput');
     const btn = document.getElementById('btnUploadInvoice');
@@ -2283,7 +2318,7 @@ function directUploadInvoice(e) {
     // Validate file
     if (!fileInput.files || !fileInput.files[0]) {
         showValidationError('buktiInvoiceError', 'Silakan pilih file bukti invoice terlebih dahulu');
-        const otpInputs = document.querySelectorAll('.otp-input');
+        const otpInputs = document.querySelectorAll('.otp-input-invoice');
         if (otpInputs[0]) otpInputs[0].focus();
         return;
     }
@@ -2291,23 +2326,23 @@ function directUploadInvoice(e) {
     // Validate PIN
     const pin = pinInput.value.trim();
     if (!pin) {
-        showPinError('PIN harus diisi');
+        showInvoicePinError('PIN harus diisi');
         return;
     }
     
     if (pin.length !== 6) {
-        showPinError('PIN harus 6 digit');
+        showInvoicePinError('PIN harus 6 digit');
         return;
     }
     
     if (!/^\d{6}$/.test(pin)) {
-        showPinError('PIN harus berupa angka');
+        showInvoicePinError('PIN harus berupa angka');
         return;
     }
     
     const file = fileInput.files[0];
     
-    // Direct upload without confirmation
+    // Direct upload
     performUpload(file, pin, btn);
 }
 
@@ -2327,7 +2362,7 @@ function clearValidationErrors() {
         buktiError.textContent = '';
     }
     
-    clearPinError();
+    clearInvoicePinError();
 }
 
 function performUpload(file, pin, btn) {
@@ -2337,8 +2372,9 @@ function performUpload(file, pin, btn) {
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
     
-    // Disable OTP inputs
-    const otpInputs = document.querySelectorAll('.otp-input');
+    // Disable OTP inputs - INVOICE SPECIFIC
+    const invoiceModal = document.getElementById('invoiceProofModal');
+    const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
     otpInputs.forEach(input => input.disabled = true);
     
     // Prepare FormData
@@ -2347,17 +2383,9 @@ function performUpload(file, pin, btn) {
     formData.append('pin', pin);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     
-    // Log untuk debugging
-    console.log('Upload data:', {
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        pinLength: pin.length
-    });
-    
-    // Upload dengan timeout yang lebih panjang untuk file besar
+    // Upload dengan timeout
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
     
     fetch(`{{ route('po.upload-invoice-proof', $po->id_po) }}`, {
         method: 'POST',
@@ -2370,15 +2398,12 @@ function performUpload(file, pin, btn) {
     })
     .then(response => {
         clearTimeout(timeoutId);
-        
-        // Clone response untuk bisa dibaca dua kali
         const responseClone = response.clone();
         
         return response.json().then(data => ({
             status: response.status,
             data: data
         })).catch(error => {
-            // Jika JSON parsing gagal, coba baca sebagai text
             return responseClone.text().then(text => {
                 console.error('Response is not JSON:', text);
                 throw new Error('Server response bukan JSON yang valid');
@@ -2402,9 +2427,8 @@ function performUpload(file, pin, btn) {
                 window.location.reload();
             });
         } else if (status === 403) {
-            // PIN Invalid
-            showPinError(data.error || 'PIN tidak valid');
-            clearOtpInputs();
+            showInvoicePinError(data.error || 'PIN tidak valid');
+            clearInvoiceOtpInputs();
             
             Swal.fire({
                 icon: 'error',
@@ -2421,12 +2445,11 @@ function performUpload(file, pin, btn) {
                 confirmButtonText: 'Coba Lagi'
             });
         } else if (status === 422) {
-            // Validation errors
             let errorMessage = data.error || 'Periksa kembali data yang Anda masukkan';
             
             if (data.errors) {
                 if (data.errors.pin) {
-                    showPinError(data.errors.pin[0]);
+                    showInvoicePinError(data.errors.pin[0]);
                     errorMessage = data.errors.pin[0];
                 }
                 if (data.errors.bukti_invoice) {
@@ -2441,18 +2464,11 @@ function performUpload(file, pin, btn) {
                 text: errorMessage,
                 confirmButtonText: 'OK'
             });
-        } else if (status === 400) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: data.error || 'Permintaan tidak valid',
-                confirmButtonText: 'OK'
-            });
         } else {
             Swal.fire({
                 icon: 'error',
                 title: 'Gagal Upload',
-                text: data.error || 'Terjadi kesalahan saat upload. Silakan coba lagi.',
+                text: data.error || 'Terjadi kesalahan saat upload.',
                 confirmButtonText: 'Coba Lagi'
             });
         }
@@ -2483,8 +2499,10 @@ function performUpload(file, pin, btn) {
     });
 }
 
+// ============================================
+// DELETE INVOICE PROOF
+// ============================================
 function confirmDeleteInvoiceProof() {
-    // Hide invoice modal
     bootstrap.Modal.getInstance(document.getElementById('invoiceProofModal')).hide();
     
     Swal.fire({
@@ -2601,37 +2619,62 @@ function confirmDeleteInvoiceProof() {
                 window.location.reload();
             });
         } else {
-            // Reopen invoice modal if cancelled
             showInvoiceProofModal();
         }
     });
 }
 
-// Reset when modals are hidden
+// ============================================
+// DRAG & DROP HANDLING
+// ============================================
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('uploadArea');
+    
+    if (uploadArea) {
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+
+        uploadArea.addEventListener('dragenter', () => {
+            uploadArea.classList.add('drag-over');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('drag-over');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            uploadArea.classList.remove('drag-over');
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                document.getElementById('buktiInvoiceInput').files = files;
+                previewFile(document.getElementById('buktiInvoiceInput'));
+            }
+        });
+    }
+});
+
+// ============================================
+// MODAL EVENT HANDLERS
+// ============================================
 const invoiceModal = document.getElementById('invoiceProofModal');
 if (invoiceModal) {
+    invoiceModal.addEventListener('shown.bs.modal', function() {
+        // Initialize OTP when modal is shown
+        initInvoiceOtpInputs();
+    });
+    
     invoiceModal.addEventListener('hidden.bs.modal', function() {
         clearFileInput();
-        clearOtpInputs();
+        clearInvoiceOtpInputs();
         clearValidationErrors();
-    });
-    
-    // Prevent aria-hidden focus conflicts
-    invoiceModal.addEventListener('show.bs.modal', function(e) {
-        // Remove aria-hidden from page-wrapper temporarily
-        const pageWrapper = document.querySelector('.page-wrapper');
-        if (pageWrapper) {
-            pageWrapper.removeAttribute('aria-hidden');
-        }
-    });
-    
-    invoiceModal.addEventListener('hidden.bs.modal', function() {
-        // Restore aria-hidden if needed
-        const pageWrapper = document.querySelector('.page-wrapper');
-        if (pageWrapper && document.querySelectorAll('.modal.show').length === 0) {
-            // Only add back if no other modals are open
-            // pageWrapper.setAttribute('aria-hidden', 'true');
-        }
     });
 }
 </script>

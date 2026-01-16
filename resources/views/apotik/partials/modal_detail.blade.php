@@ -34,6 +34,10 @@
                                         <td><strong>Status Obat</strong></td>
                                         <td>: <span id="detail_status_obat">-</span></td>
                                     </tr>
+                                    <tr>
+                                        <td><strong>Dokter Pengirim</strong></td>
+                                        <td>: <span id="detail_dokter">-</span></td>
+                                    </tr>
                                 </table>
                             </div>
                         </div>
@@ -56,6 +60,14 @@
                                     <tr>
                                         <td><strong>Jenis Pembayaran</strong></td>
                                         <td>: <span id="detail_jenis_pembayaran">-</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Jenis Ruangan</strong></td>
+                                        <td>: <span id="detail_jenis_ruangan">-</span></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Nama Ruangan</strong></td>
+                                        <td>: <span id="detail_nama_ruangan">-</span></td>
                                     </tr>
                                 </table>
                             </div>

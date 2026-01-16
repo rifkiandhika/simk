@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Karyawan;
 use App\Models\Tagihan;
 use App\Models\TagihanPembayaran;
 use Illuminate\Support\Facades\DB;
@@ -13,41 +14,90 @@ class TagihanPembayaranService
     /**
      * Proses pembayaran tagihan dengan transaction dan locking
      */
-    public function prosesPembayaran(array $data)
+   public function prosesPembayaran(array $data): array
     {
         return DB::transaction(function () use ($data) {
-            // 1. Lock tagihan untuk prevent race condition
+
+            // 1. Ambil & lock tagihan
             $tagihan = Tagihan::where('id_tagihan', $data['id_tagihan'])
-                ->lockForUpdate() // Pessimistic locking
+                ->lockForUpdate()
                 ->firstOrFail();
 
-            // 2. Validasi business rules
-            $this->validatePembayaran($tagihan, $data);
+            // 2. Validasi sisa tagihan
+            if ($data['jumlah_bayar'] > $tagihan->sisa_tagihan) {
+                throw new \Exception('Jumlah bayar melebihi sisa tagihan');
+            }
 
-            // 3. Simpan pembayaran
+            // 3. Verifikasi PIN → ambil karyawan
+            $karyawan = Karyawan::where('pin', $data['pin'])
+                ->where('status_aktif', 'Aktif')
+                ->first();
+
+            if (!$karyawan) {
+                throw new \Exception('PIN tidak valid atau karyawan tidak aktif');
+            }
+
+            // 4. Simpan pembayaran
             $pembayaran = TagihanPembayaran::create([
-                'id_tagihan' => $tagihan->id_tagihan,
+                'id_tagihan'    => $tagihan->id_tagihan,
                 'tanggal_bayar' => $data['tanggal_bayar'] ?? now(),
-                'jumlah_bayar' => $data['jumlah_bayar'],
-                'metode' => $data['metode'],
-                'no_referensi' => $data['no_referensi'] ?? null,
-                'keterangan' => $data['keterangan'] ?? null,
-                'created_by' => Auth::user()->id_karyawan,
+                'jumlah_bayar'  => $data['jumlah_bayar'],
+                'metode'        => $data['metode'],
+                'no_referensi'  => $data['no_referensi'] ?? null,
+                'keterangan'    => $data['keterangan'] ?? null,
+                'created_by'    => $karyawan->id_karyawan,
             ]);
 
-            // 4. Update tagihan
-            $this->updateTagihan($tagihan);
+            // 5. Hitung ulang dari database (AMAN)
+            $totalDibayar = TagihanPembayaran::where('id_tagihan', $tagihan->id_tagihan)
+                ->sum('jumlah_bayar');
 
-            // 5. Log activity
-            $this->logActivity($tagihan, $pembayaran);
+            $sisaTagihan = $tagihan->total_tagihan - $totalDibayar;
+
+            // 6. Tentukan status
+            if ($sisaTagihan <= 0) {
+                $status = 'LUNAS';
+                $tanggalLunas = now();
+                $sisaTagihan = 0;
+            } elseif ($totalDibayar > 0) {
+                $status = 'CICILAN';
+                $tanggalLunas = null;
+            } else {
+                $status = 'BELUM_LUNAS';
+                $tanggalLunas = null;
+            }
+
+            // 7. Update tagihan
+            $tagihan->update([
+                'total_dibayar' => $totalDibayar,
+                'sisa_tagihan'  => $sisaTagihan,
+                'status'        => $status,
+                'tanggal_lunas' => $tanggalLunas,
+                'id_karyawan'   => $karyawan->id_karyawan,
+            ]);
 
             return [
-                'success' => true,
-                'tagihan' => $tagihan->fresh(),
+                'tagihan'    => $tagihan->fresh(),
                 'pembayaran' => $pembayaran,
-                'message' => 'Pembayaran berhasil diproses'
+                'karyawan'   => $karyawan->nama_lengkap,
             ];
         });
+    }
+
+    /**
+     * Verifikasi PIN karyawan
+     */
+    private function verifyPin(string $pin): Karyawan
+    {
+        $karyawan = Karyawan::where('pin', $pin)
+            ->where('status_aktif', 'Aktif')
+            ->first();
+
+        if (!$karyawan) {
+            throw new \Exception('PIN tidak valid atau karyawan tidak aktif');
+        }
+
+        return $karyawan;
     }
 
     /**

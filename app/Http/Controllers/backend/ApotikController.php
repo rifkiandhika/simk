@@ -84,7 +84,7 @@ class ApotikController extends Controller
     {
         try {
             $resep = Resep::with([
-                'pasien',
+                'pasien.ruangan',
                 'details.detailSupplier.hargaObat',
                 'verifiedBy',
                 'dispensedBy',

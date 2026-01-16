@@ -481,7 +481,7 @@ function loadNotifications() {
             }
         })
         .catch(error => {
-            console.error('Error loading notifications:', error);
+            // console.error('Error loading notifications:', error);
         });
 }
 
