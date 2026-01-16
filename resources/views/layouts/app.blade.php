@@ -210,7 +210,7 @@
 // Inactivity Detection & PIN Modal System - FIXED VERSION
 (function() {
     let inactivityTimer;
-    const INACTIVITY_TIMEOUT = 30 * 1000; // 30 detik untuk testing (ubah ke 10 * 60 * 1000 untuk 10 menit)
+    const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 30 detik untuk testing (ubah ke 10 * 60 * 1000 untuk 10 menit)
     
     console.log('🔐 PIN System initialized. Timeout:', INACTIVITY_TIMEOUT / 1000, 'seconds');
     

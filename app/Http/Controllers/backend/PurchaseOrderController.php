@@ -655,49 +655,50 @@ class PurchaseOrderController extends Controller
 
     public function submit(Request $request, $id_po)
     {
-        $validator = Validator::make($request->all(), [
-            'pin' => 'required|size:6',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // Verifikasi PIN
-        $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
-            ->where('pin', $request->pin)
-            ->first();
-
-        if (!$karyawan) {
-            return response()->json(['error' => 'PIN tidak valid'], 403);
-        }
-
         DB::beginTransaction();
+
         try {
             $po = PurchaseOrder::findOrFail($id_po);
             $dataBefore = $po->toArray();
 
-            // Status berikutnya selalu menunggu approval kepala gudang
+            // Validasi status (opsional tapi sangat disarankan)
+            if (!in_array($po->status, ['draft', 'ditolak'])) {
+                return response()->json([
+                    'error' => 'PO tidak dapat disubmit pada status saat ini'
+                ], 403);
+            }
+
+            // Status berikutnya
             $newStatus = 'menunggu_persetujuan_kepala_gudang';
 
-            $po->update(['status' => $newStatus]);
+            $po->update([
+                'status' => $newStatus
+            ]);
 
             // Audit Trail
             PoAuditTrail::create([
-                'id_po' => $po->id_po,
-                'id_karyawan' => Auth::user()->id_karyawan,
-                'pin_karyawan' => $request->pin,
-                'aksi' => 'submit_approval',
-                'deskripsi_aksi' => 'Mengirim PO untuk persetujuan',
+                'id_po'        => $po->id_po,
+                'id_karyawan'  => Auth::user()->id_karyawan,
+                'pin_karyawan' => null, // PIN tidak digunakan
+                'aksi'         => 'submit_approval',
+                'deskripsi_aksi' => 'Mengirim PO untuk persetujuan kepala gudang',
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->toArray(),
             ]);
 
             DB::commit();
-            return response()->json(['message' => 'PO berhasil diajukan', 'data' => $po], 200);
+
+            return response()->json([
+                'message' => 'PO berhasil diajukan',
+                'data'    => $po
+            ], 200);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['error' => 'Gagal submit PO: ' . $e->getMessage()], 500);
+
+            return response()->json([
+                'error' => 'Gagal submit PO: ' . $e->getMessage()
+            ], 500);
         }
     }
 

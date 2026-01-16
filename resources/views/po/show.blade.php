@@ -1613,23 +1613,41 @@
     }
 
     function submitPO(poId) {
-        const modal = new bootstrap.Modal(document.getElementById('pinModal'));
-        
-        document.getElementById('modalAction').value = 'submit';
-        document.getElementById('modalPoId').value = poId;
-        document.getElementById('pinModalTitle').innerHTML = 
-            '<i class="ri-lock-password-line me-2"></i>Submit Purchase Order';
-        document.getElementById('pinModalDescription').textContent = 
-            'Masukkan PIN untuk submit PO ini';
-        
-        document.getElementById('notesContainer').style.display = 'none';
-        document.getElementById('confirmPinBtn').className = 'btn btn-primary';
-        document.getElementById('confirmPinBtn').innerHTML = 
-            '<i class="ri-send-plane-fill me-1"></i> Submit';
-        
-        resetPinInputs();
-        modal.show();
+        Swal.fire({
+            title: 'Submit Purchase Order?',
+            text: 'PO akan dikirim untuk persetujuan kepala gudang',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Ya, Submit',
+            cancelButtonText: 'Batal'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/po/${poId}/submit`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    }
+                })
+                .then(res => res.json())
+                .then(res => {
+                    if (res.message) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Berhasil',
+                            text: res.message
+                        }).then(() => location.reload());
+                    } else {
+                        Swal.fire('Gagal', res.error || 'Terjadi kesalahan', 'error');
+                    }
+                })
+                .catch(() => {
+                    Swal.fire('Error', 'Gagal menghubungi server', 'error');
+                });
+            }
+        });
     }
+
 
     function sendToSupplier(poId) {
         const modal = new bootstrap.Modal(document.getElementById('pinModal'));
