@@ -91,7 +91,7 @@ class DokterController extends Controller
     public function update(Request $request, Dokter $dokter)
     {
         $validated = $request->validate([
-            'kode_dokter'  => 'required|string|max:50|unique:dokters,kode_dokter,' . $dokter->id,
+            'kode_dokter'  => 'required|string|max:50|unique:dokters,kode_dokter,' . $dokter->id_dokter,
             'nama_dokter'  => 'required|string|max:255',
             'spesialisasi' => 'nullable|string|max:255',
             'no_str'       => 'nullable|string|max:255',
