@@ -28,7 +28,7 @@ class DokterController extends Controller
             ->orderBy('nama_ruangan')
             ->get();
 
-        return view('dokters.form', compact('ruangans'));
+        return view('dokters.create', compact('ruangans'));
     }
 
     /**
@@ -82,7 +82,7 @@ class DokterController extends Controller
 
         $dokter->load('ruangans');
 
-        return view('dokters.form', compact('dokter', 'ruangans'));
+        return view('dokters.edit', compact('dokter', 'ruangans'));
     }
 
     /**
