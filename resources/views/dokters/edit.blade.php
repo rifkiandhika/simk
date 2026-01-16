@@ -29,7 +29,7 @@
 
         <div class="card shadow mb-4">
             <div class="card-body">
-                <form action="{{ route('dokters.update', $dokter->id) }}" method="POST">
+                <form action="{{ route('dokters.update', $dokter->id_dokter) }}" method="POST">
                     @csrf
                     @method('PUT')
                     @include('dokters.form')
