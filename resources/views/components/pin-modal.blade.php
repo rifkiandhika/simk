@@ -381,9 +381,9 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         modalInstance.show();
         
-        console.log('✅ Modal shown for inactivity');
+        // console.log('✅ Modal shown for inactivity');
     };
     
-    console.log('✅ PIN Modal functions ready');
+    // console.log('✅ PIN Modal functions ready');
 });
 </script>

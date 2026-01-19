@@ -212,24 +212,24 @@
     let inactivityTimer;
     const INACTIVITY_TIMEOUT = 10 * 60 * 1000; // 30 detik untuk testing (ubah ke 10 * 60 * 1000 untuk 10 menit)
     
-    console.log('🔐 PIN System initialized. Timeout:', INACTIVITY_TIMEOUT / 1000, 'seconds');
+    // console.log('🔐 PIN System initialized. Timeout:', INACTIVITY_TIMEOUT / 1000, 'seconds');
     
     // Fungsi untuk reset timer
     function resetInactivityTimer() {
         clearTimeout(inactivityTimer);
         
-        console.log('⏱️ Timer reset');
+        // console.log('⏱️ Timer reset');
         
         // Set timer baru
         inactivityTimer = setTimeout(function() {
-            console.log('⚠️ Timeout reached! Showing PIN modal...');
+            // console.log('⚠️ Timeout reached! Showing PIN modal...');
             showPinModalDueToInactivity();
         }, INACTIVITY_TIMEOUT);
     }
     
     // Fungsi untuk menampilkan modal PIN karena inactivity
     function showPinModalDueToInactivity() {
-        console.log('🚫 Setting PIN_VERIFIED to false');
+        // console.log('🚫 Setting PIN_VERIFIED to false');
         window.PIN_VERIFIED = false; 
         
         // Disable semua protected actions
@@ -245,14 +245,14 @@
         })
         .then(response => response.json())
         .then(data => {
-            console.log('✅ PIN session cleared:', data);
+            // console.log('✅ PIN session cleared:', data);
             
             // Panggil function dari pin-modal untuk show dengan info message
             if (typeof window.showPinModalForInactivity === 'function') {
-                console.log('📱 Calling showPinModalForInactivity()');
+                // console.log('📱 Calling showPinModalForInactivity()');
                 window.showPinModalForInactivity();
             } else {
-                console.log('⚠️ showPinModalForInactivity not found, using fallback');
+                // console.log('⚠️ showPinModalForInactivity not found, using fallback');
                 
                 // Fallback - langsung show modal
                 const pinModalElement = document.getElementById('pinVerificationModal');
@@ -267,7 +267,7 @@
                     }
                     
                     modalInstance.show();
-                    console.log('✅ Modal shown via fallback');
+                    // console.log('✅ Modal shown via fallback');
                     
                     // Clear PIN inputs dan show info
                     setTimeout(() => {
@@ -280,12 +280,12 @@
                         }
                     }, 300);
                 } else {
-                    console.error('❌ Modal element not found!');
+                    // console.error('❌ Modal element not found!');
                 }
             }
         })
         .catch(error => {
-            console.error('❌ Error clearing PIN session:', error);
+            // console.error('❌ Error clearing PIN session:', error);
             // Tetap tampilkan modal meskipun error
             if (typeof window.showPinModalForInactivity === 'function') {
                 window.showPinModalForInactivity();
@@ -295,7 +295,7 @@
 
     // Fungsi untuk disable semua protected actions
     function disableAllProtectedActions() {
-        console.log('🔒 Disabling all protected actions');
+        // console.log('🔒 Disabling all protected actions');
         document.querySelectorAll('[data-require-pin]').forEach(el => {
             el.classList.add('disabled');
             el.style.pointerEvents = 'none';
@@ -318,18 +318,18 @@
     
     // Mulai timer saat halaman dimuat
     resetInactivityTimer();
-    console.log('✅ Initial timer started');
+    // console.log('✅ Initial timer started');
     
     // PENTING: Reset timer ketika modal ditutup (PIN berhasil diverifikasi)
     document.addEventListener('DOMContentLoaded', function() {
         const pinModal = document.getElementById('pinVerificationModal');
         if (pinModal) {
             pinModal.addEventListener('hidden.bs.modal', function() {
-                console.log('✅ Modal hidden - resetting timer');
+                // console.log('✅ Modal hidden - resetting timer');
                 resetInactivityTimer();
             });
             
-            console.log('✅ Modal event listeners attached');
+            // console.log('✅ Modal event listeners attached');
         }
     });
     
@@ -340,7 +340,7 @@
                 try {
                     const response = JSON.parse(xhr.responseText);
                     if (response.pin_required) {
-                        console.log('⚠️ AJAX blocked - PIN required');
+                        // console.log('⚠️ AJAX blocked - PIN required');
                         showPinModalDueToInactivity();
                     }
                 } catch (e) {
@@ -349,7 +349,7 @@
             }
         });
         
-        console.log('✅ AJAX handlers attached');
+        // console.log('✅ AJAX handlers attached');
     }
     
     // Expose functions untuk debugging
@@ -360,10 +360,10 @@
         return 'Check console for timer status';
     };
     
-    console.log('✅ PIN System ready!');
-    console.log('💡 Debug commands:');
-    console.log('   - window.resetPinTimer() - Reset timer');
-    console.log('   - window.showPinNow() - Show modal now');
+    // console.log('✅ PIN System ready!');
+    // console.log('💡 Debug commands:');
+    // console.log('   - window.resetPinTimer() - Reset timer');
+    // console.log('   - window.showPinNow() - Show modal now');
 })();
 </script>
 
@@ -373,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const pinModal = document.getElementById('pinVerificationModal');
     if (pinModal) {
         pinModal.addEventListener('shown.bs.modal', function() {
-            console.log('🎯 Modal shown - focusing input');
+            // console.log('🎯 Modal shown - focusing input');
             const firstPinBox = document.querySelector('.pin-box');
             if (firstPinBox) {
                 setTimeout(() => firstPinBox.focus(), 100);
@@ -427,7 +427,7 @@ if (typeof $ !== 'undefined') {
         }
         
         if (window.PIN_VERIFIED === false) {
-            console.log('🚫 AJAX blocked - PIN not verified');
+            // console.log('🚫 AJAX blocked - PIN not verified');
             xhr.abort();
 
             // Tampilkan modal PIN
@@ -443,7 +443,7 @@ if (typeof $ !== 'undefined') {
         }
     });
     
-    console.log('✅ AJAX PIN guard active');
+    // console.log('✅ AJAX PIN guard active');
 }
 </script>
 
