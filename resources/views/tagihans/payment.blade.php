@@ -4,7 +4,7 @@
 
 @section('breadcrumb')
     <li class="breadcrumb-item">
-        <a href="{{ route('tagihans.index') }}">Tagihan</a>
+        <a href="{{ route('tagihans.index') }}">Tagihan Pasien</a>
     </li>
     <li class="breadcrumb-item">
         <a href="{{ route('tagihans.show', $tagihan->id_tagihan) }}">{{ $tagihan->no_tagihan }}</a>

@@ -168,7 +168,7 @@
 
                     {{-- DataTable --}}
                     <div class="table-responsive">
-                        <table class="table table-hover table-bordered align-middle" id="myTables">
+                        <table class="table table-hover table-striped align-middle" id="myTables">
                             <thead class="table-light">
                                 <tr>
                                     <th width="50">No</th>
@@ -306,11 +306,11 @@
                                         @endif
                                     </tr>
                                     @empty
-                                    <tr>
+                                    {{-- <tr>
                                         <td colspan="12" class="text-center py-3 text-muted">
                                             <em>Data detail tidak tersedia untuk transaksi ini</em>
                                         </td>
-                                    </tr>
+                                    </tr> --}}
                                     @endforelse
                                 @empty
                                     <tr>
@@ -371,6 +371,9 @@
     .badge {
         font-weight: 500;
         padding: 0.35em 0.65em;
+    }
+     .table {
+        border: 1px solid #ced4da !important;
     }
 </style>
 @endpush

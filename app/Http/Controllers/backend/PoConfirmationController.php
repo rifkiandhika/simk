@@ -74,11 +74,11 @@ class PoConfirmationController extends Controller
 
         if ($validator->fails()) {
             Log::error('Validation Failed:', $validator->errors()->toArray());
-
-            if ($request->wantsJson()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-            return back()->withErrors($validator)->withInput();
+            
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first()
+            ], 422);
         }
 
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
@@ -87,11 +87,11 @@ class PoConfirmationController extends Controller
 
         if (!$karyawan) {
             Log::warning('Invalid PIN', ['user_id' => Auth::user()->id_karyawan]);
-
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'PIN tidak valid'], 403);
-            }
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'PIN tidak valid'
+            ], 403);
         }
 
         DB::beginTransaction();
@@ -186,7 +186,6 @@ class PoConfirmationController extends Controller
                     'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
                 ]);
 
-                // KURANGI STOCK GUDANG
                 $stockBefore = $detailGudang->stock_gudang;
                 $detailGudang->decrement('stock_gudang', $qtyDiterima);
                 $detailGudang->refresh();
@@ -197,10 +196,9 @@ class PoConfirmationController extends Controller
                     'stock_after' => $detailGudang->stock_gudang
                 ]);
 
-                // ✅ CATAT HISTORY GUDANG - PENGIRIMAN (BARANG KELUAR KE APOTIK)
                 HistoryGudang::create([
                     'gudang_id' => $gudang->id,
-                    'supplier_id' => null, // Internal transfer, bukan dari supplier
+                    'supplier_id' => null,
                     'barang_id' => $poItem->id_produk,
                     'no_batch' => $detailGudang->no_batch,
                     'jumlah' => $qtyDiterima,
@@ -212,15 +210,6 @@ class PoConfirmationController extends Controller
                     'keterangan' => "Pengiriman barang ke Apotik - PO Internal: {$po->no_po}, Unit: {$po->unit_pemohon}, Kondisi: {$kondisi}",
                 ]);
 
-                Log::info('History Gudang - Pengiriman dicatat', [
-                    'po_id' => $po->id_po,
-                    'barang' => $produk->nama,
-                    'batch' => $detailGudang->no_batch,
-                    'qty' => $qtyDiterima,
-                    'kondisi' => $kondisi,
-                ]);
-
-                // Proses berdasarkan kondisi
                 if ($kondisi === 'baik') {
                     Log::info('Processing BAIK item...');
                     $this->addToStockApotik($gudang, $poItem, $detailGudang, $qtyDiterima, $produk, $po);
@@ -287,16 +276,13 @@ class PoConfirmationController extends Controller
                 $message .= " {$totalRusak} unit ditandai sebagai retur.";
             }
 
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'message' => $message,
-                    'data' => $po->fresh()->load('items'),
-                    'items_processed' => $itemsProcessed,
-                ], 200);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => $message,
+                'data' => $po->fresh()->load('items'),
+                'items_processed' => $itemsProcessed,
+            ], 200);
 
-            return redirect()->route('po.show', $po->id_po)
-                ->with('success', $message);
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -308,11 +294,10 @@ class PoConfirmationController extends Controller
                 'trace' => $e->getTraceAsString()
             ]);
 
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'Gagal konfirmasi: ' . $e->getMessage()], 500);
-            }
-
-            return back()->withErrors(['error' => 'Gagal konfirmasi: ' . $e->getMessage()])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => 'Gagal konfirmasi: ' . $e->getMessage()
+            ], 500);
         }
     }
 

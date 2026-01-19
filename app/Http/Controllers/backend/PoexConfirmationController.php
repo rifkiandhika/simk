@@ -46,25 +46,35 @@ class PoexConfirmationController extends Controller
      */
     public function confirmReceipt(Request $request, $id_po)
     {
-        $validated = $request->validate([
-            'pin' => 'required|size:6',
-            'catatan_penerima' => 'nullable|string',
-            'items' => 'required|array|min:1',
-            'items.*.id_po_item' => 'required|uuid',
-            'items.*.batches' => 'required|array|min:1',
-            'items.*.batches.*.batch_number' => 'nullable|string',
-            'items.*.batches.*.tanggal_kadaluarsa' => 'required|date',
-            'items.*.batches.*.qty_diterima' => 'required|integer|min:1',
-            'items.*.batches.*.kondisi' => 'required|in:baik,rusak,kadaluarsa',
-            'items.*.batches.*.catatan' => 'nullable|string',
-        ]);
+        try {
+            $validated = $request->validate([
+                'pin' => 'required|size:6',
+                'catatan_penerima' => 'nullable|string',
+                'items' => 'required|array|min:1',
+                'items.*.id_po_item' => 'required|uuid',
+                'items.*.batches' => 'required|array|min:1',
+                'items.*.batches.*.batch_number' => 'nullable|string',
+                'items.*.batches.*.tanggal_kadaluarsa' => 'required|date',
+                'items.*.batches.*.qty_diterima' => 'required|integer|min:1',
+                'items.*.batches.*.kondisi' => 'required|in:baik,rusak,kadaluarsa',
+                'items.*.batches.*.catatan' => 'nullable|string',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Data tidak valid: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        }
 
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
 
         if (!$karyawan) {
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => 'PIN tidak valid'
+            ], 401);
         }
 
         DB::beginTransaction();
@@ -73,12 +83,17 @@ class PoexConfirmationController extends Controller
 
             if (!$po->needsReceiptConfirmation()) {
                 DB::rollBack();
-                return redirect()->route('po.show', $id_po)
-                    ->with('error', 'PO ini tidak memerlukan konfirmasi atau sudah dikonfirmasi');
+                return response()->json([
+                    'success' => false,
+                    'error' => 'PO ini tidak memerlukan konfirmasi atau sudah dikonfirmasi'
+                ], 400);
             }
 
             $dataBefore = $po->toArray();
             $noGR = PurchaseOrder::generateNoGR();
+
+            // ✅ Variabel untuk menghitung total diterima (subtotal tanpa pajak)
+            $subtotalDiterima = 0;
 
             // Process setiap item dengan batch-nya
             foreach ($request->items as $itemData) {
@@ -107,22 +122,60 @@ class PoexConfirmationController extends Controller
                 $item->update([
                     'qty_diterima' => $totalQtyDiterima,
                 ]);
+
+                // ✅ HITUNG SUBTOTAL DITERIMA: qty_diterima × harga_satuan (hanya untuk kondisi baik)
+                if ($po->tipe_po === 'eksternal') {
+                    $qtyBaik = 0;
+                    foreach ($itemData['batches'] as $batchData) {
+                        if ($batchData['kondisi'] === 'baik') {
+                            $qtyBaik += $batchData['qty_diterima'];
+                        }
+                    }
+                    $subtotalDiterima += ($qtyBaik * $item->harga_satuan);
+                }
             }
 
             // Transfer stok ke gudang
             if ($po->tipe_po === 'internal') {
                 // Internal PO tidak ada penerimaan di sini
             } else {
-                $this->addStockToGudang($po, $noGR); // PASS $noGR
+                $this->addStockToGudang($po, $noGR);
             }
 
-            $po->update([
+            // ✅ UPDATE PO dengan total_diterima (termasuk pajak)
+            $updateData = [
                 'no_gr' => $noGR,
                 'status' => 'selesai',
                 'id_penerima' => Auth::user()->id_karyawan,
                 'tanggal_diterima' => now(),
                 'catatan_penerima' => $request->catatan_penerima,
-            ]);
+            ];
+
+            // ✅ Tambahkan total_diterima untuk PO eksternal (subtotal + pajak proporsional)
+            if ($po->tipe_po === 'eksternal') {
+                // Hitung pajak proporsional berdasarkan subtotal diterima
+                $pajakProporsional = 0;
+                if ($po->total_harga > 0 && $po->pajak > 0) {
+                    // Pajak proporsional = (subtotal_diterima / total_harga) × pajak_awal
+                    $pajakProporsional = ($subtotalDiterima / $po->total_harga) * $po->pajak;
+                }
+                
+                // Total diterima = subtotal + pajak
+                $totalDiterima = $subtotalDiterima + $pajakProporsional;
+                
+                $updateData['total_diterima'] = $totalDiterima;
+
+                Log::info('Perhitungan Total Diterima', [
+                    'po_id' => $po->id_po,
+                    'subtotal_diterima' => $subtotalDiterima,
+                    'pajak_awal' => $po->pajak,
+                    'total_harga_awal' => $po->total_harga,
+                    'pajak_proporsional' => $pajakProporsional,
+                    'total_diterima' => $totalDiterima,
+                ]);
+            }
+
+            $po->update($updateData);
 
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
@@ -147,11 +200,28 @@ class PoexConfirmationController extends Controller
 
             DB::commit();
 
-            return redirect()->route('po.show', $po->id_po)
-                ->with('success', "Penerimaan barang berhasil dikonfirmasi dengan nomor GR: {$noGR}");
+            return response()->json([
+                'success' => true,
+                'message' => "Penerimaan barang berhasil dikonfirmasi dengan nomor GR: {$noGR}",
+                'data' => [
+                    'no_gr' => $noGR,
+                    'id_po' => $po->id_po,
+                    'subtotal_diterima' => $subtotalDiterima ?? 0,
+                    'pajak_proporsional' => $pajakProporsional ?? 0,
+                    'total_diterima' => $totalDiterima ?? 0,
+                ]
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Gagal konfirmasi: ' . $e->getMessage()])->withInput();
+            Log::error('Error konfirmasi receipt: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Gagal konfirmasi: ' . $e->getMessage()
+            ], 500);
         }
     }
 
@@ -279,14 +349,21 @@ class PoexConfirmationController extends Controller
      */
     public function storeInvoice(Request $request, $id_po)
     {
-        $validated = $request->validate([
-            'pin' => 'required|size:6',
-            'no_invoice' => 'required|string|max:100',
-            'tanggal_invoice' => 'required|date',
-            'tanggal_jatuh_tempo' => 'required|date|after_or_equal:tanggal_invoice',
-            'nomor_faktur_pajak' => 'nullable|string|max:100',
-            'no_kwitansi' => 'nullable|string|max:100',
-        ]);
+        try {
+            $validated = $request->validate([
+                'pin' => 'required|size:6',
+                'no_invoice' => 'required|string|max:100',
+                'tanggal_invoice' => 'required|date',
+                'tanggal_jatuh_tempo' => 'required|date|after_or_equal:tanggal_invoice',
+                'nomor_faktur_pajak' => 'nullable|string|max:100',
+                'no_kwitansi' => 'nullable|string|max:100',
+            ]);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Data tidak valid: ' . implode(', ', $e->validator->errors()->all())
+            ], 422);
+        }
 
         // Verifikasi PIN
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
@@ -294,7 +371,10 @@ class PoexConfirmationController extends Controller
             ->first();
 
         if (!$karyawan) {
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => 'PIN tidak valid'
+            ], 401);
         }
 
         DB::beginTransaction();
@@ -303,8 +383,10 @@ class PoexConfirmationController extends Controller
 
             if (!$po->needsInvoice()) {
                 DB::rollBack();
-                return redirect()->route('po.show', $id_po)
-                    ->with('error', 'PO ini tidak memerlukan input invoice');
+                return response()->json([
+                    'success' => false,
+                    'error' => 'PO ini tidak memerlukan input invoice'
+                ], 400);
             }
 
             $dataBefore = $po->toArray();
@@ -333,11 +415,25 @@ class PoexConfirmationController extends Controller
 
             DB::commit();
 
-            return redirect()->route('po.show', $po->id_po)
-                ->with('success', 'Data invoice berhasil disimpan');
+            return response()->json([
+                'success' => true,
+                'message' => 'Data invoice berhasil disimpan',
+                'data' => [
+                    'no_invoice' => $request->no_invoice,
+                    'id_po' => $po->id_po
+                ]
+            ]);
+
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Gagal menyimpan invoice: ' . $e->getMessage()])->withInput();
+            Log::error('Error store invoice: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            return response()->json([
+                'success' => false,
+                'error' => 'Gagal menyimpan invoice: ' . $e->getMessage()
+            ], 500);
         }
     }
 }

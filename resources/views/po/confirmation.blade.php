@@ -23,7 +23,7 @@
         </div>
     @endif
 
-    <form action="{{ route('po.confirmex-receipt', $po->id_po) }}" method="POST" id="formConfirm">
+    <form id="formConfirm">
         @csrf
         
         <div class="row">
@@ -164,8 +164,7 @@
                                                 <input type="text" 
                                                        class="form-control form-control-sm" 
                                                        name="items[{{ $index }}][batches][0][batch_number]" 
-                                                       placeholder="BATCH001"
-                                                       >
+                                                       placeholder="BATCH001">
                                             </div>
                                             <div class="col-md-3">
                                                 <label class="form-label small">Exp Date <span class="text-danger">*</span></label>
@@ -231,34 +230,6 @@
                                   placeholder="Tambahkan catatan untuk penerimaan ini (opsional)..."></textarea>
                     </div>
                 </div>
-
-                <!-- PIN Confirmation -->
-                <div class="card shadow-sm border-0">
-                    <div class="card-header bg-warning py-3">
-                        <h5 class="mb-0">
-                            <i class="ri-lock-line me-2"></i>Konfirmasi PIN
-                        </h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="alert alert-warning mb-3">
-                            <i class="ri-shield-check-line me-2"></i>
-                            <strong>Keamanan:</strong> Masukkan PIN 6 digit Anda untuk mengonfirmasi penerimaan barang ini.
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">PIN (6 digit) <span class="text-danger">*</span></label>
-                            <input type="password" 
-                                   class="form-control @error('pin') is-invalid @enderror" 
-                                   name="pin" 
-                                   id="pin"
-                                   maxlength="6" 
-                                   placeholder="Masukkan PIN 6 digit"
-                                   required>
-                            @error('pin')
-                                <div class="invalid-feedback">{{ $message }}</div>
-                            @enderror
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- Right Column - Summary -->
@@ -307,7 +278,7 @@
                     </div>
                     <div class="card-footer bg-white">
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg" id="btnSubmit">
+                            <button type="button" class="btn btn-success btn-lg" id="btnSubmit" onclick="showPinModal()">
                                 <i class="ri-check-double-line me-1"></i> Konfirmasi Penerimaan
                             </button>
                             <a href="{{ route('po.show', $po->id_po) }}" class="btn btn-outline-secondary">
@@ -341,6 +312,49 @@
         </div>
     </form>
 </div>
+
+{{-- PIN Modal --}}
+<div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="ri-lock-password-line me-2"></i>Verifikasi PIN Karyawan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center px-4 py-4">
+                <p class="text-muted mb-4">Masukkan PIN 6 digit untuk konfirmasi penerimaan barang</p>
+                
+                <!-- OTP-style PIN Input -->
+                <div class="otp-container d-flex justify-content-center gap-2 mb-4">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="0" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="1" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="2" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="3" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="4" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="5" autocomplete="off">
+                </div>
+
+                <div class="alert alert-info">
+                    <small>
+                        <i class="ri-information-line me-1"></i>
+                        PIN akan digunakan untuk mencatat karyawan yang memproses penerimaan barang
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-success" id="confirmPinBtn" disabled>
+                    <i class="ri-check-line me-1"></i> Konfirmasi Penerimaan
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -369,6 +383,85 @@
     .remove-batch-btn:hover {
         opacity: 1;
     }
+
+    /* OTP-style PIN Input Styles */
+    .otp-container {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .otp-input {
+        width: 50px;
+        height: 60px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .otp-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+        transform: scale(1.05);
+    }
+
+    .otp-input.filled {
+        background-color: #f8f9fa;
+        border-color: #198754;
+    }
+
+    .otp-input.error {
+        border-color: #dc3545;
+        animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    #pinModal .modal-content {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    #pinModal .modal-header {
+        padding: 1.5rem;
+    }
+
+    #pinModal .modal-title {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .btn-loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin-left: -8px;
+        margin-top: -8px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spinner 0.6s linear infinite;
+    }
+
+    @keyframes spinner {
+        to { transform: rotate(360deg); }
+    }
 </style>
 @endpush
 
@@ -383,7 +476,7 @@ $(document).ready(function() {
         let itemIndex = $(this).data('item-index');
         batchCounters[itemIndex] = 1;
     });
-    
+     
     // Add batch button
     $('.add-batch-btn').on('click', function() {
         let itemIndex = $(this).data('item-index');
@@ -400,12 +493,11 @@ $(document).ready(function() {
                 </div>
                 <div class="row">
                     <div class="col-md-3">
-                        <label class="form-label small">No. Batch <span class="text-danger">*</span></label>
+                        <label class="form-label small">No. Batch</label>
                         <input type="text" 
                                class="form-control form-control-sm" 
                                name="items[${itemIndex}][batches][${batchIndex}][batch_number]" 
-                               placeholder="BATCH001"
-                               >
+                               placeholder="BATCH001">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label small">Exp Date <span class="text-danger">*</span></label>
@@ -535,76 +627,213 @@ $(document).ready(function() {
     
     // Initial calculation
     calculateSummary();
-    
-    // Form validation
-    $('#formConfirm').on('submit', function(e) {
+});
+
+// ============================================
+// OTP-STYLE PIN INPUT HANDLER
+// ============================================
+const otpInputs = document.querySelectorAll('.otp-input');
+const confirmPinBtn = document.getElementById('confirmPinBtn');
+const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+
+otpInputs.forEach((input, index) => {
+    input.addEventListener('input', function (e) {
+        const value = e.target.value;
+
+        if (!/^\d$/.test(value)) {
+            e.target.value = '';
+            return;
+        }
+
+        e.target.classList.add('filled');
+
+        if (index < otpInputs.length - 1) {
+            otpInputs[index + 1].focus();
+        }
+
+        checkPinComplete();
+    });
+
+    input.addEventListener('keydown', function (e) {
+        if (e.key === 'Backspace') {
+            if (!e.target.value && index > 0) {
+                otpInputs[index - 1].focus();
+                otpInputs[index - 1].value = '';
+                otpInputs[index - 1].classList.remove('filled', 'error');
+            } else {
+                e.target.value = '';
+                e.target.classList.remove('filled', 'error');
+            }
+            checkPinComplete();
+        } 
+        else if (e.key === 'ArrowLeft' && index > 0) {
+            e.preventDefault();
+            otpInputs[index - 1].focus();
+        } 
+        else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+            e.preventDefault();
+            otpInputs[index + 1].focus();
+        }
+        else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (isPinComplete()) {
+                confirmPinBtn.click();
+            }
+        }
+    });
+
+    input.addEventListener('paste', function (e) {
         e.preventDefault();
-        
-        const pin = $('#pin').val();
-        
-        if (!pin || pin.length !== 6) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'PIN harus 6 digit'
-            });
-            return false;
-        }
-        
-        const totalDiterima = parseInt($('#totalDiterima').text());
-        
-        if (totalDiterima === 0) {
-            Swal.fire({
-                icon: 'warning',
-                title: 'Perhatian',
-                text: 'Minimal harus ada 1 item yang diterima'
-            });
-            return false;
-        }
-        
-        // Show confirmation
-        const form = this;
-        const tipePO = '{{ $po->tipe_po }}';
-        const destination = tipePO === 'internal' ? 'Apotik' : 'Gudang';
-        
-        Swal.fire({
-            title: 'Konfirmasi Penerimaan',
-            html: `
-                <div class="text-start">
-                    <p>Anda akan mengkonfirmasi penerimaan:</p>
-                    <ul>
-                        <li>Total Batch: <strong>${$('#totalBatch').text()}</strong></li>
-                        <li>Total Diterima (Baik): <strong class="text-success">${$('#totalBaik').text()} unit</strong></li>
-                        <li>Total Rusak/Kadaluarsa: <strong class="text-danger">${$('#totalRusak').text()} unit</strong></li>
-                    </ul>
-                    <p class="${tipePO === 'internal' ? 'text-primary' : 'text-success'}">
-                        <strong><i class="ri-check-line"></i> Nomor GR akan digenerate otomatis</strong>
-                    </p>
-                    <p class="${tipePO === 'internal' ? 'text-primary' : 'text-success'}">
-                        <strong><i class="ri-arrow-right-line"></i> Stok akan otomatis ditambahkan ke ${destination}</strong>
-                    </p>
-                </div>
-            `,
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#198754',
-            cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Ya, Konfirmasi!',
-            cancelButtonText: 'Batal'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                // Show loading
-                Swal.fire({
-                    title: 'Memproses...',
-                    text: 'Mohon tunggu, sedang memproses penerimaan barang dan generate nomor GR',
-                    allowOutsideClick: false,
-                    didOpen: () => {
-                        Swal.showLoading();
-                    }
-                });
-                form.submit();
+        const pasted = (e.clipboardData || window.clipboardData).getData('text');
+        if (!/^\d{6}$/.test(pasted)) return;
+
+        pasted.split('').forEach((char, i) => {
+            if (otpInputs[i]) {
+                otpInputs[i].value = char;
+                otpInputs[i].classList.add('filled');
             }
         });
+
+        otpInputs[5].focus();
+        checkPinComplete();
+    });
+});
+
+function checkPinComplete() {
+    const pin = Array.from(otpInputs).map(i => i.value).join('');
+    confirmPinBtn.disabled = pin.length !== 6;
+}
+
+function isPinComplete() {
+    return Array.from(otpInputs).every(input => input.value !== '');
+}
+
+function resetPinInput(error = false) {
+    otpInputs.forEach(input => {
+        input.value = '';
+        input.classList.remove('filled', 'error');
+        if (error) input.classList.add('error');
+    });
+    otpInputs[0].focus();
+    confirmPinBtn.disabled = true;
+}
+
+// ============================================
+// SHOW PIN MODAL
+// ============================================
+function showPinModal() {
+    const totalDiterima = parseInt($('#totalDiterima').text());
+    
+    if (totalDiterima === 0) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Perhatian',
+            text: 'Minimal harus ada 1 item yang diterima'
+        });
+        return;
+    }
+
+    resetPinInput();
+    pinModal.show();
+}
+
+// ============================================
+// SUBMIT PENERIMAAN
+// ============================================
+confirmPinBtn.addEventListener('click', function () {
+    const pin = Array.from(otpInputs).map(i => i.value).join('');
+    const form = document.getElementById('formConfirm');
+    const formData = new FormData(form);
+
+    formData.append('pin', pin);
+
+    const totalBatch = parseInt($('#totalBatch').text());
+    const totalBaik = parseInt($('#totalBaik').text());
+    const totalRusak = parseInt($('#totalRusak').text());
+    const tipePO = '{{ $po->tipe_po }}';
+    const destination = tipePO === 'internal' ? 'Apotik' : 'Gudang';
+
+    // Show confirmation
+    Swal.fire({
+        title: 'Konfirmasi Penerimaan',
+        html: `
+            <div class="text-start">
+                <p><strong>Anda akan mengkonfirmasi penerimaan:</strong></p>
+                <ul>
+                    <li>Total Batch: <strong>${totalBatch}</strong></li>
+                    <li>Total Diterima (Baik): <strong class="text-success">${totalBaik} unit</strong></li>
+                    <li>Total Rusak/Kadaluarsa: <strong class="text-danger">${totalRusak} unit</strong></li>
+                </ul>
+                <p class="${tipePO === 'internal' ? 'text-primary' : 'text-success'}">
+                    <strong><i class="ri-check-line"></i> Nomor GR akan digenerate otomatis</strong>
+                </p>
+                <p class="${tipePO === 'internal' ? 'text-primary' : 'text-success'}">
+                    <strong><i class="ri-arrow-right-line"></i> Stok akan otomatis ditambahkan ke ${destination}</strong>
+                </p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Ya, Konfirmasi!',
+        cancelButtonText: 'Batal',
+        width: '600px'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            confirmPinBtn.classList.add('btn-loading');
+            confirmPinBtn.disabled = true;
+
+            // Show loading
+            Swal.fire({
+                title: 'Memproses...',
+                text: 'Mohon tunggu, sedang memproses penerimaan barang dan generate nomor GR',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+
+            fetch("{{ route('po.confirmex-receipt', $po->id_po) }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(res => {
+                if (res.success || res.message) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Berhasil',
+                        html: res.message || 'Konfirmasi penerimaan berhasil',
+                        confirmButtonColor: '#198754'
+                    }).then(() => {
+                        window.location.href = "{{ route('po.show', $po->id_po) }}";
+                    });
+                } else {
+                    throw new Error(res.error || 'Terjadi kesalahan');
+                }
+            })
+            .catch(err => {
+                resetPinInput(true);
+                pinModal.hide();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Gagal',
+                    text: err.message || 'PIN tidak valid atau terjadi kesalahan'
+                }).then(() => {
+                    pinModal.show();
+                    otpInputs[0].focus();
+                });
+            })
+            .finally(() => {
+                confirmPinBtn.classList.remove('btn-loading');
+                confirmPinBtn.disabled = false;
+            });
+        }
     });
 });
 </script>

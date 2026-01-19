@@ -3,7 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print PO - {{ $po->no_po }}</title>
+    <title>
+        Print PO -
+        @if($po->status === 'selesai')
+            {{ $po->no_gr }}
+        @else
+            {{ $po->no_po }}
+        @endif
+    </title>
+
     <style>
         * {
             margin: 0;
@@ -321,7 +329,13 @@
             </div>
             <div class="po-title">
                 <h2>PURCHASE ORDER</h2>
-                <div class="po-number">{{ $po->no_po }}</div>
+                <div class="po-number">
+                     @if($po->status === 'selesai')
+                        {{ $po->no_gr }}
+                    @else
+                        {{ $po->no_po }}
+                    @endif
+                </div>
                 <div style="margin-top: 10px;">
                     @if($po->tipe_po == 'internal')
                         <span class="badge badge-internal">INTERNAL</span>

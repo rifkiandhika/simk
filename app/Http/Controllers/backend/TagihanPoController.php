@@ -273,10 +273,10 @@ class TagihanPoController extends Controller
         ]);
 
         if ($validator->fails()) {
-            if ($request->wantsJson()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-            return back()->withErrors($validator)->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => $validator->errors()->first()
+            ], 422);
         }
 
         // Verifikasi PIN
@@ -285,10 +285,10 @@ class TagihanPoController extends Controller
             ->first();
 
         if (!$karyawan) {
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'PIN tidak valid'], 403);
-            }
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => 'PIN tidak valid'
+            ], 403);
         }
 
         DB::beginTransaction();
@@ -323,9 +323,9 @@ class TagihanPoController extends Controller
                 'bukti_pembayaran' => $buktiBayar,
                 'catatan' => $request->catatan,
                 'id_karyawan_input' => Auth::user()->id_karyawan,
-                'status_pembayaran' => 'diverifikasi', // Langsung diverifikasi
-                'id_karyawan_approve' => Auth::user()->id_karyawan, // Sama dengan yang input
-                'tanggal_approve' => now(), // Langsung di-approve
+                'status_pembayaran' => 'diverifikasi',
+                'id_karyawan_approve' => Auth::user()->id_karyawan,
+                'tanggal_approve' => now(),
             ]);
 
             // Update status tagihan langsung
@@ -333,23 +333,19 @@ class TagihanPoController extends Controller
 
             DB::commit();
 
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'message' => 'Pembayaran berhasil disimpan',
-                    'data' => $pembayaran
-                ], 201);
-            }
+            return response()->json([
+                'success' => true,
+                'message' => 'Pembayaran berhasil disimpan dan status tagihan telah diupdate',
+                'data' => $pembayaran
+            ], 200);
 
-            return redirect()->route('tagihan.show', $tagihan->id_tagihan)
-                ->with('success', 'Pembayaran berhasil disimpan dan status tagihan telah diupdate');
         } catch (\Exception $e) {
             DB::rollBack();
 
-            if ($request->wantsJson()) {
-                return response()->json(['error' => $e->getMessage()], 500);
-            }
-
-            return back()->withErrors(['error' => $e->getMessage()])->withInput();
+            return response()->json([
+                'success' => false,
+                'error' => $e->getMessage()
+            ], 500);
         }
     }
 

@@ -775,10 +775,12 @@
                             <i class="ri-arrow-left-line me-1"></i> Kembali
                         </a>
 
-                        @if(in_array($po->status, ['draft', 'ditolak']))
+                        @if(in_array($po->status, ['draft', 'ditolak', 'selesai']))
                             <a href="{{ route('po.edit', $po->id_po) }}" class="btn btn-outline-info">
                                 <i class="ri-pencil-line me-1"></i> Edit PO
                             </a>
+                        @endif
+                        @if(in_array($po->status, ['draft', 'ditolak']))
                             <button class="btn btn-primary" onclick="submitPO('{{ $po->id_po }}')">
                                 <i class="ri-send-plane-fill me-1"></i> Submit PO
                             </button>
@@ -802,13 +804,13 @@
                             </button>
                         @endif
 
-                        @if($po->status === 'disetujui')
+                        {{-- @if($po->status === 'disetujui')
                             <button class="btn btn-info" onclick="sendToSupplier('{{ $po->id_po }}')">
                                 <i class="ri-truck-line me-1"></i> Kirim ke Supplier
                             </button>
-                        @endif
+                        @endif --}}
 
-                        @if(in_array($po->status, ['dikirim_ke_supplier', 'dalam_pengiriman']))
+                        @if(in_array($po->status, ['disetujui']))
                             <button class="btn btn-info" onclick="markAsReceived('{{ $po->id_po }}')">
                                 <i class="ri-checkbox-circle-line me-1"></i> Tandai Diterima
                             </button>
@@ -877,187 +879,341 @@
     </div>
 </div>
 <div class="modal fade" id="invoiceProofModal" tabindex="-1" data-bs-backdrop="static">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header border-0 bg-gradient-primary text-white">
                 <h5 class="modal-title">
                     <i class="ri-image-line me-2"></i>
-                    <span id="invoiceProofModalTitle">Bukti Invoice</span>
+                    <span id="invoiceProofModalTitle">Upload Bukti Invoice & Barang</span>
                 </h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
                 
-                <div id="invoiceProofPreview" style="{{ $po->bukti_invoice ? '' : 'display: none;' }}">
-                    <div class="text-center">
-                        <div class="position-relative d-inline-block">
-                            <img id="invoiceProofImage" 
-                                 src="{{ $po->bukti_invoice ? asset('storage/' . $po->bukti_invoice) : '' }}" 
-                                 class="img-fluid rounded shadow-sm border" 
-                                 style="max-height: 450px; max-width: 100%;"
-                                 alt="Bukti Invoice">
-                        </div>
-                        
-                        <div class="mt-3 p-3 bg-light rounded">
-                            @if($po->tanggal_upload_bukti_invoice)
-                            <div class="mb-2">
-                                <i class="ri-calendar-line text-primary me-1"></i> 
-                                <small class="text-muted">
-                                    Diupload: <strong>{{ \Carbon\Carbon::parse($po->tanggal_upload_bukti_invoice)->format('d/m/Y H:i') }}</strong>
-                                </small>
+                <!-- PREVIEW MODE -->
+                <div id="invoiceProofPreview" style="{{ $po->bukti_invoice || $po->bukti_barang ? '' : 'display: none;' }}">
+                    <div class="row">
+                        <!-- Bukti Invoice Preview -->
+                        <div class="col-md-6">
+                            <div class="card border">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="ri-file-text-line me-1"></i>
+                                        Bukti Invoice
+                                    </h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    @if($po->bukti_invoice)
+                                        <div class="position-relative d-inline-block">
+                                            <img id="invoiceProofImage" 
+                                                 src="{{ asset('storage/' . $po->bukti_invoice) }}" 
+                                                 class="img-fluid rounded shadow-sm border" 
+                                                 style="max-height: 350px; max-width: 100%;"
+                                                 alt="Bukti Invoice">
+                                        </div>
+                                        
+                                        <div class="mt-3 p-3 bg-light rounded">
+                                            @if($po->tanggal_upload_bukti_invoice)
+                                            <div class="mb-2">
+                                                <i class="ri-calendar-line text-primary me-1"></i> 
+                                                <small class="text-muted">
+                                                    Diupload: <strong>{{ \Carbon\Carbon::parse($po->tanggal_upload_bukti_invoice)->format('d/m/Y H:i') }}</strong>
+                                                </small>
+                                            </div>
+                                            @endif
+                                            @if($po->karyawanUploadBukti)
+                                            <div>
+                                                <i class="ri-user-line text-primary me-1"></i>
+                                                <small class="text-muted">
+                                                    Oleh: <strong>{{ $po->karyawanUploadBukti->nama_lengkap }}</strong>
+                                                </small>
+                                            </div>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
+                                            <a href="{{ asset('storage/' . $po->bukti_invoice) }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="ri-download-line me-1"></i> Download
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-warning" 
+                                                    onclick="changeProof('invoice')">
+                                                <i class="ri-exchange-line me-1"></i> Ganti
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    onclick="confirmDeleteProof('invoice')">
+                                                <i class="ri-delete-bin-line me-1"></i> Hapus
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-5 text-muted">
+                                            <i class="ri-file-forbid-line" style="font-size: 3rem;"></i>
+                                            <p class="mt-2 mb-0">Belum ada bukti invoice</p>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-primary mt-2" 
+                                                    onclick="changeProof('invoice')">
+                                                <i class="ri-upload-line me-1"></i> Upload Sekarang
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
-                            @endif
-                            @if($po->karyawanUploadBukti)
-                            <div>
-                                <i class="ri-user-line text-primary me-1"></i>
-                                <small class="text-muted">
-                                    Oleh: <strong>{{ $po->karyawanUploadBukti->nama_lengkap }}</strong>
-                                </small>
-                            </div>
-                            @endif
                         </div>
-                        
-                        <div class="mt-3 d-flex gap-2 justify-content-center">
-                            <a href="{{ $po->bukti_invoice ? asset('storage/' . $po->bukti_invoice) : '#' }}" 
-                               target="_blank" 
-                               class="btn btn-primary">
-                                <i class="ri-download-line me-1"></i> Download
-                            </a>
-                            <button type="button" 
-                                    class="btn btn-warning" 
-                                    onclick="changeInvoiceProof()">
-                                <i class="ri-exchange-line me-1"></i> Ganti Bukti
-                            </button>
-                            <button type="button" 
-                                    class="btn btn-danger" 
-                                    onclick="confirmDeleteInvoiceProof()">
-                                <i class="ri-delete-bin-line me-1"></i> Hapus
-                            </button>
+
+                        <!-- Bukti Barang Preview -->
+                        <div class="col-md-6">
+                            <div class="card border">
+                                <div class="card-header bg-light">
+                                    <h6 class="mb-0">
+                                        <i class="ri-box-3-line me-1"></i>
+                                        Bukti Barang
+                                    </h6>
+                                </div>
+                                <div class="card-body text-center">
+                                    @if($po->bukti_barang)
+                                        <div class="position-relative d-inline-block">
+                                            <img id="barangProofImage" 
+                                                 src="{{ asset('storage/' . $po->bukti_barang) }}" 
+                                                 class="img-fluid rounded shadow-sm border" 
+                                                 style="max-height: 350px; max-width: 100%;"
+                                                 alt="Bukti Barang">
+                                        </div>
+                                        
+                                        <div class="mt-3 p-3 bg-light rounded">
+                                            @if($po->tanggal_upload_bukti_barang)
+                                            <div class="mb-2">
+                                                <i class="ri-calendar-line text-primary me-1"></i> 
+                                                <small class="text-muted">
+                                                    Diupload: <strong>{{ \Carbon\Carbon::parse($po->tanggal_upload_bukti_barang)->format('d/m/Y H:i') }}</strong>
+                                                </small>
+                                            </div>
+                                            @endif
+                                            @if($po->karyawanUploadBuktiBarang)
+                                            <div>
+                                                <i class="ri-user-line text-primary me-1"></i>
+                                                <small class="text-muted">
+                                                    Oleh: <strong>{{ $po->karyawanUploadBuktiBarang->nama_lengkap }}</strong>
+                                                </small>
+                                            </div>
+                                            @endif
+                                        </div>
+                                        
+                                        <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
+                                            <a href="{{ asset('storage/' . $po->bukti_barang) }}" 
+                                               target="_blank" 
+                                               class="btn btn-sm btn-primary">
+                                                <i class="ri-download-line me-1"></i> Download
+                                            </a>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-warning" 
+                                                    onclick="changeProof('barang')">
+                                                <i class="ri-exchange-line me-1"></i> Ganti
+                                            </button>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-danger" 
+                                                    onclick="confirmDeleteProof('barang')">
+                                                <i class="ri-delete-bin-line me-1"></i> Hapus
+                                            </button>
+                                        </div>
+                                    @else
+                                        <div class="text-center py-5 text-muted">
+                                            <i class="ri-box-3-line" style="font-size: 3rem;"></i>
+                                            <p class="mt-2 mb-0">Belum ada bukti barang</p>
+                                            <button type="button" 
+                                                    class="btn btn-sm btn-primary mt-2" 
+                                                    onclick="changeProof('barang')">
+                                                <i class="ri-upload-line me-1"></i> Upload Sekarang
+                                            </button>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                
-                <div id="invoiceProofUploadForm" style="{{ $po->bukti_invoice ? 'display: none;' : '' }}">
+                <!-- UPLOAD FORM MODE -->
+                <div id="invoiceProofUploadForm" style="{{ $po->bukti_invoice && $po->bukti_barang ? 'display: none;' : '' }}">
                     <form id="uploadInvoiceForm" enctype="multipart/form-data">
                         @csrf
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">
-                                Upload Bukti Invoice <span class="text-danger">*</span>
-                            </label>
-                            
-                            
-                            <div class="upload-area border-2 border-dashed rounded-3 p-5 text-center position-relative" 
-                                 id="uploadArea"
-                                 onclick="document.getElementById('buktiInvoiceInput').click()"
-                                 style="cursor: pointer; border-color: #dee2e6; transition: all 0.3s ease;">
-                                <div id="uploadPrompt">
-                                    <i class="ri-upload-cloud-2-line text-primary mb-3" style="font-size: 4rem;"></i>
-                                    <h6 class="mb-2">Klik atau Drag & Drop File di Sini</h6>
-                                    <p class="text-muted mb-0">
-                                        Format: JPG, PNG, PDF<br>
-                                        <small>Maksimal ukuran: 5MB</small>
-                                    </p>
-                                </div>
-                                
-                                
-                                <div id="filePreviewThumb" style="display: none;">
-                                    <div class="d-flex align-items-center justify-content-center gap-3 p-3 bg-light rounded">
-                                        <div class="file-icon">
-                                            <i class="ri-file-line text-primary" style="font-size: 2.5rem;"></i>
+                        <input type="hidden" id="uploadType" name="upload_type" value="both">
+                        
+                        <div class="row">
+                            <!-- Upload Bukti Invoice -->
+                            <div class="col-md-6">
+                                <div class="card border mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="ri-file-text-line me-1"></i>
+                                            Upload Bukti Invoice
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="upload-area border-2 border-dashed rounded-3 p-4 text-center position-relative" 
+                                             id="uploadAreaInvoice"
+                                             onclick="document.getElementById('buktiInvoiceInput').click()"
+                                             style="cursor: pointer; border-color: #dee2e6; transition: all 0.3s ease;">
+                                            <div id="uploadPromptInvoice">
+                                                <i class="ri-upload-cloud-2-line text-primary mb-2" style="font-size: 3rem;"></i>
+                                                <h6 class="mb-2">Klik atau Drag & Drop</h6>
+                                                <p class="text-muted mb-0 small">
+                                                    JPG, PNG, PDF (Max 5MB)
+                                                </p>
+                                            </div>
+                                            
+                                            <div id="filePreviewThumbInvoice" style="display: none;">
+                                                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
+                                                    <div class="file-icon">
+                                                        <i class="ri-file-line text-primary" style="font-size: 2rem;"></i>
+                                                    </div>
+                                                    <div class="file-info text-start flex-grow-1">
+                                                        <div class="file-name fw-semibold text-truncate small"></div>
+                                                        <small class="file-size text-muted"></small>
+                                                    </div>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger rounded-circle" 
+                                                            onclick="clearFileInput(event, 'invoice')"
+                                                            style="width: 28px; height: 28px; padding: 0;">
+                                                        <i class="ri-close-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <input type="file" 
+                                                   id="buktiInvoiceInput" 
+                                                   name="bukti_invoice" 
+                                                   accept="image/jpeg,image/jpg,image/png,application/pdf"
+                                                   style="display: none;"
+                                                   onchange="previewFile(this, 'invoice')">
                                         </div>
-                                        <div class="file-info text-start flex-grow-1">
-                                            <div class="file-name fw-semibold text-truncate" style="max-width: 300px;"></div>
-                                            <small class="file-size text-muted"></small>
-                                        </div>
-                                        <button type="button" 
-                                                class="btn btn-sm btn-outline-danger rounded-circle" 
-                                                onclick="clearFileInput(event)"
-                                                style="width: 32px; height: 32px; padding: 0;">
-                                            <i class="ri-close-line"></i>
-                                        </button>
+                                        <div class="invalid-feedback d-block" id="buktiInvoiceError" style="display: none !important;"></div>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Upload Bukti Barang -->
+                            <div class="col-md-6">
+                                <div class="card border mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0">
+                                            <i class="ri-box-3-line me-1"></i>
+                                            Upload Bukti Barang
+                                        </h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="upload-area border-2 border-dashed rounded-3 p-4 text-center position-relative" 
+                                             id="uploadAreaBarang"
+                                             onclick="document.getElementById('buktiBarangInput').click()"
+                                             style="cursor: pointer; border-color: #dee2e6; transition: all 0.3s ease;">
+                                            <div id="uploadPromptBarang">
+                                                <i class="ri-upload-cloud-2-line text-primary mb-2" style="font-size: 3rem;"></i>
+                                                <h6 class="mb-2">Klik atau Drag & Drop</h6>
+                                                <p class="text-muted mb-0 small">
+                                                    JPG, PNG, PDF (Max 5MB)
+                                                </p>
+                                            </div>
+                                            
+                                            <div id="filePreviewThumbBarang" style="display: none;">
+                                                <div class="d-flex align-items-center gap-2 p-2 bg-light rounded">
+                                                    <div class="file-icon">
+                                                        <i class="ri-file-line text-primary" style="font-size: 2rem;"></i>
+                                                    </div>
+                                                    <div class="file-info text-start flex-grow-1">
+                                                        <div class="file-name fw-semibold text-truncate small"></div>
+                                                        <small class="file-size text-muted"></small>
+                                                    </div>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger rounded-circle" 
+                                                            onclick="clearFileInput(event, 'barang')"
+                                                            style="width: 28px; height: 28px; padding: 0;">
+                                                        <i class="ri-close-line"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            
+                                            <input type="file" 
+                                                   id="buktiBarangInput" 
+                                                   name="bukti_barang" 
+                                                   accept="image/jpeg,image/jpg,image/png,application/pdf"
+                                                   style="display: none;"
+                                                   onchange="previewFile(this, 'barang')">
+                                        </div>
+                                        <div class="invalid-feedback d-block" id="buktiBarangError" style="display: none !important;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PIN Input -->
+                        <div class="card border">
+                            <div class="card-body">
+                                <label class="form-label fw-semibold">
+                                    <i class="ri-lock-password-line me-1"></i>
+                                    PIN Karyawan <span class="text-danger">*</span>
+                                </label>
                                 
-                                <input type="file" 
-                                       id="buktiInvoiceInput" 
-                                       name="bukti_invoice" 
-                                       accept="image/jpeg,image/jpg,image/png,application/pdf"
-                                       style="display: none;"
-                                       onchange="previewFile(this)">
+                                <div class="otp-input-container d-flex justify-content-center gap-2 mb-2">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="0"
+                                        autocomplete="off">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="1"
+                                        autocomplete="off">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="2"
+                                        autocomplete="off">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="3"
+                                        autocomplete="off">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="4"
+                                        autocomplete="off">
+                                    <input type="password" 
+                                        class="otp-input-invoice form-control text-center" 
+                                        maxlength="1" 
+                                        pattern="[0-9]" 
+                                        inputmode="numeric"
+                                        data-index="5"
+                                        autocomplete="off">
+                                </div>
+                                
+                                <input type="hidden" id="pinInput" name="pin">
+                                
+                                <div class="invalid-feedback d-block" id="pinError" style="display: none !important;"></div>
+                                <small class="text-muted d-block text-center">
+                                    <i class="ri-information-line me-1"></i>
+                                    Masukkan 6 digit PIN untuk verifikasi
+                                </small>
                             </div>
-                            <div class="invalid-feedback d-block" id="buktiInvoiceError" style="display: none !important;"></div>
                         </div>
 
-                        
-                        {{-- PIN Input dengan class yang BERBEDA: otp-input-invoice --}}
-                        <div class="mb-4">
-                            <label class="form-label fw-semibold">
-                                <i class="ri-lock-password-line me-1"></i>
-                                PIN Karyawan <span class="text-danger">*</span>
-                            </label>
-                            
-                            {{-- OTP Input Boxes dengan class INVOICE SPECIFIC --}}
-                            <div class="otp-input-container d-flex justify-content-center gap-2 mb-2">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="0"
-                                    autocomplete="off">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="1"
-                                    autocomplete="off">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="2"
-                                    autocomplete="off">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="3"
-                                    autocomplete="off">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="4"
-                                    autocomplete="off">
-                                <input type="password" 
-                                    class="otp-input-invoice form-control text-center" 
-                                    maxlength="1" 
-                                    pattern="[0-9]" 
-                                    inputmode="numeric"
-                                    data-index="5"
-                                    autocomplete="off">
-                            </div>
-                            
-                            {{-- Hidden input untuk menyimpan PIN lengkap --}}
-                            <input type="hidden" id="pinInput" name="pin">
-                            
-                            <div class="invalid-feedback d-block" id="pinError" style="display: none !important;"></div>
-                            <small class="text-muted d-block text-center">
-                                <i class="ri-information-line me-1"></i>
-                                Masukkan 6 digit PIN untuk verifikasi
-                            </small>
-                        </div>
-
-                        <div class="alert alert-info d-flex align-items-start">
+                        <div class="alert alert-info d-flex align-items-start mt-3">
                             <i class="ri-information-line me-2 mt-1"></i>
                             <small>
-                                <strong>Catatan:</strong> Pastikan file yang diupload adalah bukti invoice asli dari supplier. 
-                                File ini akan digunakan untuk proses pembayaran dan audit.
+                                <strong>Catatan:</strong> Anda dapat mengupload bukti invoice dan bukti barang sekaligus atau secara terpisah.
                             </small>
                         </div>
                     </form>
@@ -1069,10 +1225,10 @@
                 </button>
                 <button type="button" 
                         class="btn btn-primary" 
-                        id="btnUploadInvoice"
-                        onclick="directUploadInvoice(event)"
-                        style="{{ $po->bukti_invoice ? 'display: none;' : '' }}">
-                    <i class="ri-upload-line me-1"></i> Upload Bukti Invoice
+                        id="btnUploadProof"
+                        onclick="directUploadProof(event)"
+                        style="{{ $po->bukti_invoice && $po->bukti_barang ? 'display: none;' : '' }}">
+                    <i class="ri-upload-line me-1"></i> Upload Bukti
                 </button>
             </div>
         </div>
@@ -2016,42 +2172,51 @@
 
 <script>
 // ============================================
-// INVOICE MODAL OTP HANDLER - COMPLETELY SEPARATED
+// MODAL INITIALIZATION
 // ============================================
 
 function showInvoiceProofModal() {
     const modalElement = document.getElementById('invoiceProofModal');
     const modal = new bootstrap.Modal(modalElement);
-    const hasBukti = {{ $po->bukti_invoice ? 'true' : 'false' }};
+    const hasInvoice = {{ $po->bukti_invoice ? 'true' : 'false' }};
+    const hasBarang = {{ $po->bukti_barang ? 'true' : 'false' }};
     
-    if (hasBukti) {
-        document.getElementById('invoiceProofModalTitle').textContent = 'Bukti Invoice';
+    if (hasInvoice && hasBarang) {
+        document.getElementById('invoiceProofModalTitle').textContent = 'Bukti Invoice & Barang';
         document.getElementById('invoiceProofPreview').style.display = 'block';
         document.getElementById('invoiceProofUploadForm').style.display = 'none';
-        document.getElementById('btnUploadInvoice').style.display = 'none';
+        document.getElementById('btnUploadProof').style.display = 'none';
     } else {
-        document.getElementById('invoiceProofModalTitle').textContent = 'Upload Bukti Invoice';
+        document.getElementById('invoiceProofModalTitle').textContent = 'Upload Bukti Invoice & Barang';
         document.getElementById('invoiceProofPreview').style.display = 'none';
         document.getElementById('invoiceProofUploadForm').style.display = 'block';
-        document.getElementById('btnUploadInvoice').style.display = 'block';
-        clearFileInput();
+        document.getElementById('btnUploadProof').style.display = 'block';
+        clearAllFileInputs();
         clearInvoiceOtpInputs();
     }
     
     modal.show();
 }
 
-function changeInvoiceProof() {
+function changeProof(type) {
     document.getElementById('invoiceProofPreview').style.display = 'none';
     document.getElementById('invoiceProofUploadForm').style.display = 'block';
-    document.getElementById('btnUploadInvoice').style.display = 'block';
-    document.getElementById('invoiceProofModalTitle').textContent = 'Ganti Bukti Invoice';
-    clearFileInput();
+    document.getElementById('btnUploadProof').style.display = 'block';
+    
+    // Set upload type
+    document.getElementById('uploadType').value = type;
+    
+    const title = type === 'invoice' ? 'Ganti Bukti Invoice' : 
+                  type === 'barang' ? 'Ganti Bukti Barang' : 
+                  'Upload Bukti';
+    document.getElementById('invoiceProofModalTitle').textContent = title;
+    
+    clearAllFileInputs();
     clearInvoiceOtpInputs();
 }
 
 // ============================================
-// INVOICE OTP INPUT INITIALIZATION
+// OTP INPUT INITIALIZATION
 // ============================================
 function initInvoiceOtpInputs() {
     const invoiceModal = document.getElementById('invoiceProofModal');
@@ -2060,7 +2225,7 @@ function initInvoiceOtpInputs() {
     const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
     if (otpInputs.length === 0) return;
     
-    // Remove existing listeners dengan clone
+    // Remove existing listeners
     otpInputs.forEach((input, index) => {
         const newInput = input.cloneNode(true);
         input.parentNode.replaceChild(newInput, input);
@@ -2070,18 +2235,13 @@ function initInvoiceOtpInputs() {
     const freshInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
     
     freshInputs.forEach((input, index) => {
-        // Handle input
         input.addEventListener('input', function(e) {
             const value = this.value;
-            
-            // Only allow numbers
             this.value = value.replace(/[^0-9]/g, '');
             
             if (this.value) {
                 this.classList.add('filled');
                 this.classList.remove('error');
-                
-                // Auto focus next input
                 if (index < freshInputs.length - 1) {
                     freshInputs[index + 1].focus();
                 }
@@ -2089,12 +2249,10 @@ function initInvoiceOtpInputs() {
                 this.classList.remove('filled');
             }
             
-            // Update hidden input
             updateInvoicePinValue();
             clearInvoicePinError();
         });
         
-        // Handle keydown for backspace
         input.addEventListener('keydown', function(e) {
             if (e.key === 'Backspace' && !this.value && index > 0) {
                 freshInputs[index - 1].focus();
@@ -2103,7 +2261,6 @@ function initInvoiceOtpInputs() {
                 updateInvoicePinValue();
             }
             
-            // Handle arrow keys
             if (e.key === 'ArrowLeft' && index > 0) {
                 e.preventDefault();
                 freshInputs[index - 1].focus();
@@ -2113,17 +2270,15 @@ function initInvoiceOtpInputs() {
                 freshInputs[index + 1].focus();
             }
             
-            // Handle Enter key
             if (e.key === 'Enter') {
                 e.preventDefault();
-                const uploadBtn = document.getElementById('btnUploadInvoice');
+                const uploadBtn = document.getElementById('btnUploadProof');
                 if (uploadBtn && uploadBtn.style.display !== 'none') {
                     uploadBtn.click();
                 }
             }
         });
         
-        // Handle paste
         input.addEventListener('paste', function(e) {
             e.preventDefault();
             const pastedData = (e.clipboardData || window.clipboardData).getData('text');
@@ -2138,17 +2293,14 @@ function initInvoiceOtpInputs() {
             
             const lastIndex = Math.min(numbers.length, freshInputs.length - 1);
             freshInputs[lastIndex].focus();
-            
             updateInvoicePinValue();
         });
         
-        // Handle focus - select all
         input.addEventListener('focus', function() {
             this.select();
         });
     });
     
-    // Focus first input
     if (freshInputs[0]) {
         setTimeout(() => freshInputs[0].focus(), 100);
     }
@@ -2212,7 +2364,6 @@ function showInvoicePinError(message) {
             input.classList.add('error');
         });
         
-        // Focus first input
         if (otpInputs[0]) {
             otpInputs[0].focus();
         }
@@ -2222,7 +2373,7 @@ function showInvoicePinError(message) {
 // ============================================
 // FILE HANDLING
 // ============================================
-function previewFile(input) {
+function previewFile(input, type) {
     const file = input.files[0];
     if (!file) return;
 
@@ -2233,7 +2384,7 @@ function previewFile(input) {
             title: 'File Terlalu Besar',
             text: 'Ukuran file maksimal 5MB',
         });
-        clearFileInput();
+        clearFileInput(null, type);
         return;
     }
 
@@ -2245,13 +2396,13 @@ function previewFile(input) {
             title: 'Format File Tidak Valid',
             text: 'Format file harus JPG, PNG, atau PDF',
         });
-        clearFileInput();
+        clearFileInput(null, type);
         return;
     }
 
     // Update UI
-    const uploadPrompt = document.getElementById('uploadPrompt');
-    const filePreview = document.getElementById('filePreviewThumb');
+    const uploadPrompt = document.getElementById('uploadPrompt' + (type === 'invoice' ? 'Invoice' : 'Barang'));
+    const filePreview = document.getElementById('filePreviewThumb' + (type === 'invoice' ? 'Invoice' : 'Barang'));
     const fileName = filePreview.querySelector('.file-name');
     const fileSize = filePreview.querySelector('.file-size');
     const fileIcon = filePreview.querySelector('.file-icon i');
@@ -2262,7 +2413,6 @@ function previewFile(input) {
     fileName.textContent = file.name;
     fileSize.textContent = formatFileSize(file.size);
     
-    // Update icon based on file type
     if (file.type === 'application/pdf') {
         fileIcon.className = 'ri-file-pdf-line text-danger';
     } else {
@@ -2270,28 +2420,35 @@ function previewFile(input) {
     }
 
     // Clear error
-    document.getElementById('buktiInvoiceError').style.display = 'none';
+    const errorId = type === 'invoice' ? 'buktiInvoiceError' : 'buktiBarangError';
+    document.getElementById(errorId).style.display = 'none';
 }
 
-function clearFileInput(event) {
+function clearFileInput(event, type) {
     if (event) {
         event.stopPropagation();
         event.preventDefault();
     }
     
-    const fileInput = document.getElementById('buktiInvoiceInput');
-    const uploadPrompt = document.getElementById('uploadPrompt');
-    const filePreview = document.getElementById('filePreviewThumb');
+    const fileInput = document.getElementById(type === 'invoice' ? 'buktiInvoiceInput' : 'buktiBarangInput');
+    const uploadPrompt = document.getElementById('uploadPrompt' + (type === 'invoice' ? 'Invoice' : 'Barang'));
+    const filePreview = document.getElementById('filePreviewThumb' + (type === 'invoice' ? 'Invoice' : 'Barang'));
     
     if (fileInput) fileInput.value = '';
     if (uploadPrompt) uploadPrompt.style.display = 'block';
     if (filePreview) filePreview.style.display = 'none';
     
-    const buktiError = document.getElementById('buktiInvoiceError');
-    if (buktiError) {
-        buktiError.style.display = 'none';
-        buktiError.textContent = '';
+    const errorId = type === 'invoice' ? 'buktiInvoiceError' : 'buktiBarangError';
+    const errorElement = document.getElementById(errorId);
+    if (errorElement) {
+        errorElement.style.display = 'none';
+        errorElement.textContent = '';
     }
+}
+
+function clearAllFileInputs() {
+    clearFileInput(null, 'invoice');
+    clearFileInput(null, 'barang');
 }
 
 function formatFileSize(bytes) {
@@ -2305,21 +2462,28 @@ function formatFileSize(bytes) {
 // ============================================
 // UPLOAD HANDLER
 // ============================================
-function directUploadInvoice(e) {
-    if (e) e.preventDefault(); 
+function directUploadProof(e) {
+    if (e) e.preventDefault();
     
-    const fileInput = document.getElementById('buktiInvoiceInput');
+    const invoiceFileInput = document.getElementById('buktiInvoiceInput');
+    const barangFileInput = document.getElementById('buktiBarangInput');
     const pinInput = document.getElementById('pinInput');
-    const btn = document.getElementById('btnUploadInvoice');
+    const btn = document.getElementById('btnUploadProof');
+    const uploadType = document.getElementById('uploadType').value;
     
-    // Reset error states
+    // Reset errors
     clearValidationErrors();
     
-    // Validate file
-    if (!fileInput.files || !fileInput.files[0]) {
-        showValidationError('buktiInvoiceError', 'Silakan pilih file bukti invoice terlebih dahulu');
-        const otpInputs = document.querySelectorAll('.otp-input-invoice');
-        if (otpInputs[0]) otpInputs[0].focus();
+    // Validate at least one file
+    const hasInvoiceFile = invoiceFileInput.files && invoiceFileInput.files[0];
+    const hasBarangFile = barangFileInput.files && barangFileInput.files[0];
+    
+    if (!hasInvoiceFile && !hasBarangFile) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'File Belum Dipilih',
+            text: 'Silakan pilih minimal satu file (Invoice atau Barang)',
+        });
         return;
     }
     
@@ -2340,10 +2504,8 @@ function directUploadInvoice(e) {
         return;
     }
     
-    const file = fileInput.files[0];
-    
-    // Direct upload
-    performUpload(file, pin, btn);
+    // Perform upload
+    performUpload(invoiceFileInput.files[0], barangFileInput.files[0], pin, btn);
 }
 
 function showValidationError(elementId, message) {
@@ -2355,39 +2517,44 @@ function showValidationError(elementId, message) {
 }
 
 function clearValidationErrors() {
-    const buktiError = document.getElementById('buktiInvoiceError');
-    
-    if (buktiError) {
-        buktiError.style.display = 'none';
-        buktiError.textContent = '';
-    }
-    
+    ['buktiInvoiceError', 'buktiBarangError'].forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            element.style.display = 'none';
+            element.textContent = '';
+        }
+    });
     clearInvoicePinError();
 }
 
-function performUpload(file, pin, btn) {
+function performUpload(invoiceFile, barangFile, pin, btn) {
     // Add loading state
     btn.classList.add('btn-loading');
     btn.disabled = true;
     const originalHTML = btn.innerHTML;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
     
-    // Disable OTP inputs - INVOICE SPECIFIC
+    // Disable OTP inputs
     const invoiceModal = document.getElementById('invoiceProofModal');
     const otpInputs = invoiceModal.querySelectorAll('.otp-input-invoice');
     otpInputs.forEach(input => input.disabled = true);
     
     // Prepare FormData
     const formData = new FormData();
-    formData.append('bukti_invoice', file, file.name);
+    if (invoiceFile) {
+        formData.append('bukti_invoice', invoiceFile, invoiceFile.name);
+    }
+    if (barangFile) {
+        formData.append('bukti_barang', barangFile, barangFile.name);
+    }
     formData.append('pin', pin);
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     
-    // Upload dengan timeout
+    // Upload
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 60000);
     
-    fetch(`{{ route('po.upload-invoice-proof', $po->id_po) }}`, {
+    fetch(`{{ route('po.upload-proof', $po->id_po) }}`, {
         method: 'POST',
         headers: {
             'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
@@ -2398,17 +2565,10 @@ function performUpload(file, pin, btn) {
     })
     .then(response => {
         clearTimeout(timeoutId);
-        const responseClone = response.clone();
-        
         return response.json().then(data => ({
             status: response.status,
             data: data
-        })).catch(error => {
-            return responseClone.text().then(text => {
-                console.error('Response is not JSON:', text);
-                throw new Error('Server response bukan JSON yang valid');
-            });
-        });
+        }));
     })
     .then(({status, data}) => {
         btn.classList.remove('btn-loading');
@@ -2433,15 +2593,7 @@ function performUpload(file, pin, btn) {
             Swal.fire({
                 icon: 'error',
                 title: 'PIN Salah',
-                html: `
-                    <div class="text-start">
-                        <p class="mb-3">${data.error || 'PIN yang Anda masukkan tidak valid'}</p>
-                        <div class="alert alert-warning mb-0">
-                            <i class="ri-error-warning-line me-2"></i>
-                            <small>Pastikan Anda memasukkan PIN dengan benar</small>
-                        </div>
-                    </div>
-                `,
+                text: data.error || 'PIN yang Anda masukkan tidak valid',
                 confirmButtonText: 'Coba Lagi'
             });
         } else if (status === 422) {
@@ -2450,11 +2602,12 @@ function performUpload(file, pin, btn) {
             if (data.errors) {
                 if (data.errors.pin) {
                     showInvoicePinError(data.errors.pin[0]);
-                    errorMessage = data.errors.pin[0];
                 }
                 if (data.errors.bukti_invoice) {
                     showValidationError('buktiInvoiceError', data.errors.bukti_invoice[0]);
-                    errorMessage = data.errors.bukti_invoice[0];
+                }
+                if (data.errors.bukti_barang) {
+                    showValidationError('buktiBarangError', data.errors.bukti_barang[0]);
                 }
             }
             
@@ -2481,7 +2634,6 @@ function performUpload(file, pin, btn) {
         otpInputs.forEach(input => input.disabled = false);
         
         let errorMessage = 'Terjadi kesalahan sistem';
-        
         if (error.name === 'AbortError') {
             errorMessage = 'Upload timeout. File terlalu besar atau koneksi lambat.';
         } else if (error.message) {
@@ -2500,13 +2652,15 @@ function performUpload(file, pin, btn) {
 }
 
 // ============================================
-// DELETE INVOICE PROOF
+// DELETE PROOF
 // ============================================
-function confirmDeleteInvoiceProof() {
+function confirmDeleteProof(type) {
     bootstrap.Modal.getInstance(document.getElementById('invoiceProofModal')).hide();
     
+    const title = type === 'invoice' ? 'Bukti Invoice' : 'Bukti Barang';
+    
     Swal.fire({
-        title: 'Hapus Bukti Invoice?',
+        title: `Hapus ${title}?`,
         html: `
             <div class="text-start">
                 <div class="alert alert-warning mb-3">
@@ -2553,9 +2707,7 @@ function confirmDeleteInvoiceProof() {
                     const pastedData = (e.clipboardData || window.clipboardData).getData('text');
                     const numbers = pastedData.replace(/[^0-9]/g, '').slice(0, 6);
                     numbers.split('').forEach((num, i) => {
-                        if (deleteInputs[i]) {
-                            deleteInputs[i].value = num;
-                        }
+                        if (deleteInputs[i]) deleteInputs[i].value = num;
                     });
                     if (deleteInputs[numbers.length - 1]) {
                         deleteInputs[numbers.length - 1].focus();
@@ -2569,38 +2721,24 @@ function confirmDeleteInvoiceProof() {
             const deleteInputs = document.querySelectorAll('.delete-otp-input');
             const pin = Array.from(deleteInputs).map(input => input.value).join('');
             
-            if (!pin || pin.length !== 6) {
+            if (!pin || pin.length !== 6 || !/^\d{6}$/.test(pin)) {
                 Swal.showValidationMessage('PIN harus 6 digit angka');
                 return false;
             }
             
-            if (!/^\d{6}$/.test(pin)) {
-                Swal.showValidationMessage('PIN harus berupa angka');
-                return false;
-            }
-            
-            return fetch(`/po/po/{{ $po->id_po }}/delete-invoice-proof`, {
+            return fetch(`/po/po/{{ $po->id_po }}/delete-proof`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({ pin: pin })
+                body: JSON.stringify({ pin: pin, type: type })
             })
-            .then(response => {
-                return response.json().then(data => ({
-                    status: response.status,
-                    data: data
-                }));
-            })
+            .then(response => response.json().then(data => ({ status: response.status, data: data })))
             .then(({status, data}) => {
-                if (status === 403) {
-                    throw new Error('PIN tidak valid. Periksa kembali PIN Anda.');
-                }
-                if (status !== 200) {
-                    throw new Error(data.error || 'Gagal menghapus file');
-                }
+                if (status === 403) throw new Error('PIN tidak valid');
+                if (status !== 200) throw new Error(data.error || 'Gagal menghapus file');
                 return data;
             })
             .catch(error => {
@@ -2625,54 +2763,45 @@ function confirmDeleteInvoiceProof() {
 }
 
 // ============================================
-// DRAG & DROP HANDLING
+// DRAG & DROP
 // ============================================
 document.addEventListener('DOMContentLoaded', function() {
-    const uploadArea = document.getElementById('uploadArea');
-    
-    if (uploadArea) {
-        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-            uploadArea.addEventListener(eventName, preventDefaults, false);
-        });
+    ['invoice', 'barang'].forEach(type => {
+        const uploadArea = document.getElementById('uploadArea' + (type === 'invoice' ? 'Invoice' : 'Barang'));
+        
+        if (uploadArea) {
+            ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+                uploadArea.addEventListener(eventName, (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, false);
+            });
 
-        function preventDefaults(e) {
-            e.preventDefault();
-            e.stopPropagation();
-        }
-
-        uploadArea.addEventListener('dragenter', () => {
-            uploadArea.classList.add('drag-over');
-        });
-
-        uploadArea.addEventListener('dragleave', () => {
-            uploadArea.classList.remove('drag-over');
-        });
-
-        uploadArea.addEventListener('drop', (e) => {
-            uploadArea.classList.remove('drag-over');
-            const dt = e.dataTransfer;
-            const files = dt.files;
+            uploadArea.addEventListener('dragenter', () => uploadArea.classList.add('drag-over'));
+            uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('drag-over'));
             
-            if (files.length > 0) {
-                document.getElementById('buktiInvoiceInput').files = files;
-                previewFile(document.getElementById('buktiInvoiceInput'));
-            }
-        });
-    }
+            uploadArea.addEventListener('drop', (e) => {
+                uploadArea.classList.remove('drag-over');
+                const files = e.dataTransfer.files;
+                
+                if (files.length > 0) {
+                    const inputId = type === 'invoice' ? 'buktiInvoiceInput' : 'buktiBarangInput';
+                    document.getElementById(inputId).files = files;
+                    previewFile(document.getElementById(inputId), type);
+                }
+            });
+        }
+    });
 });
 
 // ============================================
-// MODAL EVENT HANDLERS
+// MODAL EVENTS
 // ============================================
 const invoiceModal = document.getElementById('invoiceProofModal');
 if (invoiceModal) {
-    invoiceModal.addEventListener('shown.bs.modal', function() {
-        // Initialize OTP when modal is shown
-        initInvoiceOtpInputs();
-    });
-    
+    invoiceModal.addEventListener('shown.bs.modal', initInvoiceOtpInputs);
     invoiceModal.addEventListener('hidden.bs.modal', function() {
-        clearFileInput();
+        clearAllFileInputs();
         clearInvoiceOtpInputs();
         clearValidationErrors();
     });

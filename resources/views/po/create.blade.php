@@ -646,7 +646,6 @@
                 totalQty += qty;
             }
 
-            // HANYA untuk PO EKSTERNAL
             if (!isInternal) {
                 const itemId = qtyInput.id.split('-')[1];
                 const subtotalInput = document.getElementById(`subtotal-val-${itemId}`);
@@ -656,27 +655,33 @@
             }
         });
 
-        // ===============================
-        // UPDATE RINGKASAN (AMAN)
-        // ===============================
         document.getElementById('summaryItemCount').textContent = itemCount;
         document.getElementById('summaryTotalQty').textContent = totalQty;
 
-        // ===============================
-        // JIKA EKSTERNAL → HITUNG RUPIAH
-        // ===============================
         if (!isInternal) {
             const pajakPersen = parseFloat(document.getElementById('pajak_persen')?.value || 0);
             const pajakValue = (total * pajakPersen) / 100;
             const grandTotal = total + pajakValue;
 
+            // ✅ TAMBAHKAN INI: Set nilai pajak dalam rupiah ke hidden input
+            const pajakValueInput = document.getElementById('pajak_value');
+            if (pajakValueInput) {
+                pajakValueInput.value = pajakValue;
+            }
+
             document.getElementById('totalHarga').textContent = 'Rp ' + formatRupiah(total);
             document.getElementById('grandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
+            document.getElementById('totalPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
             document.getElementById('summarySubtotal').textContent = 'Rp ' + formatRupiah(total);
             document.getElementById('summaryGrandTotal').textContent = 'Rp ' + formatRupiah(grandTotal);
 
             if (document.getElementById('summaryPajak')) {
                 document.getElementById('summaryPajak').textContent = 'Rp ' + formatRupiah(pajakValue);
+            }
+            
+            // ✅ TAMBAHKAN INI JUGA: Update display nilai pajak
+            if (document.getElementById('nilai_pajak_display')) {
+                document.getElementById('nilai_pajak_display').textContent = 'Rp ' + formatRupiah(pajakValue);
             }
         }
     }

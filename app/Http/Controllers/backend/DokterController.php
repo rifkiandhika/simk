@@ -102,14 +102,14 @@ class DokterController extends Controller
         ]);
 
         try {
-            // 🔥 PISAHKAN DATA PIVOT
+            
             $ruangans = $validated['ruangans'] ?? [];
             unset($validated['ruangans']);
 
-            // ✅ UPDATE DATA dokters
+            
             $dokter->update($validated);
 
-            // ✅ SYNC DATA PIVOT
+            
             $dokter->ruangans()->sync($ruangans);
 
             Alert::success('success', 'Data dokter berhasil diperbarui!');

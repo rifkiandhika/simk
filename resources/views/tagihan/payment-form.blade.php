@@ -24,6 +24,14 @@
         </div>
     @endif
 
+    @if (session('success'))
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="ri-check-line me-2"></i>
+            {{ session('success') }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    @endif
+
     <!-- Header -->
     <div class="row mb-3">
         <div class="col-12">
@@ -41,7 +49,7 @@
     <div class="row">
         <!-- Form Pembayaran -->
         <div class="col-lg-8">
-            <form action="{{ route('tagihan.payment.process', $tagihan->id_tagihan) }}" method="POST" enctype="multipart/form-data" id="paymentForm">
+            <form id="paymentForm" enctype="multipart/form-data">
                 @csrf
                 
                 <div class="card shadow-sm border-0 mb-4">
@@ -167,26 +175,6 @@
                                     <div class="invalid-feedback">{{ $message }}</div>
                                 @enderror
                             </div>
-
-                            <!-- PIN Verification -->
-                            <div class="col-12">
-                                <div class="alert alert-info">
-                                    <i class="ri-information-line me-2"></i>
-                                    <strong>Penting!</strong> Masukkan PIN Anda untuk verifikasi pembayaran.
-                                </div>
-                                <label class="form-label fw-bold">
-                                    PIN (6 digit) <span class="text-danger">*</span>
-                                </label>
-                                <input type="password" 
-                                       class="form-control @error('pin') is-invalid @enderror" 
-                                       name="pin" 
-                                       maxlength="6" 
-                                       placeholder="Masukkan PIN"
-                                       required>
-                                @error('pin')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
-                            </div>
                         </div>
                     </div>
                     <div class="card-footer bg-light">
@@ -194,7 +182,7 @@
                             <a href="{{ route('tagihan.show', $tagihan->id_tagihan) }}" class="btn btn-secondary">
                                 <i class="ri-close-line me-1"></i>Batal
                             </a>
-                            <button type="submit" class="btn btn-success" id="submitBtn">
+                            <button type="button" class="btn btn-success" id="submitBtn" onclick="showPinModal()">
                                 <i class="ri-save-line me-1"></i>Simpan Pembayaran
                             </button>
                         </div>
@@ -278,6 +266,10 @@
                             <i class="ri-checkbox-circle-line text-success me-2"></i>
                             Status tagihan akan langsung terupdate
                         </li>
+                        <li class="mb-2">
+                            <i class="ri-checkbox-circle-line text-success me-2"></i>
+                            Masukkan PIN untuk verifikasi
+                        </li>
                         <li class="mb-0">
                             <i class="ri-checkbox-circle-line text-success me-2"></i>
                             Pastikan data pembayaran sudah benar
@@ -324,6 +316,49 @@
         </div>
     </div>
 </div>
+
+{{-- PIN Modal --}}
+<div class="modal fade" id="pinModal" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header border-0">
+                <h5 class="modal-title">
+                    <i class="ri-lock-password-line me-2"></i>Verifikasi PIN Karyawan
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center px-4 py-4">
+                <p class="text-muted mb-4">Masukkan PIN 6 digit untuk memproses pembayaran</p>
+                
+                <!-- OTP-style PIN Input -->
+                <div class="otp-container d-flex justify-content-center gap-2 mb-4">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="0" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="1" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="2" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="3" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="4" autocomplete="off">
+                    <input type="password" class="otp-input form-control text-center" maxlength="1" pattern="\d" inputmode="numeric" data-index="5" autocomplete="off">
+                </div>
+
+                <div class="alert alert-info">
+                    <small>
+                        <i class="ri-information-line me-1"></i>
+                        PIN akan digunakan untuk mencatat karyawan yang memproses pembayaran
+                    </small>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="ri-close-line me-1"></i> Batal
+                </button>
+                <button type="button" class="btn btn-success" id="confirmPinBtn" disabled>
+                    <i class="ri-check-line me-1"></i> Konfirmasi Pembayaran
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 @endsection
 
 @push('styles')
@@ -340,11 +375,97 @@
     .input-group-text {
         background-color: #f8f9fa;
     }
+
+    /* OTP-style PIN Input Styles */
+    .otp-container {
+        max-width: 400px;
+        margin: 0 auto;
+    }
+
+    .otp-input {
+        width: 50px;
+        height: 60px;
+        font-size: 24px;
+        font-weight: bold;
+        border: 2px solid #dee2e6;
+        border-radius: 10px;
+        transition: all 0.3s ease;
+    }
+
+    .otp-input:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        outline: none;
+        transform: scale(1.05);
+    }
+
+    .otp-input.filled {
+        background-color: #f8f9fa;
+        border-color: #198754;
+    }
+
+    .otp-input.error {
+        border-color: #dc3545;
+        animation: shake 0.5s;
+    }
+
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        25% { transform: translateX(-5px); }
+        75% { transform: translateX(5px); }
+    }
+
+    /* Modal Enhancements */
+    #pinModal .modal-content {
+        border-radius: 15px;
+        border: none;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    }
+
+    #pinModal .modal-header {
+        padding: 1.5rem;
+    }
+
+    #pinModal .modal-title {
+        color: #0d6efd;
+        font-weight: 600;
+    }
+
+    /* Loading State */
+    .btn-loading {
+        position: relative;
+        pointer-events: none;
+        opacity: 0.7;
+    }
+
+    .btn-loading::after {
+        content: "";
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        top: 50%;
+        left: 50%;
+        margin-left: -8px;
+        margin-top: -8px;
+        border: 2px solid #ffffff;
+        border-radius: 50%;
+        border-top-color: transparent;
+        animation: spinner 0.6s linear infinite;
+    }
+
+    @keyframes spinner {
+        to { transform: rotate(360deg); }
+    }
 </style>
 @endpush
 
 @push('scripts')
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+    function setBayarPenuh() {
+        document.getElementById('jumlahBayar').value = {{ $tagihan->sisa_tagihan }};
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
         // Preview image upload
         const buktiBayar = document.getElementById('buktiBayar');
@@ -354,7 +475,6 @@
         buktiBayar.addEventListener('change', function(e) {
             const file = e.target.files[0];
             if (file) {
-                // Check file type
                 if (file.type.startsWith('image/')) {
                     const reader = new FileReader();
                     reader.onload = function(e) {
@@ -366,7 +486,6 @@
                     previewContainer.style.display = 'none';
                 }
 
-                // Check file size (5MB)
                 if (file.size > 5 * 1024 * 1024) {
                     Swal.fire({
                         icon: 'warning',
@@ -379,48 +498,187 @@
             }
         });
 
-        // Form validation
-        const form = document.getElementById('paymentForm');
-        form.addEventListener('submit', function(e) {
-            const jumlahBayar = parseInt(document.getElementById('jumlahBayar').value);
-            const sisaTagihan = {{ $tagihan->sisa_tagihan }};
-
-            if (jumlahBayar > sisaTagihan) {
-                e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Jumlah Tidak Valid',
-                    text: 'Jumlah pembayaran melebihi sisa tagihan'
-                });
-                return false;
-            }
-
-            if (jumlahBayar <= 0) {
-                e.preventDefault();
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Jumlah Tidak Valid',
-                    text: 'Jumlah pembayaran harus lebih dari 0'
-                });
-                return false;
-            }
-
-            // Show loading
-            const submitBtn = document.getElementById('submitBtn');
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Memproses...';
-        });
-
         // Format number input
         const jumlahBayarInput = document.getElementById('jumlahBayar');
         jumlahBayarInput.addEventListener('input', function(e) {
             let value = e.target.value.replace(/\D/g, '');
             e.target.value = value;
         });
+
+        // Auto-hide alerts
+        setTimeout(function() {
+            const alerts = document.querySelectorAll('.alert-dismissible');
+            alerts.forEach(alert => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            });
+        }, 5000);
     });
 
-    function setBayarPenuh() {
-        document.getElementById('jumlahBayar').value = {{ $tagihan->sisa_tagihan }};
+    // ============================================
+    // OTP-STYLE PIN INPUT HANDLER
+    // ============================================
+    const otpInputs = document.querySelectorAll('.otp-input');
+    const confirmPinBtn = document.getElementById('confirmPinBtn');
+    const pinModal = new bootstrap.Modal(document.getElementById('pinModal'));
+
+    otpInputs.forEach((input, index) => {
+        input.addEventListener('input', function (e) {
+            const value = e.target.value;
+
+            if (!/^\d$/.test(value)) {
+                e.target.value = '';
+                return;
+            }
+
+            e.target.classList.add('filled');
+
+            if (index < otpInputs.length - 1) {
+                otpInputs[index + 1].focus();
+            }
+
+            checkPinComplete();
+        });
+
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Backspace') {
+                if (!e.target.value && index > 0) {
+                    otpInputs[index - 1].focus();
+                    otpInputs[index - 1].value = '';
+                    otpInputs[index - 1].classList.remove('filled', 'error');
+                } else {
+                    e.target.value = '';
+                    e.target.classList.remove('filled', 'error');
+                }
+                checkPinComplete();
+            } 
+            else if (e.key === 'ArrowLeft' && index > 0) {
+                e.preventDefault();
+                otpInputs[index - 1].focus();
+            } 
+            else if (e.key === 'ArrowRight' && index < otpInputs.length - 1) {
+                e.preventDefault();
+                otpInputs[index + 1].focus();
+            }
+            else if (e.key === 'Enter') {
+                e.preventDefault();
+                if (isPinComplete()) {
+                    confirmPinBtn.click();
+                }
+            }
+        });
+
+        // Handle paste 6 digit PIN
+        input.addEventListener('paste', function (e) {
+            e.preventDefault();
+            const pasted = (e.clipboardData || window.clipboardData).getData('text');
+            if (!/^\d{6}$/.test(pasted)) return;
+
+            pasted.split('').forEach((char, i) => {
+                if (otpInputs[i]) {
+                    otpInputs[i].value = char;
+                    otpInputs[i].classList.add('filled');
+                }
+            });
+
+            otpInputs[5].focus();
+            checkPinComplete();
+        });
+    });
+
+    function checkPinComplete() {
+        const pin = Array.from(otpInputs).map(i => i.value).join('');
+        confirmPinBtn.disabled = pin.length !== 6;
     }
+
+    function isPinComplete() {
+        return Array.from(otpInputs).every(input => input.value !== '');
+    }
+
+    function resetPinInput(error = false) {
+        otpInputs.forEach(input => {
+            input.value = '';
+            input.classList.remove('filled', 'error');
+            if (error) input.classList.add('error');
+        });
+        otpInputs[0].focus();
+        confirmPinBtn.disabled = true;
+    }
+
+    // ============================================
+    // SHOW PIN MODAL
+    // ============================================
+    function showPinModal() {
+        const jumlah = parseInt(document.getElementById('jumlahBayar').value);
+        const sisa = {{ $tagihan->sisa_tagihan }};
+
+        if (!jumlah || jumlah <= 0) {
+            Swal.fire('Perhatian', 'Jumlah bayar tidak boleh kosong', 'warning');
+            return;
+        }
+
+        if (jumlah > sisa) {
+            Swal.fire('Perhatian', 'Jumlah bayar melebihi sisa tagihan', 'warning');
+            return;
+        }
+
+        const metode = document.getElementById('metodePembayaran').value;
+        if (!metode) {
+            Swal.fire('Perhatian', 'Pilih metode pembayaran terlebih dahulu', 'warning');
+            return;
+        }
+
+        resetPinInput();
+        pinModal.show();
+    }
+
+    // ============================================
+    // SUBMIT PEMBAYARAN
+    // ============================================
+    confirmPinBtn.addEventListener('click', function () {
+        const pin = Array.from(otpInputs).map(i => i.value).join('');
+        const form = document.getElementById('paymentForm');
+        const formData = new FormData(form);
+
+        formData.append('pin', pin);
+
+        confirmPinBtn.classList.add('btn-loading');
+        confirmPinBtn.disabled = true;
+
+        fetch("{{ route('tagihan.payment.process', $tagihan->id_tagihan) }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+            },
+            body: formData
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.success || res.message) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Berhasil',
+                    text: res.message || 'Pembayaran berhasil disimpan',
+                    confirmButtonColor: '#198754'
+                }).then(() => {
+                    window.location.href = "{{ route('tagihan.show', $tagihan->id_tagihan) }}";
+                });
+            } else {
+                throw new Error(res.error || 'PIN salah');
+            }
+        })
+        .catch(err => {
+            resetPinInput(true);
+            Swal.fire({
+                icon: 'error',
+                title: 'Gagal',
+                text: err.message || 'PIN tidak valid'
+            });
+        })
+        .finally(() => {
+            confirmPinBtn.classList.remove('btn-loading');
+            confirmPinBtn.disabled = false;
+        });
+    });
 </script>
 @endpush

@@ -268,9 +268,9 @@ Route::middleware(['auth', 'pin.verified'])->group(function () {
             ->name('store-invoice');
         Route::post('/po/{id_po}/mark-received', [PurchaseOrderController::class, 'markAsReceived'])
         ->name('mark-received');
-        Route::post('/{id_po}/upload-invoice-proof', [PurchaseOrderController::class, 'uploadInvoiceProof'])
-            ->name('upload-invoice-proof');
-        Route::post('/po/{id_po}/delete-invoice-proof', [PurchaseOrderController::class, 'deleteInvoiceProof'])
+        Route::post('/{id_po}/upload-proof', [PurchaseOrderController::class, 'uploadProof'])
+            ->name('upload-proof');
+        Route::post('/po/{id_po}/delete-proof', [PurchaseOrderController::class, 'deleteProof'])
             ->name('delete-invoice-proof');
     });
     // ========================================
