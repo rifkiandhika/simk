@@ -33,7 +33,7 @@ class ApotikController extends Controller
             $query->where('status', $request->status);
         } else {
             // Default tampilkan yang menunggu dan proses
-            $query->whereIn('status', ['menunggu', 'proses']);
+            $query->whereIn('status', ['menunggu', 'proses', 'selesai']);
         }
 
         // Pencarian

@@ -162,9 +162,9 @@
                                     </td>
                                     @if($tabType === 'aktif')
                                     <td>
-                                        @if($t->tanggal_jatuh_tempo)
+                                        @if($t->purchaseOrder && $t->purchaseOrder->tanggal_jatuh_tempo)
                                             @php
-                                                $dueDate = \Carbon\Carbon::parse($t->tanggal_jatuh_tempo);
+                                                $dueDate = \Carbon\Carbon::parse($t->purchaseOrder->tanggal_jatuh_tempo);
                                                 $today = \Carbon\Carbon::today();
                                                 $daysLeft = $today->diffInDays($dueDate, false);
                                             @endphp

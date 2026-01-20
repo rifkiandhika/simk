@@ -58,15 +58,14 @@ class TagihanPoController extends Controller
             return $this->printView($request);
         }
 
-        // Get results - using get() instead of paginate
-        $tagihanAktif = $queryAktif
-            ->orderBy('tanggal_jatuh_tempo', 'asc')
-            ->get();
+        // Get results - sorting by tanggal_jatuh_tempo dari purchase_orders
+        $tagihanAktif = $queryAktif->get()
+            ->sortBy('purchaseOrder.tanggal_jatuh_tempo')
+            ->values();
 
-        $tagihanDraft = $queryDraft
-            ->orderBy('tanggal_jatuh_tempo', 'asc')
-            ->get();
-
+        $tagihanDraft = $queryDraft->get()
+            ->sortBy('purchaseOrder.tanggal_jatuh_tempo')
+            ->values();
 
         return view('tagihan.index', compact(
             'tagihanAktif',
@@ -80,58 +79,40 @@ class TagihanPoController extends Controller
      */
     private function applyFilters($query, Request $request)
     {
-        // Filter by Supplier
+        // Filter by supplier
         if ($request->filled('supplier_id')) {
-            $query->whereHas('purchaseOrder', function ($q) use ($request) {
-                $q->where('id_supplier', $request->supplier_id);
+            $query->whereHas('purchaseOrder', function($q) use ($request) {
+                $q->where('supplier_id', $request->supplier_id);
             });
         }
 
-        // Filter by Status (only for aktif tab)
-        if ($request->filled('status') && $request->get('tab') === 'aktif') {
+        // Filter by status
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
-        // Filter by Jatuh Tempo (only for aktif tab)
-        if ($request->filled('jatuh_tempo') && $request->get('tab') === 'aktif') {
-            $today = now();
-
-            if ($request->jatuh_tempo === 'lewat') {
-                // Tagihan yang sudah lewat jatuh tempo
-                $query->where('tanggal_jatuh_tempo', '<', $today)
-                    ->whereNotIn('status', ['lunas', 'dibatalkan']);
-            } elseif ($request->jatuh_tempo === 'minggu_ini') {
-                // Tagihan yang jatuh tempo minggu ini
-                $startOfWeek = $today->copy()->startOfWeek();
-                $endOfWeek = $today->copy()->endOfWeek();
-
-                $query->whereBetween('tanggal_jatuh_tempo', [$startOfWeek, $endOfWeek])
-                    ->whereNotIn('status', ['lunas', 'dibatalkan']);
-            }
-        }
-
-        // Filter by Date Range
+        // Filter by tanggal jatuh tempo dari purchase order - dari
         if ($request->filled('tanggal_dari')) {
-            $query->whereDate('tanggal_tagihan', '>=', $request->tanggal_dari);
+            $query->whereHas('purchaseOrder', function($q) use ($request) {
+                $q->where('tanggal_jatuh_tempo', '>=', $request->tanggal_dari);
+            });
         }
 
+        // Filter by tanggal jatuh tempo dari purchase order - sampai
         if ($request->filled('tanggal_sampai')) {
-            $query->whereDate('tanggal_tagihan', '<=', $request->tanggal_sampai);
+            $query->whereHas('purchaseOrder', function($q) use ($request) {
+                $q->where('tanggal_jatuh_tempo', '<=', $request->tanggal_sampai);
+            });
         }
 
-        // Filter by Search
+        // Filter by search
         if ($request->filled('search')) {
             $search = $request->search;
-
-            $query->where(function ($q) use ($search) {
-                $q->where('no_tagihan', 'like', '%' . $search . '%')
-                    ->orWhereHas('purchaseOrder', function ($subQ) use ($search) {
-                        $subQ->where('no_gr', 'like', '%' . $search . '%')
-                            ->orWhere('no_invoice', 'like', '%' . $search . '%')
-                            ->orWhereHas('supplier', function ($supplierQ) use ($search) {
-                                $supplierQ->where('nama_supplier', 'like', '%' . $search . '%');
-                            });
-                    });
+            $query->where(function($q) use ($search) {
+                $q->where('nomor_tagihan', 'like', "%{$search}%")
+                ->orWhereHas('purchaseOrder', function($subQ) use ($search) {
+                    $subQ->where('nomor_po', 'like', "%{$search}%");
+                });
             });
         }
 

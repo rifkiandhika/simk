@@ -92,8 +92,10 @@ class PoexConfirmationController extends Controller
             $dataBefore = $po->toArray();
             $noGR = PurchaseOrder::generateNoGR();
 
-            // ✅ Variabel untuk menghitung total diterima (subtotal tanpa pajak)
-            $subtotalDiterima = 0;
+            // ✅ Variabel untuk menghitung nilai penerimaan
+            $totalDiterima = 0;        // Subtotal (qty × harga, kondisi baik saja)
+            $pajakDiterima = 0;        // Pajak proporsional
+            $grandTotalDiterima = 0;   // Total + pajak
 
             // Process setiap item dengan batch-nya
             foreach ($request->items as $itemData) {
@@ -123,7 +125,7 @@ class PoexConfirmationController extends Controller
                     'qty_diterima' => $totalQtyDiterima,
                 ]);
 
-                // ✅ HITUNG SUBTOTAL DITERIMA: qty_diterima × harga_satuan (hanya untuk kondisi baik)
+                // ✅ HITUNG TOTAL DITERIMA: qty × harga (HANYA kondisi baik)
                 if ($po->tipe_po === 'eksternal') {
                     $qtyBaik = 0;
                     foreach ($itemData['batches'] as $batchData) {
@@ -131,7 +133,7 @@ class PoexConfirmationController extends Controller
                             $qtyBaik += $batchData['qty_diterima'];
                         }
                     }
-                    $subtotalDiterima += ($qtyBaik * $item->harga_satuan);
+                    $totalDiterima += ($qtyBaik * $item->harga_satuan);
                 }
             }
 
@@ -142,7 +144,7 @@ class PoexConfirmationController extends Controller
                 $this->addStockToGudang($po, $noGR);
             }
 
-            // ✅ UPDATE PO dengan total_diterima (termasuk pajak)
+            // ✅ UPDATE PO dengan nilai penerimaan
             $updateData = [
                 'no_gr' => $noGR,
                 'status' => 'selesai',
@@ -151,27 +153,37 @@ class PoexConfirmationController extends Controller
                 'catatan_penerima' => $request->catatan_penerima,
             ];
 
-            // ✅ Tambahkan total_diterima untuk PO eksternal (subtotal + pajak proporsional)
+            // ✅ Hitung dan simpan nilai penerimaan untuk PO eksternal
             if ($po->tipe_po === 'eksternal') {
-                // Hitung pajak proporsional berdasarkan subtotal diterima
-                $pajakProporsional = 0;
+                // Hitung pajak proporsional berdasarkan barang yang diterima
                 if ($po->total_harga > 0 && $po->pajak > 0) {
-                    // Pajak proporsional = (subtotal_diterima / total_harga) × pajak_awal
-                    $pajakProporsional = ($subtotalDiterima / $po->total_harga) * $po->pajak;
+                    // Pajak proporsional = (total_diterima / total_harga_awal) × pajak_awal
+                    $pajakDiterima = ($totalDiterima / $po->total_harga) * $po->pajak;
                 }
                 
-                // Total diterima = subtotal + pajak
-                $totalDiterima = $subtotalDiterima + $pajakProporsional;
+                // Grand total = subtotal + pajak
+                $grandTotalDiterima = $totalDiterima + $pajakDiterima;
                 
+                // ✅ Simpan ke kolom baru
                 $updateData['total_diterima'] = $totalDiterima;
+                $updateData['pajak_diterima'] = $pajakDiterima;
+                $updateData['grand_total_diterima'] = $grandTotalDiterima;
 
-                Log::info('Perhitungan Total Diterima', [
+                Log::info('Perhitungan Penerimaan Barang', [
                     'po_id' => $po->id_po,
-                    'subtotal_diterima' => $subtotalDiterima,
-                    'pajak_awal' => $po->pajak,
-                    'total_harga_awal' => $po->total_harga,
-                    'pajak_proporsional' => $pajakProporsional,
+                    'no_po' => $po->no_po,
+                    '--- NILAI AWAL (DIMINTA) ---' => '',
+                    'total_harga_diminta' => $po->total_harga,
+                    'pajak_diminta' => $po->pajak,
+                    'grand_total_diminta' => $po->grand_total,
+                    '--- NILAI DITERIMA ---' => '',
                     'total_diterima' => $totalDiterima,
+                    'pajak_diterima' => $pajakDiterima,
+                    'grand_total_diterima' => $grandTotalDiterima,
+                    '--- SELISIH ---' => '',
+                    'selisih_subtotal' => $po->total_harga - $totalDiterima,
+                    'selisih_pajak' => $po->pajak - $pajakDiterima,
+                    'selisih_grand_total' => $po->grand_total - $grandTotalDiterima,
                 ]);
             }
 
@@ -187,6 +199,7 @@ class PoexConfirmationController extends Controller
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
 
+            // ✅ Update Tagihan PO (akan sync dengan data PO)
             if ($po->tipe_po === 'eksternal') {
                 $tagihanService = new TagihanPoServices();
                 $tagihan = $tagihanService->updateTagihanAfterReceipt($po);
@@ -206,9 +219,9 @@ class PoexConfirmationController extends Controller
                 'data' => [
                     'no_gr' => $noGR,
                     'id_po' => $po->id_po,
-                    'subtotal_diterima' => $subtotalDiterima ?? 0,
-                    'pajak_proporsional' => $pajakProporsional ?? 0,
-                    'total_diterima' => $totalDiterima ?? 0,
+                    'total_diterima' => $totalDiterima,
+                    'pajak_diterima' => $pajakDiterima,
+                    'grand_total_diterima' => $grandTotalDiterima,
                 ]
             ]);
 

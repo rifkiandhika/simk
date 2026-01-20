@@ -548,32 +548,65 @@
                                         @endif
                                     </td>
                                     @if($po->tipe_po !== 'internal')
-                                    <td class="text-end">
-                                        <small>Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</small>
-                                    </td>
-                                    <td class="text-end">
-                                        <strong>Rp {{ number_format($item->subtotal, 0, ',', '.') }}</strong>
-                                    </td>
+                                        <td class="text-end">
+                                            <small>Rp {{ number_format($item->harga_satuan, 0, ',', '.') }}</small>
+                                        </td>
+
+                                        <td class="text-end">
+                                            <strong>
+                                                @if($po->total_diterima > 0)
+                                                    Rp {{ number_format($po->total_diterima, 0, ',', '.') }}
+                                                @elseif($item->subtotal > 0)
+                                                    Rp {{ number_format($item->subtotal, 0, ',', '.') }}
+                                                @endif
+                                            </strong>
+                                        </td>
+
                                     @endif
                                 </tr>
                                 @endforeach
                             </tbody>
                             <tfoot class="table-light">
                                 @if($po->tipe_po !== 'internal')
-                                <tr>
-                                    <th colspan="6" class="text-end">Subtotal:</th>
-                                    <th class="text-end">Rp {{ number_format($po->total_harga, 0, ',', '.') }}</th>
-                                </tr>
-                                @if($po->pajak > 0)
-                                <tr>
-                                    <th colspan="6" class="text-end">Pajak:</th>
-                                    <th class="text-end">Rp {{ number_format($po->pajak, 0, ',', '.') }}</th>
-                                </tr>
-                                @endif
-                                <tr class="table-primary">
-                                    <th colspan="6" class="text-end">Grand Total:</th>
-                                    <th class="text-end">Rp {{ number_format($po->grand_total, 0, ',', '.') }}</th>
-                                </tr>
+
+                                    @php
+                                        $pajak    = $po->pajak_diterima ?? $po->pajak;
+                                        $grand    = $po->grand_total_diterima ?? $po->grand_total;
+                                    @endphp
+
+                                    @if($po->total_diterima > 0)
+                                        <tr>
+                                            <th colspan="6" class="text-end">Subtotal:</th>
+                                            <th class="text-end">
+                                                Rp {{ number_format($po->total_diterima, 0, ',', '.') }}
+                                            </th>
+                                        </tr>
+
+                                    @elseif($po->total_harga > 0)
+                                        <tr>
+                                            <th colspan="6" class="text-end">Subtotal:</th>
+                                            <th class="text-end">
+                                                Rp {{ number_format($po->total_harga, 0, ',', '.') }}
+                                            </th>
+                                        </tr>
+                                    @endif
+
+                                    @if($pajak > 0)
+                                    <tr>
+                                        <th colspan="6" class="text-end">Pajak:</th>
+                                        <th class="text-end">
+                                            Rp {{ number_format($pajak, 0, ',', '.') }}
+                                        </th>
+                                    </tr>
+                                    @endif
+
+                                    <tr class="table-primary">
+                                        <th colspan="6" class="text-end">Grand Total:</th>
+                                        <th class="text-end">
+                                            Rp {{ number_format($grand, 0, ',', '.') }}
+                                        </th>
+                                    </tr>
+
                                 @endif
                             </tfoot>
                         </table>

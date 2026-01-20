@@ -99,35 +99,55 @@ class TagihanPoServices
         try {
             $tagihan = $po->tagihan;
 
-            // Recalculate total berdasarkan qty_diterima
-            $totalTagihan = 0;
+            // ✅ Hitung subtotal berdasarkan qty_diterima (hanya barang kondisi baik)
+            $subtotalDiterima = 0;
 
             foreach ($tagihan->items as $tagihanItem) {
                 $poItem = $po->items->firstWhere('id_po_item', $tagihanItem->id_po_item);
 
                 if ($poItem) {
+                    // Hitung qty yang kondisi baik saja dari batches
+                    $qtyBaik = 0;
+                    foreach ($poItem->batches as $batch) {
+                        if ($batch->kondisi === 'baik') {
+                            $qtyBaik += $batch->qty_diterima;
+                        }
+                    }
+
                     $qtyDiterima = $poItem->qty_diterima ?? 0;
-                    $subtotal = $qtyDiterima * $tagihanItem->harga_satuan;
+                    $subtotal = $qtyBaik * $tagihanItem->harga_satuan;
 
                     $tagihanItem->update([
                         'qty_diterima' => $qtyDiterima,
-                        'qty_ditagihkan' => $qtyDiterima,
+                        'qty_ditagihkan' => $qtyBaik, // Hanya yang kondisi baik
                         'subtotal' => $subtotal,
                         'batch_number' => $poItem->batch_number,
                         'tanggal_kadaluarsa' => $poItem->tanggal_kadaluarsa,
                     ]);
 
-                    $totalTagihan += $subtotal;
+                    $subtotalDiterima += $subtotal;
                 }
             }
 
-            // Update tagihan header
-            $grandTotal = $totalTagihan + $tagihan->pajak;
+            // ✅ HITUNG PAJAK PROPORSIONAL - Sama seperti di PoexConfirmationController
+            $pajakProporsional = 0;
+            $pajakAwal = $po->pajak ?? 0;
+            $totalHargaAwal = $po->total_harga ?? 0;
 
+            if ($totalHargaAwal > 0 && $pajakAwal > 0) {
+                // Pajak proporsional = (subtotal_diterima / total_harga_awal) × pajak_awal
+                $pajakProporsional = ($subtotalDiterima / $totalHargaAwal) * $pajakAwal;
+            }
+
+            // ✅ Grand total = subtotal diterima + pajak proporsional
+            $grandTotal = $subtotalDiterima + $pajakProporsional;
+
+            // Update tagihan header
             $tagihan->update([
                 'status' => 'menunggu_pembayaran',
-                'total_tagihan' => $totalTagihan,
-                'grand_total' => $grandTotal,
+                'total_tagihan' => $subtotalDiterima, // Subtotal tanpa pajak
+                'pajak' => $pajakProporsional, // ✅ Pajak proporsional, bukan pajak awal!
+                'grand_total' => $grandTotal, // Subtotal + pajak proporsional
                 'sisa_tagihan' => $grandTotal - $tagihan->total_dibayar,
                 'tanggal_tagihan' => now(),
                 'tanggal_jatuh_tempo' => now()->addDays((int) $tagihan->tenor_hari),
@@ -135,10 +155,13 @@ class TagihanPoServices
 
             DB::commit();
 
-            Log::info('Tagihan updated after receipt', [
+            Log::info('Tagihan updated after receipt with proportional tax', [
                 'tagihan_id' => $tagihan->id_tagihan,
-                'total_tagihan' => $totalTagihan,
-                'grand_total' => $grandTotal
+                'subtotal_diterima' => $subtotalDiterima,
+                'pajak_awal' => $pajakAwal,
+                'pajak_proporsional' => $pajakProporsional,
+                'grand_total' => $grandTotal,
+                'po_total_diterima' => $po->total_diterima ?? 0,
             ]);
 
             return $tagihan;

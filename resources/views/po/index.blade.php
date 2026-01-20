@@ -256,7 +256,7 @@
                                             <strong class="text-success">
                                                 Rp
                                                 @if($po->total_diterima > 0)
-                                                    {{ number_format($po->total_diterima, 0, ',', '.') }}
+                                                    {{ number_format($po->grand_total_diterima, 0, ',', '.') }}
                                                 @else
                                                     {{ number_format($po->grand_total, 0, ',', '.') }}
                                                 @endif
