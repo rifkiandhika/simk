@@ -89,10 +89,20 @@ class PoexConfirmationController extends Controller
                 ], 400);
             }
 
-            $dataBefore = $po->toArray();
-            $noGR = PurchaseOrder::generateNoGR();
+            
+            if (!$po->no_gr) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Nomor GR belum tersedia. Silakan tandai barang sebagai diterima terlebih dahulu.'
+                ], 400);
+            }
 
-            // ✅ Variabel untuk menghitung nilai penerimaan
+            $dataBefore = $po->toArray();
+            
+            $noGR = $po->no_gr;
+
+            
             $totalDiterima = 0;        // Subtotal (qty × harga, kondisi baik saja)
             $pajakDiterima = 0;        // Pajak proporsional
             $grandTotalDiterima = 0;   // Total + pajak
@@ -125,7 +135,7 @@ class PoexConfirmationController extends Controller
                     'qty_diterima' => $totalQtyDiterima,
                 ]);
 
-                // ✅ HITUNG TOTAL DITERIMA: qty × harga (HANYA kondisi baik)
+                
                 if ($po->tipe_po === 'eksternal') {
                     $qtyBaik = 0;
                     foreach ($itemData['batches'] as $batchData) {
@@ -137,23 +147,23 @@ class PoexConfirmationController extends Controller
                 }
             }
 
-            // Transfer stok ke gudang
+            
             if ($po->tipe_po === 'internal') {
-                // Internal PO tidak ada penerimaan di sini
+                
             } else {
                 $this->addStockToGudang($po, $noGR);
             }
 
-            // ✅ UPDATE PO dengan nilai penerimaan
+            
             $updateData = [
-                'no_gr' => $noGR,
+                
                 'status' => 'selesai',
                 'id_penerima' => Auth::user()->id_karyawan,
                 'tanggal_diterima' => now(),
                 'catatan_penerima' => $request->catatan_penerima,
             ];
 
-            // ✅ Hitung dan simpan nilai penerimaan untuk PO eksternal
+            
             if ($po->tipe_po === 'eksternal') {
                 // Hitung pajak proporsional berdasarkan barang yang diterima
                 if ($po->total_harga > 0 && $po->pajak > 0) {
@@ -164,7 +174,7 @@ class PoexConfirmationController extends Controller
                 // Grand total = subtotal + pajak
                 $grandTotalDiterima = $totalDiterima + $pajakDiterima;
                 
-                // ✅ Simpan ke kolom baru
+                
                 $updateData['total_diterima'] = $totalDiterima;
                 $updateData['pajak_diterima'] = $pajakDiterima;
                 $updateData['grand_total_diterima'] = $grandTotalDiterima;
@@ -172,6 +182,7 @@ class PoexConfirmationController extends Controller
                 Log::info('Perhitungan Penerimaan Barang', [
                     'po_id' => $po->id_po,
                     'no_po' => $po->no_po,
+                    'no_gr' => $noGR,
                     '--- NILAI AWAL (DIMINTA) ---' => '',
                     'total_harga_diminta' => $po->total_harga,
                     'pajak_diminta' => $po->pajak,
@@ -199,7 +210,7 @@ class PoexConfirmationController extends Controller
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
 
-            // ✅ Update Tagihan PO (akan sync dengan data PO)
+            
             if ($po->tipe_po === 'eksternal') {
                 $tagihanService = new TagihanPoServices();
                 $tagihan = $tagihanService->updateTagihanAfterReceipt($po);
@@ -367,6 +378,8 @@ class PoexConfirmationController extends Controller
                 'pin' => 'required|size:6',
                 'no_invoice' => 'required|string|max:100',
                 'tanggal_invoice' => 'required|date',
+                'surat_jalan' => 'required|string|max:100',
+                'tanggal_surat_jalan' => 'required|date',
                 'tanggal_jatuh_tempo' => 'required|date|after_or_equal:tanggal_invoice',
                 'nomor_faktur_pajak' => 'nullable|string|max:100',
                 'no_kwitansi' => 'nullable|string|max:100',
@@ -408,6 +421,8 @@ class PoexConfirmationController extends Controller
             $po->update([
                 'no_invoice' => $request->no_invoice,
                 'tanggal_invoice' => $request->tanggal_invoice,
+                'surat_jalan' => $request->surat_jalan,
+                'tanggal_surat_jalan' => $request->tanggal_surat_jalan,
                 'tanggal_jatuh_tempo' => $request->tanggal_jatuh_tempo,
                 'nomor_faktur_pajak' => $request->nomor_faktur_pajak,
                 'no_kwitansi' => $request->no_kwitansi,

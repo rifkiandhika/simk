@@ -58,7 +58,7 @@
           <a href="{{ route('tagihans.index') }}">Tagihan Pasien</a>
         </li>
       </ul>
-    </li>
+    </li>  
 
     {{-- Apotik --}}
     <li class="treeview {{ Request::is('apotik*') || Request::is('stock_apotiks*') || Request::is('permintaans*') && request('from') == 'apotik' ? 'active' : '' }}">
@@ -75,6 +75,12 @@
         </li>
         <li class="{{ Request::is('purchase-orders')}}">
           <a href="{{ route('po.index') }}">PO</a>
+        </li>
+        <li class="{{ Request::is('returs') && !Request::has('status') ? 'active' : '' }}">
+            <a href="{{ route('returs.index') }}">
+                {{-- <i class="ri-list-check"></i> --}}
+                Retur
+            </a>
         </li>
       </ul>
     </li>

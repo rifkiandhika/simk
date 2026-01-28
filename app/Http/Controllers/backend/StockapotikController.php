@@ -388,4 +388,99 @@ class StockapotikController extends Controller
                 ->with('error', 'Gagal menghapus data: ' . $e->getMessage());
         }
     }
+
+    public function getAll(Request $request)
+    {
+        try {
+            $query = StockApotik::with(['details.obat'])
+                ->orderBy('tanggal_penerimaan', 'desc');
+
+            // Optional: Filter by apotik/unit
+            if ($request->has('id_apotik')) {
+                $query->where('id_apotik', $request->id_apotik);
+            }
+
+            // Optional: Search
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('kode_transaksi', 'like', "%{$search}%")
+                      ->orWhere('no_batch', 'like', "%{$search}%");
+                });
+            }
+
+            // Limit untuk performance
+            $stockApotiks = $query->limit(100)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $stockApotiks->map(function($stock) {
+                    return [
+                        'id' => $stock->id,
+                        'kode_transaksi' => $stock->kode_transaksi,
+                        'tanggal_penerimaan' => $stock->tanggal_penerimaan,
+                        'tanggal_kadaluarsa' => $stock->tanggal_kadaluarsa ?? null,
+                        'status' => $stock->status,
+                        'total_items' => $stock->details->count(),
+                        'apotik' => [
+                            'id' => $stock->id ?? null,
+                            'nama' => $stock->nama_apotik ?? 'N/A',
+                        ],
+                    ];
+                }),
+                'message' => 'Data berhasil diambil'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting stock apotiks: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Get stock apotik items
+     * Endpoint: GET /api/stock-apotiks/{id}/items
+     */
+    public function getItems($id)
+    {
+        try {
+            $stockApotik = StockApotik::with([
+                'details.obat'
+            ])->findOrFail($id);
+
+            $items = $stockApotik->details->map(function($detail) {
+                return [
+                    'id_detail_stock_apotik' => $detail->id,
+                    'id_produk' => $detail->detail_obat_rs_id,
+                    'nama_produk' => $detail->detailObatRs->nama_obat ?? $detail->nama_obat ?? 'N/A',
+                    'batch_number' => $detail->no_batch,
+                    'no_batch' => $detail->no_batch,
+                    'tanggal_kadaluarsa' => $detail->tanggal_kadaluarsa,
+                    'stock_apotik' => $detail->stock_apotik ?? $detail->qty ?? 0,
+                    'harga_satuan' => $detail->detailObatRs->harga_satuan ?? $detail->harga_satuan ?? 0,
+                    'satuan' => $detail->satuan ?? 'pcs',
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $items,
+                'message' => 'Items berhasil diambil'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting stock apotik items: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil items: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
 }

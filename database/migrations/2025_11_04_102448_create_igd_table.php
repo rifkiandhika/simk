@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('igd', function (Blueprint $table) {
             $table->id('id_igd');
             $table->string('no_igd', 50)->unique();
+            $table->string('no_rm', 50);
             $table->foreignId('id_pasien')->constrained('pasiens', 'id_pasien')->onDelete('cascade');
             $table->dateTime('waktu_datang');
             $table->enum('cara_datang', ['Jalan Kaki', 'Ambulans', 'Rujukan'])->default('Jalan Kaki');

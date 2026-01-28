@@ -140,6 +140,47 @@ class PinVerificationController extends Controller
         ]);
     }
 
+    public function verifyPin(Request $request)
+    {
+        $request->validate([
+            'pin' => 'required|string|size:6'
+        ]);
+
+        try {
+            // Find karyawan by PIN
+            $karyawan = Karyawan::where('pin', $request->pin)
+                ->where('status_aktif', 'Aktif')
+                ->first();
+
+            if (!$karyawan) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'PIN tidak valid atau karyawan tidak aktif'
+                ], 404);
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'PIN valid',
+                'karyawan' => [
+                    'id_karyawan' => $karyawan->id_karyawan,
+                    'nip' => $karyawan->nip,
+                    'nama_lengkap' => $karyawan->nama_lengkap,
+                    'email' => $karyawan->email,
+                    'no_telp' => $karyawan->no_telp,
+                ]
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('PIN Verification Error: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Terjadi kesalahan saat verifikasi PIN'
+            ], 500);
+        }
+    }
+
     /**
      * Logout dari PIN verification (tetap login user, hapus session PIN)
      */

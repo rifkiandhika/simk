@@ -45,10 +45,6 @@ return new class extends Migration
                 ->onDelete('set null');
         });
 
-        // ============================================
-        // 2. CREATE TABLE: purchase_order_item_batches
-        //    Untuk support multiple batch per item
-        // ============================================
         Schema::create('purchase_order_item_batches', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->uuid('id_po_item')->comment('FK ke purchase_order_items');

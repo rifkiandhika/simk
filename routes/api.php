@@ -5,9 +5,14 @@ use App\Http\Controllers\api\ObatMasterController;
 use App\Http\Controllers\backend\NotificationController;
 use App\Http\Controllers\backend\PenjualanBebasController;
 use App\Http\Controllers\backend\PenjualanResepController;
+use App\Http\Controllers\backend\PinVerificationController;
 use App\Http\Controllers\backend\PurchaseOrderController;
 use App\Http\Controllers\backend\ReceivingController;
+use App\Http\Controllers\backend\ReturController;
+use App\Http\Controllers\backend\ReturDocumentController;
+use App\Http\Controllers\backend\ReturReportController;
 use App\Http\Controllers\backend\ShippingController;
+use App\Http\Controllers\backend\StockapotikController;
 use App\Http\Controllers\backend\TagihanPembayaranController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
@@ -47,6 +52,24 @@ Route::prefix('v1')->group(function () {
 });
 
 
+
+// ========================================
+// RETUR
+// ========================================
+    Route::post('/verify-pin', [PinVerificationController::class, 'verifyPin']);
+  Route::prefix('purchase-orders')->group(function () {
+        Route::get('/completed', [PurchaseOrderController::class, 'getCompleted']);
+        Route::get('/{id}/items', [PurchaseOrderController::class, 'getItems']);
+    });
+
+    Route::prefix('stock-apotiks')->group(function () {
+        Route::get('/', [StockApotikController::class, 'getAll']);
+        Route::get('/{id}/items', [StockApotikController::class, 'getItems']);
+    });
+
+    Route::prefix('returs')->group(function () {
+        Route::post('/available-items', [ReturController::class, 'getAvailableItems']);
+    });
 // ========================================
 // OBAT
 // ========================================

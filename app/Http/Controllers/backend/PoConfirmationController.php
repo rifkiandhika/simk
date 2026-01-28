@@ -31,8 +31,8 @@ class PoConfirmationController extends Controller
             'kepalaGudang',
         ])->findOrFail($id_po);
 
-        // Only PO Internal that has been approved by Kepala Gudang
-        if ($po->tipe_po !== 'internal' || $po->status !== 'diterima') {
+        // ✅ Only PO Internal with status 'dikirim' (barang siap diterima)
+        if ($po->tipe_po !== 'internal' || $po->status !== 'dikirim') {
             return redirect()->route('po.show', $id_po)
                 ->with('error', 'PO ini tidak memerlukan konfirmasi penerimaan');
         }
@@ -110,11 +110,18 @@ class PoConfirmationController extends Controller
                 throw new \Exception('Hanya PO Internal yang dapat dikonfirmasi melalui halaman ini');
             }
 
-            if ($po->status !== 'diterima') {
+            if ($po->status !== 'dikirim') {
                 throw new \Exception('PO ini belum disetujui atau sudah dikonfirmasi sebelumnya. Status: ' . $po->status);
             }
 
+            // ✅ VALIDASI: no_gr harus sudah ada (dari approval Kepala Gudang)
+            if (!$po->no_gr) {
+                throw new \Exception('Nomor GR belum tersedia. Silakan minta Kepala Gudang untuk approve PO terlebih dahulu.');
+            }
+
             $dataBefore = $po->toArray();
+            // ✅ TIDAK GENERATE no_gr lagi, gunakan yang sudah ada
+            $noGr = $po->no_gr;
 
             $gudang = Gudang::first();
             if (!$gudang) {
@@ -206,8 +213,8 @@ class PoConfirmationController extends Controller
                     'status' => 'pengiriman',
                     'referensi_type' => 'po_internal',
                     'referensi_id' => $po->id_po,
-                    'no_referensi' => $po->no_po,
-                    'keterangan' => "Pengiriman barang ke Apotik - PO Internal: {$po->no_po}, Unit: {$po->unit_pemohon}, Kondisi: {$kondisi}",
+                    'no_referensi' => $noGr, // ✅ Gunakan no_gr yang sudah ada
+                    'keterangan' => "Pengiriman barang ke Apotik - PO Internal: {$po->no_po}, GR: {$noGr}, Unit: {$po->unit_pemohon}, Kondisi: {$kondisi}",
                 ]);
 
                 if ($kondisi === 'baik') {
@@ -237,10 +244,8 @@ class PoConfirmationController extends Controller
                 }
             }
 
-            $noGr = $po->no_gr ?? $this->generateNoGr();
-
+            // ✅ TIDAK update no_gr lagi, karena sudah ada
             $po->update([
-                'no_gr' => $noGr,
                 'status' => 'selesai',
                 'tanggal_diterima' => now(),
                 'id_penerima' => Auth::user()->id_karyawan,
@@ -254,7 +259,7 @@ class PoConfirmationController extends Controller
                 'id_karyawan' => Auth::user()->id_karyawan,
                 'pin_karyawan' => $request->pin,
                 'aksi' => 'konfirmasi_penerimaan',
-                'deskripsi_aksi' => "Konfirmasi penerimaan barang - Diterima: {$totalDiterima}, Retur: {$totalRusak}",
+                'deskripsi_aksi' => "Konfirmasi penerimaan barang dengan GR: {$noGr} - Diterima: {$totalDiterima}, Retur: {$totalRusak}",
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->fresh()->toArray(),
             ]);
@@ -263,12 +268,13 @@ class PoConfirmationController extends Controller
 
             Log::info('=== CONFIRM RECEIPT SUCCESS ===', [
                 'po_id' => $po->id_po,
+                'no_gr' => $noGr,
                 'total_diterima' => $totalDiterima,
                 'total_rusak' => $totalRusak,
                 'items_processed' => count($itemsProcessed)
             ]);
 
-            $message = "✓ Konfirmasi penerimaan berhasil!";
+            $message = "✓ Konfirmasi penerimaan berhasil dengan nomor GR: {$noGr}!";
             if ($totalDiterima > 0) {
                 $message .= " {$totalDiterima} unit masuk ke stock apotik.";
             }
@@ -281,6 +287,7 @@ class PoConfirmationController extends Controller
                 'message' => $message,
                 'data' => $po->fresh()->load('items'),
                 'items_processed' => $itemsProcessed,
+                'no_gr' => $noGr,
             ], 200);
 
         } catch (\Exception $e) {
@@ -324,7 +331,7 @@ class PoConfirmationController extends Controller
                 'gudang_id' => $gudang->id,
                 'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
                 'tanggal_penerimaan' => now(),
-                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
+                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po . ', GR: ' . $po->no_gr,
             ]);
 
             Log::info('StockApotik Header Created', ['id' => $stockApotik->id]);
@@ -389,7 +396,7 @@ class PoConfirmationController extends Controller
                 'gudang_id' => $gudang->id,
                 'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
                 'tanggal_penerimaan' => now(),
-                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
+                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po . ', GR: ' . $po->no_gr,
             ]);
 
             Log::info('StockApotik Header Created for Retur', ['id' => $stockApotik->id]);
@@ -429,21 +436,5 @@ class PoConfirmationController extends Controller
                 'batch' => $detailGudang->no_batch
             ]);
         }
-    }
-    private function generateNoGr()
-    {
-        $lastGr = PurchaseOrder::whereNotNull('no_gr')
-            ->where('no_gr', 'like', 'PO-GR-%')
-            ->orderBy('no_gr', 'desc')
-            ->value('no_gr');
-
-        if (!$lastGr) {
-            return 'PO-GR-000001';
-        }
-
-        $lastNumber = (int) substr($lastGr, -6);
-        $newNumber = $lastNumber + 1;
-
-        return 'PO-GR-' . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
     }
 }

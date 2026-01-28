@@ -81,7 +81,7 @@
             </div>
 
             {{-- Confirmation Receipt Card for Internal PO --}}
-            @if($po->tipe_po === 'internal' && $po->status === 'diterima' && !$po->tanggal_diterima)
+            @if($po->tipe_po === 'internal' && $po->status === 'dikirim')
             <div class="card shadow-sm border-0 mb-4 border-warning" style="border-width: 2px !important;">
                 <div class="card-header bg-warning py-3">
                     <h5 class="mb-0">
@@ -705,6 +705,7 @@
                             'draft' => ['color' => 'secondary', 'icon' => 'ri-draft-line', 'label' => 'Draft'],
                             'menunggu_persetujuan_kepala_gudang' => ['color' => 'warning', 'icon' => 'ri-time-line', 'label' => 'Menunggu Kepala Gudang'],
                             'menunggu_persetujuan_kasir' => ['color' => 'warning', 'icon' => 'ri-time-line', 'label' => 'Menunggu Kasir'],
+                            'dikirim' => ['color' => 'info', 'icon' => 'ri-truck-line', 'label' => 'Dikirim'],
                             'selesai' => ['color' => 'success', 'icon' => 'ri-checkbox-circle-line', 'label' => 'Selesai'],
                             'disetujui' => ['color' => 'success', 'icon' => 'ri-checkbox-circle-line', 'label' => 'Disetujui'],
                             'dikirim_ke_supplier' => ['color' => 'info', 'icon' => 'ri-truck-line', 'label' => 'Dikirim ke Supplier'],

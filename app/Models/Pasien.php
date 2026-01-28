@@ -46,6 +46,11 @@ class Pasien extends Model
         return $this->hasMany(Tagihan::class, 'id_pasien');
     }
 
+    public function igds()
+    {
+        return $this->hasMany(Igd::class, 'id_pasien', 'id_pasien');
+    }
+
     public function getTotalPiutangAttribute()
     {
         return $this->tagihans()

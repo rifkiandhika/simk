@@ -761,11 +761,23 @@ class PurchaseOrderController extends Controller
 
             // Jika disetujui
             if ($po->tipe_po === 'internal') {
-                // PO INTERNAL: Ubah status ke 'selesai' 
-                // TAPI tidak langsung transfer stok, menunggu konfirmasi dari apotik
-                $po->update(['status' => 'diterima']);
+                // ✅ PO INTERNAL: Generate no_gr dan set status ke 'dikirim'
+                $noGR = PurchaseOrder::generateNoGR();
 
-                $deskripsi = 'Kepala Gudang menyetujui PO Internal - Menunggu konfirmasi penerimaan dari Apotik';
+                // ✅ Status = 'dikirim' (bukan 'diterima')
+                $po->update([
+                    'status' => 'dikirim',
+                    'no_gr' => $noGR,
+                ]);
+
+                $deskripsi = "Kepala Gudang menyetujui PO Internal dengan nomor GR: {$noGR} - Barang siap dikirim dari Gudang ke Apotik";
+
+                Log::info('PO Internal Approved with GR', [
+                    'po_id' => $po->id_po,
+                    'no_po' => $po->no_po,
+                    'no_gr' => $noGR,
+                    'status' => 'dikirim'
+                ]);
             } else {
                 // PO EKSTERNAL: Lanjut ke kasir
                 $po->update(['status' => 'menunggu_persetujuan_kasir']);
@@ -784,12 +796,24 @@ class PurchaseOrderController extends Controller
             ]);
 
             DB::commit();
+
+            $message = $po->tipe_po === 'internal' 
+                ? "Approval Kepala Gudang berhasil. Nomor GR: {$po->no_gr}. Barang siap dikirim ke Apotik."
+                : 'Approval Kepala Gudang berhasil';
+
             return response()->json([
-                'message' => 'Approval Kepala Gudang berhasil',
+                'message' => $message,
                 'data' => $po->fresh()
             ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
+            
+            Log::error('Approve Kepala Gudang Error', [
+                'po_id' => $id_po,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
             return response()->json(['error' => 'Gagal approve: ' . $e->getMessage()], 500);
         }
     }
@@ -805,7 +829,7 @@ class PurchaseOrderController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Verifikasi PIN
+        
         $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
             ->where('pin', $request->pin)
             ->first();
@@ -818,7 +842,7 @@ class PurchaseOrderController extends Controller
         try {
             $po = PurchaseOrder::with('shippingActivities')->findOrFail($id_po);
 
-            // Validasi status PO
+            
             if (!in_array($po->status, ['disetujui'])) {
                 return response()->json([
                     'error' => 'PO tidak dapat ditandai sebagai diterima. Status saat ini: ' . $po->status
@@ -827,28 +851,32 @@ class PurchaseOrderController extends Controller
 
             $dataBefore = $po->toArray();
 
-            // Update status PO ke 'diterima'
+            
+            $noGR = PurchaseOrder::generateNoGR();
+
+            
             $po->update([
                 'status' => 'diterima',
+                'no_gr' => $noGR,  
             ]);
 
-            // Create shipping activity record
+            
             $shippingActivity = ShippingActivity::create([
                 'id_po' => $po->id_po,
                 'status_shipping' => 'diterima',
-                'deskripsi_aktivitas' => 'Barang dari supplier telah diterima di gudang',
+                'deskripsi_aktivitas' => 'Barang dari supplier telah diterima di gudang - GR: ' . $noGR,
                 'catatan' => $request->catatan,
                 'tanggal_aktivitas' => now(),
                 'id_karyawan_input' => Auth::user()->id_karyawan,
             ]);
 
-            // Create audit trail
+            
             PoAuditTrail::create([
                 'id_po' => $po->id_po,
                 'id_karyawan' => Auth::user()->id_karyawan,
                 'pin_karyawan' => $request->pin,
                 'aksi' => 'terima_barang',
-                'deskripsi_aksi' => 'Menandai barang dari supplier sudah diterima' . 
+                'deskripsi_aksi' => 'Menandai barang dari supplier sudah diterima dengan nomor GR: ' . $noGR . 
                                 ($request->catatan ? ' - Catatan: ' . $request->catatan : ''),
                 'data_sebelum' => $dataBefore,
                 'data_sesudah' => $po->fresh()->toArray(),
@@ -859,13 +887,17 @@ class PurchaseOrderController extends Controller
             Log::info('PO Marked as Received', [
                 'po_id' => $po->id_po,
                 'no_po' => $po->no_po,
+                'no_gr' => $noGR, 
                 'by_user' => Auth::user()->id_karyawan,
                 'shipping_activity_id' => $shippingActivity->id
             ]);
 
             return response()->json([
-                'message' => 'Barang dari supplier berhasil ditandai sebagai diterima. Silakan lakukan konfirmasi penerimaan untuk update stok gudang.',
-                'data' => $po->fresh()->load(['shippingActivities', 'items'])
+                'message' => 'Barang dari supplier berhasil ditandai sebagai diterima dengan nomor GR: ' . $noGR . '. Silakan lakukan konfirmasi penerimaan untuk update stok gudang.',
+                'data' => [
+                    'po' => $po->fresh()->load(['shippingActivities', 'items']),
+                    'no_gr' => $noGR  
+                ]
             ], 200);
 
         } catch (\Exception $e) {
@@ -1087,375 +1119,9 @@ class PurchaseOrderController extends Controller
         }
     }
 
-    public function showConfirmation($id_po)
-    {
-        $po = PurchaseOrder::with([
-            'items.produk',
-            'karyawanPemohon',
-            'kepalaGudang',
-        ])->findOrFail($id_po);
-
-        // Route ke method yang sesuai berdasarkan tipe PO
-        if ($po->tipe_po === 'internal') {
-            return $this->showInternalConfirmation($po);
-        } else {
-            return $this->showExternalConfirmation($po);
-        }
-    }
-
-    /**
-     * Show confirmation page for INTERNAL PO (Gudang → Apotik)
-     * View: confirm-receipt.blade.php
-     */
-    private function showInternalConfirmation($po)
-    {
-        // Validasi: Hanya PO Internal yang sudah disetujui Kepala Gudang
-        if ($po->status !== 'selesai') {
-            return redirect()->route('po.show', $po->id_po)
-                ->with('error', 'PO ini belum disetujui atau sudah dikonfirmasi sebelumnya');
-        }
-
-        Log::info('Show INTERNAL Confirmation Page:', [
-            'po_id' => $po->id_po,
-            'no_po' => $po->no_po,
-            'status' => $po->status,
-            'items_count' => $po->items->count()
-        ]);
-
-        return view('po.confirm-receipt', compact('po'));
-    }
-
-    /**
-     * Show confirmation page for EXTERNAL PO (Supplier → Gudang)
-     * View: confirmation.blade.php (atau nama file Anda untuk external)
-     */
-    private function showExternalConfirmation($po)
-    {
-        if (!$po->needsReceiptConfirmation()) {
-            return redirect()->route('po.show', $po->id_po)
-                ->with('error', 'PO ini tidak memerlukan konfirmasi penerimaan saat ini');
-        }
-
-        Log::info('Show EXTERNAL Confirmation Page:', [
-            'po_id' => $po->id_po,
-            'no_po' => $po->no_po,
-            'status' => $po->status,
-            'items_count' => $po->items->count()
-        ]);
-
-        // GANTI dengan nama view yang sesuai untuk external
-        return view('po.confirmation', compact('po'));
-    }
-
-    /**
-     * Process confirmation - ROUTER untuk memilih handler yang tepat
-     */
-    public function confirmReceipt(Request $request, $id_po)
-    {
-        $po = PurchaseOrder::findOrFail($id_po);
-
-        Log::info('=== CONFIRM RECEIPT CALLED ===', [
-            'po_id' => $id_po,
-            'tipe_po' => $po->tipe_po,
-            'status' => $po->status
-        ]);
-
-        // Route ke handler yang sesuai berdasarkan tipe PO
-        if ($po->tipe_po === 'internal') {
-            return $this->confirmInternalReceipt($request, $po);
-        } else {
-            return $this->confirmExternalReceipt($request, $po);
-        }
-    }
-
-    /**
-     * Confirm receipt for INTERNAL PO (Gudang → Apotik)
-     * - Kurangi stock gudang
-     * - Tambah stock apotik
-     */
-    private function confirmInternalReceipt(Request $request, $po)
-    {
-        Log::info('=== START CONFIRM INTERNAL RECEIPT ===', [
-            'po_id' => $po->id_po,
-            'user_id' => Auth::user()->id_karyawan
-        ]);
-
-        $validator = Validator::make($request->all(), [
-            'pin' => 'required|size:6',
-            'items' => 'required|array|min:1',
-            'items.*.id_po_item' => 'required|uuid',
-            'items.*.qty_diterima' => 'required|integer|min:0',
-            'items.*.kondisi' => 'required|in:baik,rusak,kadaluarsa',
-            'items.*.catatan' => 'nullable|string',
-            'catatan_penerima' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            Log::error('Validation Failed:', $validator->errors()->toArray());
-
-            if ($request->wantsJson()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            }
-            return back()->withErrors($validator)->withInput();
-        }
-
-        // Verifikasi PIN
-        $karyawan = Karyawan::where('id_karyawan', Auth::user()->id_karyawan)
-            ->where('pin', $request->pin)
-            ->first();
-
-        if (!$karyawan) {
-            Log::warning('Invalid PIN', ['user_id' => Auth::user()->id_karyawan]);
-
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'PIN tidak valid'], 403);
-            }
-            return back()->withErrors(['pin' => 'PIN tidak valid'])->withInput();
-        }
-
-        DB::beginTransaction();
-        try {
-            // Validate PO status
-            if ($po->status !== 'selesai') {
-                throw new \Exception('PO ini belum disetujui atau sudah dikonfirmasi. Status: ' . $po->status);
-            }
-
-            $dataBefore = $po->toArray();
-
-            // Get gudang
-            $gudang = Gudang::first();
-            if (!$gudang) {
-                throw new \Exception('Gudang tidak ditemukan di sistem');
-            }
-
-            $totalDiterima = 0;
-            $totalRusak = 0;
-            $itemsProcessed = [];
-
-            foreach ($request->items as $itemData) {
-                $poItem = PurchaseOrderItem::findOrFail($itemData['id_po_item']);
-                $produk = DetailSupplier::find($poItem->id_produk);
-
-                if (!$produk) {
-                    throw new \Exception("Produk ID {$poItem->id_produk} tidak ditemukan");
-                }
-
-                $qtyDiterima = (int) $itemData['qty_diterima'];
-                $kondisi = $itemData['kondisi'];
-                $catatan = $itemData['catatan'] ?? null;
-
-                if ($qtyDiterima == 0) {
-                    continue;
-                }
-
-                // Cari detail gudang
-                $detailGudang = DetailGudang::where('barang_id', $poItem->id_produk)
-                    ->where('gudang_id', $gudang->id)
-                    ->where('stock_gudang', '>', 0)
-                    ->orderBy('tanggal_kadaluarsa', 'asc')
-                    ->first();
-
-                if (!$detailGudang) {
-                    throw new \Exception("Produk {$produk->nama} tidak tersedia di gudang");
-                }
-
-                if ($detailGudang->stock_gudang < $qtyDiterima) {
-                    throw new \Exception("Stock {$produk->nama} tidak mencukupi");
-                }
-
-                // Update PO Item
-                $poItem->update([
-                    'qty_diterima' => $qtyDiterima,
-                    'qty_disetujui' => $qtyDiterima,
-                    'kondisi_barang' => $kondisi,
-                    'catatan_penerimaan' => $catatan,
-                    'batch_number' => $detailGudang->no_batch,
-                    'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
-                ]);
-
-                // KURANGI STOCK GUDANG
-                $detailGudang->decrement('stock_gudang', $qtyDiterima);
-
-                // Proses berdasarkan kondisi
-                if ($kondisi === 'baik') {
-                    $this->addToStockApotik($gudang, $poItem, $detailGudang, $qtyDiterima, $produk, $po);
-                    $totalDiterima += $qtyDiterima;
-                } else {
-                    $this->addToRetur($gudang, $poItem, $detailGudang, $qtyDiterima, $produk, $po);
-                    $totalRusak += $qtyDiterima;
-                }
-
-                $itemsProcessed[] = [
-                    'product' => $produk->nama,
-                    'batch' => $detailGudang->no_batch,
-                    'qty' => $qtyDiterima,
-                    'kondisi' => $kondisi,
-                ];
-            }
-
-            // Update PO status
-            $po->update([
-                'status' => 'diterima',
-                'tanggal_diterima' => now(),
-                'id_penerima' => Auth::user()->id_karyawan,
-                'catatan_penerima' => $request->catatan_penerima,
-            ]);
-
-            // Audit Trail
-            PoAuditTrail::create([
-                'id_po' => $po->id_po,
-                'id_karyawan' => Auth::user()->id_karyawan,
-                'pin_karyawan' => $request->pin,
-                'aksi' => 'konfirmasi_penerimaan',
-                'deskripsi_aksi' => "Konfirmasi penerimaan internal - Diterima: {$totalDiterima}, Retur: {$totalRusak}",
-                'data_sebelum' => $dataBefore,
-                'data_sesudah' => $po->fresh()->toArray(),
-            ]);
-
-            DB::commit();
-
-            Log::info('=== INTERNAL RECEIPT CONFIRMED ===', [
-                'po_id' => $po->id_po,
-                'total_diterima' => $totalDiterima,
-                'total_rusak' => $totalRusak
-            ]);
-
-            $message = "✓ Konfirmasi penerimaan berhasil! {$totalDiterima} unit masuk ke apotik.";
-            if ($totalRusak > 0) {
-                $message .= " {$totalRusak} unit ditandai sebagai retur.";
-            }
-
-            if ($request->wantsJson()) {
-                return response()->json([
-                    'message' => $message,
-                    'data' => $po->fresh()->load('items'),
-                    'items_processed' => $itemsProcessed,
-                ], 200);
-            }
-
-            return redirect()->route('po.show', $po->id_po)
-                ->with('success', $message);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('=== INTERNAL RECEIPT ERROR ===', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            if ($request->wantsJson()) {
-                return response()->json(['error' => 'Gagal: ' . $e->getMessage()], 500);
-            }
-
-            return back()->withErrors(['error' => 'Gagal: ' . $e->getMessage()])->withInput();
-        }
-    }
-
-    private function confirmExternalReceipt(Request $request, $po)
-    {
-        Log::info('=== START CONFIRM EXTERNAL RECEIPT ===', [
-            'po_id' => $po->id_po
-        ]);
-
-        // TODO: Implement external confirmation logic
-        // Ini untuk PO dari supplier ke gudang
-
-        return back()->with('error', 'Fitur konfirmasi PO External belum diimplementasikan');
-    }
-
     /**
      * Add item to stock apotik
      */
-    private function addToStockApotik($gudang, $poItem, $detailGudang, $qty, $produk, $po)
-    {
-        Log::info('Adding to Stock Apotik', [
-            'produk' => $produk->nama,
-            'batch' => $detailGudang->no_batch,
-            'qty' => $qty
-        ]);
-
-        $stockApotik = StockApotik::where('gudang_id', $gudang->id)
-            ->whereDate('tanggal_penerimaan', now()->toDateString())
-            ->where('keterangan', 'like', '%PO Internal%')
-            ->first();
-
-        if (!$stockApotik) {
-            $stockApotik = StockApotik::create([
-                'id' => (string) Str::uuid(),
-                'gudang_id' => $gudang->id,
-                'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
-                'tanggal_penerimaan' => now(),
-                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
-            ]);
-        }
-
-        $existingDetail = DetailstockApotik::where('obat_id', $poItem->id_produk)
-            ->where('no_batch', $detailGudang->no_batch)
-            ->first();
-
-        if ($existingDetail) {
-            $existingDetail->increment('stock_apotik', $qty);
-            Log::info('Stock Apotik UPDATED', ['new_stock' => $existingDetail->stock_apotik]);
-        } else {
-            DetailstockApotik::create([
-                'id' => (string) Str::uuid(),
-                'stock_apotik_id' => $stockApotik->id,
-                'obat_id' => $poItem->id_produk,
-                'no_batch' => $detailGudang->no_batch,
-                'stock_apotik' => $qty,
-                'min_persediaan' => $produk->min_persediaan ?? 0,
-                'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
-            ]);
-            Log::info('Stock Apotik CREATED', ['stock' => $qty]);
-        }
-    }
-
-    /**
-     * Add item to retur
-     */
-    private function addToRetur($gudang, $poItem, $detailGudang, $qty, $produk, $po)
-    {
-        Log::info('Adding to Retur', [
-            'produk' => $produk->nama,
-            'qty' => $qty
-        ]);
-
-        $stockApotik = StockApotik::where('gudang_id', $gudang->id)
-            ->whereDate('tanggal_penerimaan', now()->toDateString())
-            ->where('keterangan', 'like', '%PO Internal%')
-            ->first();
-
-        if (!$stockApotik) {
-            $stockApotik = StockApotik::create([
-                'id' => (string) Str::uuid(),
-                'gudang_id' => $gudang->id,
-                'kode_transaksi' => 'APO-INT-' . date('YmdHis'),
-                'tanggal_penerimaan' => now(),
-                'keterangan' => 'Transfer dari Gudang - PO Internal: ' . $po->no_po,
-            ]);
-        }
-
-        $existingRetur = DetailstockApotik::where('obat_id', $poItem->id_produk)
-            ->where('stock_apotik_id', $stockApotik->id)
-            ->where('no_batch', $detailGudang->no_batch)
-            ->first();
-
-        if ($existingRetur) {
-            $existingRetur->increment('retur', $qty);
-        } else {
-            DetailstockApotik::create([
-                'id' => (string) Str::uuid(),
-                'stock_apotik_id' => $stockApotik->id,
-                'obat_id' => $poItem->id_produk,
-                'no_batch' => $detailGudang->no_batch,
-                'stock_apotik' => 0,
-                'retur' => $qty,
-                'min_persediaan' => $produk->min_persediaan ?? 0,
-                'tanggal_kadaluarsa' => $detailGudang->tanggal_kadaluarsa,
-            ]);
-        }
-    }
-
     public function print($id_po)
     {
         $po = PurchaseOrder::with(['items', 'karyawanPemohon', 'supplier'])
@@ -1832,4 +1498,110 @@ class PurchaseOrderController extends Controller
                 ], 500);
             }
         }
+
+    
+    public function getCompleted(Request $request)
+    {
+        try {
+            $query = PurchaseOrder::with(['supplier', 'items'])
+                ->whereIn('status', ['completed', 'diterima', 'selesai'])
+                ->orderBy('tanggal_permintaan', 'desc');
+
+            // Optional: Filter by supplier
+            if ($request->has('supplier_id')) {
+                $query->where('id_supplier', $request->supplier_id);
+            }
+
+            // Optional: Search
+            if ($request->has('search')) {
+                $search = $request->search;
+                $query->where(function($q) use ($search) {
+                    $q->where('no_po', 'like', "%{$search}%")
+                      ->orWhere('kode_po', 'like', "%{$search}%");
+                });
+            }
+
+            // Limit untuk performance
+            $purchaseOrders = $query->limit(100)->get();
+
+            return response()->json([
+                'success' => true,
+                'data' => $purchaseOrders->map(function($po) {
+                    return [
+                        'id' => $po->id,
+                        'id_po' => $po->id_po ?? $po->id,
+                        'no_po' => $po->no_po,
+                        'kode_po' => $po->kode_po ?? $po->no_po,
+                        'tanggal_permintaan' => $po->tanggal_permintaan,
+                        'tanggal_pengiriman' => $po->tanggal_pengiriman ?? null,
+                        'status' => $po->status,
+                        'supplier' => [
+                            'id' => $po->supplier->id ?? null,
+                            'nama' => $po->supplier->nama ?? 'N/A',
+                        ],
+                        'total_items' => $po->items->count(),
+                    ];
+                }),
+                'message' => 'Data berhasil diambil'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting completed POs: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil data: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
+
+    /**
+     * Get PO items dengan batches
+     * Endpoint: GET /api/purchase-orders/{id}/items
+     */
+    public function getItems($id)
+    {
+        try {
+            $po = PurchaseOrder::with([
+                'items.produk',
+                'items.batches'
+            ])->findOrFail($id);
+
+            $items = $po->purchaseOrderItems->map(function($item) {
+                return [
+                    'id_po_item' => $item->id_po_item ?? $item->id,
+                    'id_produk' => $item->id_produk,
+                    'nama_produk' => $item->nama_produk,
+                    'qty_dipesan' => $item->qty_dipesan ?? $item->qty,
+                    'qty_diterima' => $item->qty_diterima ?? $item->qty,
+                    'harga_satuan' => $item->harga_satuan ?? 0,
+                    'satuan' => $item->satuan ?? 'pcs',
+                    'batches' => $item->batches ? $item->batches->map(function($batch) {
+                        return [
+                            'batch_number' => $batch->batch_number,
+                            'tanggal_kadaluarsa' => $batch->tanggal_kadaluarsa,
+                            'qty_diterima' => $batch->qty_diterima ?? $batch->qty,
+                            'kondisi' => $batch->kondisi ?? 'baik',
+                        ];
+                    }) : [],
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $items,
+                'message' => 'Items berhasil diambil'
+            ]);
+
+        } catch (\Exception $e) {
+            \Log::error('Error getting PO items: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal mengambil items: ' . $e->getMessage(),
+                'data' => []
+            ], 500);
+        }
+    }
 }

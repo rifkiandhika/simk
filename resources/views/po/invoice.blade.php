@@ -89,6 +89,33 @@
                         <div class="row">
                             <div class="col-md-6 mb-3">
                                 <label class="form-label fw-semibold">
+                                    No. Surat Jalan <span class="text-danger">*</span>
+                                </label>
+                                <input type="text"
+                                    class="form-control"
+                                    name="surat_jalan"
+                                    id="noSuratJalan"
+                                    placeholder="Contoh: SJ-001/01/2025"
+                                    value="{{ $po->surat_jalan }}"
+                                    required>
+                                <small class="text-muted">Nomor surat jalan dari supplier</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
+                                    Tanggal Surat Jalan <span class="text-danger">*</span>
+                                </label>
+                                <input type="date"
+                                    class="form-control"
+                                    name="tanggal_surat_jalan"
+                                    id="tanggalSuratJalan"
+                                    value="{{ $po->tanggal_surat_jalan }}"
+                                    required>
+                                <small class="text-muted">Tanggal surat jalan diterbitkan</small>
+                            </div>
+
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">
                                     No. Invoice/Faktur <span class="text-danger">*</span>
                                 </label>
                                 <input type="text" 
@@ -96,6 +123,7 @@
                                        name="no_invoice" 
                                        id="noInvoice"
                                        placeholder="Contoh: INV-SUP-001"
+                                       value="{{ $po->no_invoice }}"
                                        required>
                                 <small class="text-muted">Nomor invoice dari supplier</small>
                             </div>
@@ -108,7 +136,7 @@
                                        class="form-control" 
                                        name="tanggal_invoice" 
                                        id="tanggalInvoice"
-                                       value="{{ date('Y-m-d') }}"
+                                       value="{{ $po->tanggal_invoice ??  date('Y-m-d') }}"
                                        required>
                                 <small class="text-muted">Tanggal invoice dari supplier</small>
                             </div>
@@ -121,6 +149,7 @@
                                        class="form-control" 
                                        name="tanggal_jatuh_tempo" 
                                        id="tanggalJatuhTempo"
+                                       value="{{ $po->tanggal_jatuh_tempo ? \Carbon\Carbon::parse($po->tanggal_jatuh_tempo)->format('Y-m-d') : '' }}"
                                        required>
                                 <small class="text-muted">Tanggal pembayaran harus dilakukan</small>
                             </div>
@@ -133,6 +162,7 @@
                                        class="form-control" 
                                        name="nomor_faktur_pajak" 
                                        id="nomorFakturPajak"
+                                       value="{{ $po->nomor_faktur_pajak }}"
                                        placeholder="Contoh: 010.000-25.00000001">
                                 <small class="text-muted">Opsional, jika ada faktur pajak</small>
                             </div>
@@ -145,6 +175,7 @@
                                        class="form-control" 
                                        name="no_kwitansi" 
                                        id="noKwitansi"
+                                       value="{{ $po->no_kwitansi }}"
                                        placeholder="Contoh: KW-1024/12">
                                 <small class="text-muted">Opsional, jika ada nomor kwitansi</small>
                             </div>
@@ -500,6 +531,8 @@ function showPinModal() {
     const noInvoice = $('#noInvoice').val().trim();
     const tanggalInvoice = $('#tanggalInvoice').val();
     const tanggalJatuhTempo = $('#tanggalJatuhTempo').val();
+    const noSuratJalan = $('#noSuratJalan').val().trim();
+    const tanggalSuratJalan = $('#tanggalSuratJalan').val();
     
     // Validation
     if (!noInvoice) {
@@ -519,6 +552,26 @@ function showPinModal() {
             text: 'Tanggal invoice harus diisi'
         });
         $('#tanggalInvoice').focus();
+        return;
+    }
+
+    if (!noSuratJalan) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Perhatian',
+            text: 'Nomor surat jalan harus diisi'
+        });
+        $('#noSuratJalan').focus();
+        return;
+    }
+
+    if (!tanggalSuratJalan) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'Perhatian',
+            text: 'Tanggal surat jalan harus diisi'
+        });
+        $('#tanggalSuratJalan').focus();
         return;
     }
     

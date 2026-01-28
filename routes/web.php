@@ -26,6 +26,8 @@ use App\Http\Controllers\backend\PoexConfirmationController;
 use App\Http\Controllers\backend\PurchaseOrderController;
 use App\Http\Controllers\backend\ReagenController;
 use App\Http\Controllers\backend\ReceivingController;
+use App\Http\Controllers\backend\ReturController;
+use App\Http\Controllers\backend\ReturDocumentController;
 use App\Http\Controllers\backend\RolePermissionController;
 use App\Http\Controllers\backend\RuanganController;
 use App\Http\Controllers\backend\SatuanController;
@@ -272,6 +274,32 @@ Route::middleware(['auth', 'pin.verified'])->group(function () {
             ->name('upload-proof');
         Route::post('/po/{id_po}/delete-proof', [PurchaseOrderController::class, 'deleteProof'])
             ->name('delete-invoice-proof');
+    });
+
+    // ========================================
+    // Retur
+    // ========================================
+    Route::prefix('returs')->name('returs.')->group(function () {
+        // Resource routes (index, create, store, show, edit, update, destroy)
+        Route::get('/', [ReturController::class, 'index'])->name('index');
+        Route::get('/create', [ReturController::class, 'create'])->name('create');
+        Route::post('/', [ReturController::class, 'store'])->name('store');
+        Route::get('/{id}', [ReturController::class, 'show'])->name('show');
+        Route::get('/{id}/edit', [ReturController::class, 'edit'])->name('edit');
+        Route::put('/{id}', [ReturController::class, 'update'])->name('update');
+        Route::delete('/{id}', [ReturController::class, 'destroy'])->name('destroy');
+        
+        // Action routes
+        Route::post('/{id}/submit', [ReturController::class, 'submit'])->name('submit');
+        Route::post('/{id}/approve', [ReturController::class, 'approve'])->name('approve');
+        Route::post('/{id}/process', [ReturController::class, 'process'])->name('process');
+        Route::post('/{id}/complete', [ReturController::class, 'complete'])->name('complete');
+        Route::post('/{id}/cancel', [ReturController::class, 'cancel'])->name('cancel');
+        
+        // Documents
+        Route::post('/{id}/documents/upload', [ReturDocumentController::class, 'upload'])->name('documents.upload');
+        Route::get('/{id}/documents', [ReturDocumentController::class, 'index'])->name('documents.index');
+        Route::delete('/documents/{id}', [ReturDocumentController::class, 'destroy'])->name('documents.destroy');
     });
     // ========================================
     // Tagihan

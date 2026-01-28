@@ -26,6 +26,10 @@ class DetailstockApotik extends Model
         return $this->belongsTo(ObatRs::class, 'obat_id');
     }
 
+    public function detailObatRs(){
+        return $this->belongsTo(DetailobatRs::class, 'detail_obat_rs_id', 'id_detail_obat_rs');
+    }
+
     public function histories()
     {
         return $this->hasMany(HistoryStockApotik::class, 'detail_apotik_id');

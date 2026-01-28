@@ -143,12 +143,18 @@ class PurchaseOrder extends Model
     }
 
     // Method untuk cek apakah perlu input invoice (sudah diterima tapi belum ada invoice)
-    public function needsInvoice()
+   public function needsInvoice()
     {
         return $this->status === 'selesai'
             && $this->tipe_po === 'eksternal'
-            && empty($this->no_invoice);
+            && (
+                empty($this->no_invoice)
+                || empty($this->no_surat_jalan)
+                || empty($this->no_kwitansi)
+                || empty($this->nomor_faktur_pajak)
+            );
     }
+
 
     public function tagihan()
     {
