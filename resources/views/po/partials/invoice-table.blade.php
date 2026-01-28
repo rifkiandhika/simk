@@ -14,7 +14,7 @@
             </tr>
         </thead>
         <tbody>
-            @forelse ($purchaseOrders as $po)
+            @foreach ($purchaseOrders as $po)
                 <tr>
                     <td class="text-center">{{ $loop->iteration }}</td>
                     <td>
@@ -88,14 +88,7 @@
                         </div>
                     </td>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="9" class="text-center py-5">
-                        <i class="ri-file-text-line ri-3x text-muted d-block mb-3"></i>
-                        <p class="text-muted mb-0">Belum ada Invoice</p>
-                    </td>
-                </tr>
-            @endforelse
+            @endforeach
         </tbody>
     </table>
 </div>

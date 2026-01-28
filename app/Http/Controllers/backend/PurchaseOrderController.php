@@ -798,8 +798,8 @@ class PurchaseOrderController extends Controller
             DB::commit();
 
             $message = $po->tipe_po === 'internal' 
-                ? "Approval Kepala Gudang berhasil. Nomor GR: {$po->no_gr}. Barang siap dikirim ke Apotik."
-                : 'Approval Kepala Gudang berhasil';
+                ? "Approval Gudang berhasil. Nomor GR: {$po->no_gr}. Barang siap dikirim ke Apotik."
+                : 'Approval Gudang berhasil';
 
             return response()->json([
                 'message' => $message,

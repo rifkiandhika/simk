@@ -93,7 +93,8 @@
                         <div class="d-flex align-items-start">
                             <i class="ri-alert-line me-2 fs-4"></i>
                             <div>
-                                <strong>Perhatian:</strong> PO ini telah disetujui oleh Kepala Gudang. 
+                                <strong>Perhatian:</strong> PO ini telah disetujui oleh 
+                                {{ $po->tipe_po === 'internal' ? 'Gudang' : 'Kepala Gudang' }}. 
                                 Silakan lakukan pengecekan dan konfirmasi penerimaan barang dari gudang.
                             </div>
                         </div>
@@ -251,10 +252,15 @@
             {{-- Invoice Input Card --}}
             @if($po->needsInvoice())
             <div class="card shadow-sm border-0 mb-4 border-info" style="border-width: 2px !important;">
-                <div class="card-header bg-info text-white py-3">
+                <div class="card-header bg-info text-white py-3 d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
                         <i class="ri-file-text-line me-2"></i>Input Invoice/Faktur Supplier
                     </h5>
+
+                    <button type="button" class="btn btn-light btn-sm" onclick="showInvoiceProofModal()">
+                         <i class="ri-image-line me-1"></i> 
+                         {{ $po->bukti_invoice ? 'Lihat Bukti Invoice': 'Upload Bukti Invoice' }} 
+                    </button>
                 </div>
                 <div class="card-body">
                     <div class="alert alert-info mb-3">
@@ -304,10 +310,21 @@
                         <h5 class="mb-0">
                             <i class="ri-file-check-line me-2"></i>Invoice/Faktur Supplier
                         </h5>
-                        <button type="button" class="btn btn-light btn-sm" onclick="showInvoiceProofModal()">
-                            <i class="ri-image-line me-1"></i>
-                            {{ $po->bukti_invoice ? 'Lihat Bukti Invoice' : 'Upload Bukti Invoice' }}
-                        </button>
+
+                        {{-- BUTTON LOGIC --}}
+                        @if(!$po->needsInvoice())
+                            @if(!$po->bukti_invoice)
+                                <button type="button" class="btn btn-warning btn-sm" onclick="showInvoiceProofModal()">
+                                    <i class="ri-upload-2-line me-1"></i>
+                                    Upload Bukti Invoice
+                                </button>
+                            @else
+                                <button type="button" class="btn btn-light btn-sm" onclick="showInvoiceProofModal()">
+                                    <i class="ri-image-line me-1"></i>
+                                    Lihat Bukti Invoice
+                                </button>
+                            @endif
+                        @endif
                     </div>
                     <div class="card-body">
                         <div class="row">
@@ -680,7 +697,18 @@
                                 <tr>
                                     <td><small>{{ $audit->tanggal_aksi->format('d/m/Y H:i:s') }}</small></td>
                                     <td><small>{{ $audit->karyawan->nama_lengkap ?? '-' }}</small></td>
-                                    <td><span class="badge badge-sm bg-secondary">{{ str_replace('_', ' ', $audit->aksi) }}</span></td>
+                                    <td>
+                                        <span class="badge badge-sm bg-secondary">
+                                            @php
+                                                $aksiText = $audit->aksi;
+                                                // Jika PO internal dan aksi adalah approval_kepala_gudang, ganti jadi approval_gudang
+                                                if ($po->tipe_po === 'internal' && str_contains($aksiText, 'approve_kepala_gudang')) {
+                                                    $aksiText = str_replace('approve_kepala_gudang', 'approve_gudang', $aksiText);
+                                                }
+                                                echo str_replace('_', ' ', $aksiText);
+                                            @endphp
+                                        </span>
+                                    </td>
                                     <td><small>{{ $audit->deskripsi_aksi }}</small></td>
                                 </tr>
                                 @endforeach
@@ -703,7 +731,11 @@
                     @php
                         $statusConfig = [
                             'draft' => ['color' => 'secondary', 'icon' => 'ri-draft-line', 'label' => 'Draft'],
-                            'menunggu_persetujuan_kepala_gudang' => ['color' => 'warning', 'icon' => 'ri-time-line', 'label' => 'Menunggu Kepala Gudang'],
+                            'menunggu_persetujuan_kepala_gudang' => [
+                                'color' => 'warning', 
+                                'icon' => 'ri-time-line', 
+                                'label' => $po->tipe_po === 'internal' ? 'Menunggu Persetujuan Gudang' : 'Menunggu Kepala Gudang'
+                            ],
                             'menunggu_persetujuan_kasir' => ['color' => 'warning', 'icon' => 'ri-time-line', 'label' => 'Menunggu Kasir'],
                             'dikirim' => ['color' => 'info', 'icon' => 'ri-truck-line', 'label' => 'Dikirim'],
                             'selesai' => ['color' => 'success', 'icon' => 'ri-checkbox-circle-line', 'label' => 'Selesai'],
@@ -731,7 +763,9 @@
                 <div class="card-body">
                     <!-- Kepala Gudang Approval -->
                     <div class="mb-3 pb-3 border-bottom">
-                        <label class="text-muted small mb-2">Kepala Gudang</label>
+                        <label class="text-muted small mb-2">
+                            {{ $po->tipe_po === 'internal' ? 'Gudang' : 'Kepala Gudang' }}
+                        </label>
                         @if($po->kepalaGudang)
                             <div class="d-flex align-items-center mb-2">
                                 <i class="ri-user-line me-2 text-primary"></i>
@@ -1802,7 +1836,13 @@
         
         // Update modal title and description
         const actionText = status === 'disetujui' ? 'Setujui' : 'Tolak';
-        const roleText = role === 'kepala_gudang' ? 'Kepala Gudang' : 'Kasir';
+        
+        // Dynamic role text - only for kepala_gudang role
+        const poType = '{{ $po->tipe_po }}';
+        const roleText = role === 'kepala_gudang' 
+            ? (poType === 'internal' ? 'Gudang' : 'Kepala Gudang')
+            : 'Kasir';
+        
         const titleText = `${actionText} Purchase Order - ${roleText}`;
         const descText = status === 'disetujui' 
             ? `Masukkan PIN untuk menyetujui PO ini sebagai ${roleText}` 

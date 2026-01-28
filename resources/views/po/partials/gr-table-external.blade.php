@@ -9,16 +9,25 @@
                 <th>Pemohon</th>
                 <th>Supplier</th>
                 <th width="150">Total</th>
-                <th width="150">Status</th>
+                <th width="200">Status</th>
                 <th width="100" class="text-center">Action</th>
             </tr>
         </thead>
         <tbody>
-            @foreach ($purchaseOrders as $po)
+            @forelse ($purchaseOrders as $po)
                 <tr>
                     <td class="text-center">{{ $loop->iteration }}</td>
                     <td>
                         <strong class="text-info">{{ $po->no_gr }}</strong>
+                        
+                        {{-- Indikator Invoice Status --}}
+                        @if($po->no_invoice)
+                            @if($po->isInvoiceComplete())
+                                <br><span class="badge badge-sm bg-success mt-1">✓ Invoice Lengkap</span>
+                            @else
+                                <br><span class="badge badge-sm bg-warning mt-1">⚠ Invoice Belum Lengkap</span>
+                            @endif
+                        @endif
                     </td>
                     <td>
                         <small class="text-muted">{{ $po->no_po }}</small>
@@ -58,6 +67,27 @@
                         <span class="badge bg-success">
                             <i class="ri-checkbox-circle-line"></i> Barang Diterima
                         </span>
+                        
+                        {{-- Status Invoice Detail --}}
+                        @if($po->no_invoice)
+                            <br>
+                            <small class="text-muted mt-1 d-block">
+                                Invoice: {{ $po->no_invoice }}
+                            </small>
+                            
+                            {{-- Tampilkan item yang kurang --}}
+                            @php
+                                $missing = $po->getMissingInvoiceItems();
+                            @endphp
+                            
+                            @if(count($missing) > 0)
+                                <div class="mt-1">
+                                    @foreach($missing as $item)
+                                        <span class="badge badge-sm bg-danger me-1 mb-1">✗ {{ $item }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
+                        @endif
                     </td>
                     <td class="text-center">
                         <div class="btn-group">
@@ -82,7 +112,14 @@
                         </div>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr>
+                    <td colspan="9" class="text-center py-5">
+                        <i class="ri-inbox-line ri-3x text-muted d-block mb-3"></i>
+                        <p class="text-muted mb-0">Belum ada Goods Receipt</p>
+                    </td>
+                </tr>
+            @endforelse
         </tbody>
     </table>
 </div>

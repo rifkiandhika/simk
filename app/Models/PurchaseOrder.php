@@ -113,6 +113,41 @@ class PurchaseOrder extends Model
 
         return false;
     }
+
+    public function isInvoiceComplete()
+    {
+        return !empty($this->no_invoice) &&
+            !empty($this->nomor_faktur_pajak) &&
+            !empty($this->no_kwitansi) &&
+            !empty($this->tanggal_invoice) &&
+            !empty($this->surat_jalan) &&
+            !empty($this->tanggal_surat_jalan) &&
+            !empty($this->tanggal_jatuh_tempo) &&
+            !empty($this->bukti_invoice) &&
+            !empty($this->bukti_barang);
+    }
+
+    public function hasIncompleteInvoice()
+    {
+        return !empty($this->no_invoice) && !$this->isInvoiceComplete();
+    }
+    public function getMissingInvoiceItems()
+    {
+        $missing = [];
+        
+        if (empty($this->no_invoice)) $missing[] = 'No Invoice';
+        if (empty($this->tanggal_invoice)) $missing[] = 'Tanggal Invoice';
+        if (empty($this->surat_jalan)) $missing[] = 'Surat Jalan';
+        if (empty($this->tanggal_surat_jalan)) $missing[] = 'Tanggal Surat Jalan';
+        if (empty($this->tanggal_jatuh_tempo)) $missing[] = 'Tanggal Jatuh Tempo';
+        if (empty($this->nomor_faktur_pajak)) $missing[] = 'Nomor Faktur Pajak';  // ✅ Ditambahkan
+        if (empty($this->no_kwitansi)) $missing[] = 'No Kwitansi';                // ✅ Ditambahkan
+        if (empty($this->bukti_invoice)) $missing[] = 'Bukti Invoice';
+        if (empty($this->bukti_barang)) $missing[] = 'Bukti Barang';
+        
+        return $missing;
+    }
+
     public function karyawanInputInvoice()
     {
         return $this->belongsTo(Karyawan::class, 'id_karyawan_input_invoice', 'id_karyawan');
@@ -147,12 +182,7 @@ class PurchaseOrder extends Model
     {
         return $this->status === 'selesai'
             && $this->tipe_po === 'eksternal'
-            && (
-                empty($this->no_invoice)
-                || empty($this->no_surat_jalan)
-                || empty($this->no_kwitansi)
-                || empty($this->nomor_faktur_pajak)
-            );
+            && !$this->isInvoiceComplete(); 
     }
 
 
