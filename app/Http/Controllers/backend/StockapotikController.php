@@ -393,6 +393,7 @@ class StockapotikController extends Controller
     {
         try {
             $query = StockApotik::with(['details.obat'])
+                ->whereHas('details')
                 ->orderBy('tanggal_penerimaan', 'desc');
 
             // Optional: Filter by apotik/unit
