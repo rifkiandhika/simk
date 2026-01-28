@@ -26,181 +26,87 @@
         </div>
     @endif
 
-    <!-- Action Buttons -->
-    <div class="row mb-3">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <a href="{{ route('returs.index') }}" class="btn btn-outline-secondary">
-                    <i class="ri-arrow-left-line me-1"></i>Kembali
-                </a>
-                
-                <div class="btn-group">
-                    @if($retur->status == 'draft')
-                        <a href="{{ route('returs.edit', $retur->id_retur) }}" class="btn btn-warning">
-                            <i class="ri-pencil-fill me-1"></i>Edit
-                        </a>
-                        <button type="button" class="btn btn-primary" onclick="showPinModal('submit')">
-                            <i class="ri-send-plane-line me-1"></i>Submit
-                        </button>
-                    @endif
-
-                    @if($retur->status == 'menunggu_persetujuan')
-                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal">
-                            <i class="ri-checkbox-circle-line me-1"></i>Setujui
-                        </button>
-                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                            <i class="ri-close-circle-line me-1"></i>Tolak
-                        </button>
-                    @endif
-
-                    @if($retur->status == 'disetujui')
-                        <button type="button" class="btn btn-info" onclick="showPinModal('process')">
-                            <i class="ri-loader-line me-1"></i>Proses
-                        </button>
-                    @endif
-
-                    @if($retur->status == 'diproses')
-                        <button type="button" class="btn btn-success" onclick="showPinModal('complete')">
-                            <i class="ri-check-double-line me-1"></i>Selesai
-                        </button>
-                    @endif
-
-                    @if(!in_array($retur->status, ['selesai', 'dibatalkan']))
-                        <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#cancelModal">
-                            <i class="ri-forbid-line me-1"></i>Batalkan
-                        </button>
-                    @endif
-
-                    <button onclick="window.print()" class="btn btn-outline-primary">
-                        <i class="ri-printer-line me-1"></i>Cetak
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <div class="row">
         <!-- Left Column -->
-        <div class="col-md-8">
-            <!-- Informasi Retur -->
+        <div class="col-xl-8">
+            <!-- Header Info Card -->
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-primary text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="ri-information-line me-2"></i>Informasi Retur
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h5 class="mb-1"><i class="ri-arrow-go-back-line me-2"></i>{{ $retur->no_retur }}</h5>
+                            <small>Dibuat: {{ \Carbon\Carbon::parse($retur->tanggal_retur)->format('d F Y, H:i') }}</small>
+                        </div>
+                        <div>
+                            @if($retur->tipe_retur == 'po')
+                                <span class="badge bg-info px-3 py-2">
+                                    <i class="ri-file-list-3-line"></i> Purchase Order
+                                </span>
+                            @else
+                                <span class="badge bg-light text-dark px-3 py-2">
+                                    <i class="ri-store-3-line"></i> Stock Apotik
+                                </span>
+                            @endif
+                        </div>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <th width="40%">No Retur</th>
-                                    <td>: <code class="text-primary fw-bold">{{ $retur->no_retur }}</code></td>
-                                </tr>
-                                <tr>
-                                    <th>Tipe Retur</th>
-                                    <td>: 
-                                        @if($retur->tipe_retur == 'po')
-                                            <span class="badge bg-info">
-                                                <i class="ri-file-list-3-line me-1"></i>Purchase Order
-                                            </span>
-                                        @else
-                                            <span class="badge bg-primary">
-                                                <i class="ri-store-3-line me-1"></i>Stock Apotik
-                                            </span>
-                                        @endif
-                                    </td>
-                                </tr>
-                                <tr>
-                                    <th>Kode Referensi</th>
-                                    <td>: <strong>{{ $retur->kode_referensi }}</strong></td>
-                                </tr>
-                                <tr>
-                                    <th>Tanggal Retur</th>
-                                    <td>: {{ \Carbon\Carbon::parse($retur->tanggal_retur)->format('d F Y') }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Status</th>
-                                    <td>: 
-                                        @php
-                                            $statusClass = [
-                                                'draft' => 'secondary',
-                                                'menunggu_persetujuan' => 'warning',
-                                                'disetujui' => 'info',
-                                                'ditolak' => 'danger',
-                                                'diproses' => 'primary',
-                                                'selesai' => 'success',
-                                                'dibatalkan' => 'dark'
-                                            ];
-                                            $statusIcon = [
-                                                'draft' => 'ri-draft-line',
-                                                'menunggu_persetujuan' => 'ri-time-line',
-                                                'disetujui' => 'ri-checkbox-circle-line',
-                                                'ditolak' => 'ri-close-circle-line',
-                                                'diproses' => 'ri-loader-line',
-                                                'selesai' => 'ri-check-double-line',
-                                                'dibatalkan' => 'ri-forbid-line'
-                                            ];
-                                        @endphp
-                                        <span class="badge bg-{{ $statusClass[$retur->status] ?? 'secondary' }} fs-6">
-                                            <i class="{{ $statusIcon[$retur->status] ?? 'ri-information-line' }} me-1"></i>
-                                            {{ str_replace('_', ' ', strtoupper($retur->status)) }}
-                                        </span>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                        <div class="col-md-6">
-                            <table class="table table-sm table-borderless">
-                                <tr>
-                                    <th width="40%">Alasan Retur</th>
-                                    <td>: {{ str_replace('_', ' ', ucwords($retur->alasan_retur)) }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Pelapor</th>
-                                    <td>: {{ $retur->karyawanPelapor->nama_lengkap ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <th>NIP Pelapor</th>
-                                    <td>: {{ $retur->karyawanPelapor->nip ?? '-' }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Unit Pelapor</th>
-                                    <td>: {{ ucfirst($retur->unit_pelapor) }}</td>
-                                </tr>
-                                <tr>
-                                    <th>Unit Tujuan</th>
-                                    <td>: {{ $retur->unit_tujuan ? ucfirst($retur->unit_tujuan) : '-' }}</td>
-                                </tr>
-                                @if($retur->supplier)
-                                <tr>
-                                    <th>Supplier</th>
-                                    <td>: {{ $retur->supplier->nama_supplier ?? $retur->supplier->nama }}</td>
-                                </tr>
-                                @endif
-                            </table>
-                        </div>
-                    </div>
-                    
-                    @if($retur->keterangan_alasan)
-                    <div class="row mt-3">
-                        <div class="col-md-12">
-                            <div class="alert alert-info mb-0">
-                                <strong><i class="ri-information-line me-2"></i>Keterangan Alasan:</strong><br>
-                                {{ $retur->keterangan_alasan }}
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small mb-1">Pelapor</label>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2">
+                                    <span class="avatar-title rounded-circle bg-soft-primary text-primary">
+                                        <i class="ri-user-line fs-5"></i>
+                                    </span>
+                                </div>
+                                <div>
+                                    <strong>{{ $retur->karyawanPelapor->nama_lengkap ?? '-' }}</strong>
+                                    <br><small class="text-muted">{{ ucfirst($retur->unit_pelapor) }}</small>
+                                </div>
                             </div>
                         </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small mb-1">Tujuan</label>
+                            <div>
+                                @if($retur->supplier)
+                                    <strong class="text-primary">{{ $retur->supplier->nama_supplier ?? $retur->supplier->nama }}</strong>
+                                    <br><small class="text-muted">Supplier</small>
+                                @else
+                                    <strong class="text-primary">{{ $retur->unit_tujuan ? ucfirst($retur->unit_tujuan) : '-' }}</strong>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small mb-1">Kode Referensi</label>
+                            <div>
+                                <strong>{{ $retur->kode_referensi }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="text-muted small mb-1">Alasan Retur</label>
+                            <div>
+                                <span class="badge bg-warning text-dark">
+                                    {{ str_replace('_', ' ', ucwords($retur->alasan_retur)) }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    @if($retur->keterangan_alasan)
+                    <div class="alert alert-info mb-0">
+                        <i class="ri-information-line me-2"></i>
+                        <strong>Keterangan Alasan:</strong> {{ $retur->keterangan_alasan }}
                     </div>
                     @endif
 
                     @if($retur->catatan)
-                    <div class="row mt-2">
-                        <div class="col-md-12">
-                            <div class="alert alert-secondary mb-0">
-                                <strong><i class="ri-sticky-note-line me-2"></i>Catatan:</strong><br>
-                                {{ $retur->catatan }}
-                            </div>
-                        </div>
+                    <div class="alert alert-secondary mb-0 mt-2">
+                        <i class="ri-sticky-note-line me-2"></i>
+                        <strong>Catatan:</strong> {{ $retur->catatan }}
                     </div>
                     @endif
                 </div>
@@ -208,14 +114,12 @@
 
             <!-- Item Retur -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-success text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="ri-box-3-line me-2"></i>Item Retur
-                    </h5>
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="ri-box-3-line me-2"></i>Item Retur</h5>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-s table-striped table-hover align-middle">
+                        <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th width="5%">No</th>
@@ -285,7 +189,7 @@
                                 @endif
                                 @endforeach
                             </tbody>
-                            <tfoot class="table-secondary">
+                            <tfoot class="table-light">
                                 <tr>
                                     <th colspan="5" class="text-end">TOTAL:</th>
                                     <th class="text-end">
@@ -305,42 +209,39 @@
 
             <!-- History -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-info text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="ri-history-line me-2"></i>History Perubahan Status
-                    </h5>
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="ri-history-line me-2"></i>History Perubahan Status</h5>
                 </div>
                 <div class="card-body">
                     @if($retur->histories && $retur->histories->isNotEmpty())
                     <div class="timeline">
                         @foreach($retur->histories as $history)
-                        <div class="timeline-item mb-3 d-flex">
-                            <div class="flex-shrink-0 me-3">
-                                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" 
-                                     style="width: 40px; height: 40px;">
-                                    <i class="ri-time-line"></i>
+                        <div class="timeline-item mb-3">
+                            <div class="timeline-marker bg-primary"></div>
+                            <div class="timeline-content">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">
+                                            <span class="badge bg-info">{{ str_replace('_', ' ', ucwords($history->status_ke)) }}</span>
+                                        </h6>
+                                        <p class="mb-1">
+                                            <small class="text-muted">
+                                                <i class="ri-user-line me-1"></i>
+                                                Oleh: <strong>{{ $history->karyawan->nama_lengkap ?? '-' }}</strong>
+                                            </small>
+                                        </p>
+                                        @if($history->catatan)
+                                        <p class="mb-0">
+                                            <small>{{ $history->catatan }}</small>
+                                        </p>
+                                        @endif
+                                    </div>
+                                    <div class="text-end">
+                                        <small class="text-muted">
+                                            {{ \Carbon\Carbon::parse($history->waktu_perubahan ?? $history->created_at)->format('d/m/Y H:i') }}
+                                        </small>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="flex-grow-1">
-                                <div class="d-flex justify-content-between">
-                                    <h6 class="mb-1">
-                                        {{ str_replace('_', ' ', ucwords($history->status_ke)) }}
-                                    </h6>
-                                    <small class="text-muted">
-                                        {{ \Carbon\Carbon::parse($history->waktu_perubahan ?? $history->created_at)->format('d/m/Y H:i') }}
-                                    </small>
-                                </div>
-                                <p class="text-muted mb-1">
-                                    <small>
-                                        <i class="ri-user-line me-1"></i>
-                                        Oleh: <strong>{{ $history->karyawan->nama_lengkap ?? '-' }}</strong>
-                                    </small>
-                                </p>
-                                @if($history->catatan)
-                                <p class="mb-0">
-                                    <small>{{ $history->catatan }}</small>
-                                </p>
-                                @endif
                             </div>
                         </div>
                         @endforeach
@@ -355,49 +256,32 @@
             </div>
         </div>
 
-        <!-- Right Column -->
-        <div class="col-md-4">
-            <!-- Status Approval -->
-            @if(isset($retur->status_approval) && $retur->status_approval != 'pending')
+        <!-- Right Column - Status & Actions -->
+        <div class="col-xl-4">
+            <!-- Status Card -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header {{ $retur->status_approval == 'disetujui' ? 'bg-success' : 'bg-danger' }} text-white py-3">
-                    <h5 class="mb-0">
-                        <i class="ri-{{ $retur->status_approval == 'disetujui' ? 'checkbox-circle' : 'close-circle' }}-line me-2"></i> 
-                        Status Approval
-                    </h5>
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="ri-status-line me-2"></i>Status Retur</h5>
                 </div>
-                <div class="card-body">
-                    <table class="table table-sm table-borderless">
-                        <tr>
-                            <th>Status</th>
-                            <td>: 
-                                <span class="badge bg-{{ $retur->status_approval == 'disetujui' ? 'success' : 'danger' }}">
-                                    {{ ucfirst($retur->status_approval) }}
-                                </span>
-                            </td>
-                        </tr>
-                        @if($retur->karyawanApproval)
-                        <tr>
-                            <th>Oleh</th>
-                            <td>: {{ $retur->karyawanApproval->nama_lengkap }}</td>
-                        </tr>
-                        @endif
-                        @if($retur->tanggal_approval)
-                        <tr>
-                            <th>Tanggal</th>
-                            <td>: {{ \Carbon\Carbon::parse($retur->tanggal_approval)->format('d/m/Y H:i') }}</td>
-                        </tr>
-                        @endif
-                    </table>
-                    @if($retur->catatan_approval)
-                    <div class="alert alert-light mt-2 mb-0">
-                        <strong>Catatan:</strong><br>
-                        {{ $retur->catatan_approval }}
+                <div class="card-body text-center">
+                    @php
+                        $statusConfig = [
+                            'draft' => ['color' => 'secondary', 'icon' => 'ri-draft-line', 'label' => 'Draft'],
+                            'menunggu_persetujuan' => ['color' => 'warning', 'icon' => 'ri-time-line', 'label' => 'Menunggu Persetujuan'],
+                            'disetujui' => ['color' => 'success', 'icon' => 'ri-checkbox-circle-line', 'label' => 'Disetujui'],
+                            'ditolak' => ['color' => 'danger', 'icon' => 'ri-close-circle-line', 'label' => 'Ditolak'],
+                            'diproses' => ['color' => 'info', 'icon' => 'ri-loader-line', 'label' => 'Diproses'],
+                            'selesai' => ['color' => 'success', 'icon' => 'ri-check-double-line', 'label' => 'Selesai'],
+                            'dibatalkan' => ['color' => 'dark', 'icon' => 'ri-forbid-line', 'label' => 'Dibatalkan']
+                        ];
+                        $currentStatus = $statusConfig[$retur->status] ?? ['color' => 'secondary', 'icon' => 'ri-question-line', 'label' => $retur->status];
+                    @endphp
+                    <div class="mb-3">
+                        <i class="{{ $currentStatus['icon'] }} text-{{ $currentStatus['color'] }}" style="font-size: 4rem;"></i>
                     </div>
-                    @endif
+                    <h4 class="text-{{ $currentStatus['color'] }}">{{ $currentStatus['label'] }}</h4>
                 </div>
             </div>
-            @endif
 
             <!-- Dokumen Pendukung -->
             <div class="card shadow-sm border-0 mb-4">
@@ -442,10 +326,106 @@
                 </div>
             </div>
 
+            <!-- Actions Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
+                    <h5 class="mb-0"><i class="ri-tools-line me-2"></i>Aksi</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ route('returs.index') }}" class="btn btn-outline-secondary">
+                            <i class="ri-arrow-left-line me-1"></i> Kembali
+                        </a>
+
+                        @if($retur->status == 'draft')
+                            <a href="{{ route('returs.edit', $retur->id_retur) }}" class="btn btn-outline-info">
+                                <i class="ri-pencil-fill me-1"></i>Edit
+                            </a>
+                            <button type="button" class="btn btn-primary" onclick="showPinModal('submit')">
+                                <i class="ri-send-plane-line me-1"></i>Submit
+                            </button>
+                        @endif
+
+                        @if($retur->status == 'menunggu_persetujuan')
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#approveModal">
+                                <i class="ri-checkbox-circle-line me-1"></i>Setujui
+                            </button>
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#rejectModal">
+                                <i class="ri-close-circle-line me-1"></i>Tolak
+                            </button>
+                        @endif
+
+                        @if($retur->status == 'disetujui')
+                            <button type="button" class="btn btn-info" onclick="showPinModal('process')">
+                                <i class="ri-loader-line me-1"></i>Proses
+                            </button>
+                        @endif
+
+                        @if($retur->status == 'diproses')
+                            <button type="button" class="btn btn-success" onclick="showPinModal('complete')">
+                                <i class="ri-check-double-line me-1"></i>Selesai
+                            </button>
+                        @endif
+
+                        @if(!in_array($retur->status, ['selesai', 'dibatalkan']))
+                            <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                <i class="ri-forbid-line me-1"></i>Batalkan
+                            </button>
+                        @endif
+
+                        {{-- <button onclick="window.print()" class="btn btn-outline-primary">
+                            <i class="ri-printer-line me-1"></i>Cetak
+                        </button> --}}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Approval -->
+            @if(isset($retur->status_approval) && $retur->status_approval != 'pending')
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header {{ $retur->status_approval == 'disetujui' ? 'bg-success' : 'bg-danger' }} text-white py-3">
+                    <h5 class="mb-0">
+                        <i class="ri-{{ $retur->status_approval == 'disetujui' ? 'checkbox-circle' : 'close-circle' }}-line me-2"></i> 
+                        Status Approval
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless">
+                        <tr>
+                            <th>Status</th>
+                            <td>: 
+                                <span class="badge bg-{{ $retur->status_approval == 'disetujui' ? 'success' : 'danger' }}">
+                                    {{ ucfirst($retur->status_approval) }}
+                                </span>
+                            </td>
+                        </tr>
+                        @if($retur->karyawanApproval)
+                        <tr>
+                            <th>Oleh</th>
+                            <td>: {{ $retur->karyawanApproval->nama_lengkap }}</td>
+                        </tr>
+                        @endif
+                        @if($retur->tanggal_approval)
+                        <tr>
+                            <th>Tanggal</th>
+                            <td>: {{ \Carbon\Carbon::parse($retur->tanggal_approval)->format('d/m/Y H:i') }}</td>
+                        </tr>
+                        @endif
+                    </table>
+                    @if($retur->catatan_approval)
+                    <div class="alert alert-light mt-2 mb-0">
+                        <strong>Catatan:</strong><br>
+                        {{ $retur->catatan_approval }}
+                    </div>
+                    @endif
+                </div>
+            </div>
+            @endif
+
             <!-- Processing Info -->
             @if(isset($retur->tanggal_diproses) && $retur->tanggal_diproses)
-            <div class="card shadow-sm border-0">
-                <div class="card-header bg-warning text-dark py-3">
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white py-3">
                     <h5 class="mb-0">
                         <i class="ri-information-line me-2"></i>Info Pemrosesan
                     </h5>
@@ -470,6 +450,7 @@
                 </div>
             </div>
             @endif
+
         </div>
     </div>
 </div>
@@ -659,23 +640,53 @@
         font-size: 0.875rem;
     }
 
+    /* Timeline Styles */
+    .timeline {
+        position: relative;
+        padding-left: 30px;
+    }
     .timeline-item {
         position: relative;
-        padding-left: 0;
     }
-
-    .timeline-item:not(:last-child)::before {
+    .timeline-marker {
+        position: absolute;
+        left: -30px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 0 0 2px #0d6efd;
+    }
+    .timeline-item:before {
         content: '';
         position: absolute;
-        left: 19px;
-        top: 40px;
-        bottom: -20px;
+        left: -24px;
+        top: 17px;
+        bottom: -17px;
         width: 2px;
-        background-color: #e9ecef;
+        background: #dee2e6;
+    }
+    .timeline-item:last-child:before {
+        display: none;
+    }
+    .timeline-content {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 3px solid #0d6efd;
     }
     
-    .table-s {
-        border: 1px solid #ced4da !important;
+    .avatar-sm {
+        width: 3rem;
+        height: 3rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .bg-soft-primary {
+        background-color: rgba(13, 110, 253, 0.1);
     }
 
     /* OTP-style PIN Input Styles */
@@ -949,7 +960,7 @@ function showPinModal(action) {
 }
 
 // ============================================
-// SUBMIT FORMS FROM MODALS (Cancel & Upload)
+// SUBMIT FORMS FROM MODALS
 // ============================================
 function submitCancelForm() {
     const reason = document.getElementById('cancelReason').value.trim();
@@ -1037,10 +1048,6 @@ function submitRejectForm() {
         showPinModal('reject');
     }, 300);
 }
-
-// ============================================
-// ACTION HANDLERS (Langsung tampilkan PIN modal)
-// ============================================
 
 // ============================================
 // PIN CONFIRMATION & VERIFICATION

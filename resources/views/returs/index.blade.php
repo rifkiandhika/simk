@@ -177,7 +177,7 @@
                             <thead class="table-light">
                                 <tr>
                                     <th width="50">No</th>
-                                    <th width="130">No Retur</th>
+                                    <th width="180">No Retur</th>
                                     <th width="100">Tipe</th>
                                     <th width="130">Kode Referensi</th>
                                     <th width="100">Tanggal</th>
@@ -225,7 +225,7 @@
                                                 {{ str_replace('_', ' ', ucwords($retur->alasan_retur)) }}
                                             </small>
                                         </td>
-                                        <td class="text-end">
+                                        <td>
                                             <strong class="text-success">Rp {{ number_format($retur->total_nilai_retur, 0, ',', '.') }}</strong>
                                         </td>
                                         <td>
