@@ -2,8 +2,8 @@
     <table class="table table-hover table-striped align-middle" id="{{ $tableId }}">
         <thead class="table-light">
             <tr>
-                <th width="50">No</th>
-                <th>No PO</th>
+                <th>No</th>
+                <th width="180">No PO</th>
                 <th>Tanggal</th>
                 <th>Pemohon</th>
                 <th>Tujuan</th>
@@ -68,7 +68,21 @@
                                 'diterima' => 'bg-success',
                                 'ditolak' => 'bg-danger',
                             ];
-                            $statusLabels = [
+                            
+                            // Label status untuk PO internal
+                            $statusLabelsInternal = [
+                                'draft' => 'Draft',
+                                'menunggu_persetujuan_kepala_gudang' => 'Menunggu Gudang',
+                                'menunggu_persetujuan_kasir' => 'Menunggu Kasir',
+                                'disetujui' => 'Disetujui',
+                                'dikirim_ke_supplier' => 'Dikirim ke Supplier',
+                                'dalam_pengiriman' => 'Dalam Pengiriman',
+                                'diterima' => 'Diterima',
+                                'ditolak' => 'Ditolak',
+                            ];
+                            
+                            // Label status untuk PO eksternal
+                            $statusLabelsExternal = [
                                 'draft' => 'Draft',
                                 'menunggu_persetujuan_kepala_gudang' => 'Menunggu Kepala Gudang',
                                 'menunggu_persetujuan_kasir' => 'Menunggu Kasir',
@@ -78,6 +92,9 @@
                                 'diterima' => 'Diterima',
                                 'ditolak' => 'Ditolak',
                             ];
+                            
+                            // Pilih label berdasarkan tipe PO
+                            $statusLabels = $po->tipe_po == 'internal' ? $statusLabelsInternal : $statusLabelsExternal;
                         @endphp
                         <span class="badge {{ $statusColors[$po->status] ?? 'bg-secondary' }}">
                             <i class="ri-record-circle-line"></i> {{ $statusLabels[$po->status] ?? $po->status }}

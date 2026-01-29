@@ -770,7 +770,7 @@ class PurchaseOrderController extends Controller
                     'no_gr' => $noGR,
                 ]);
 
-                $deskripsi = "Kepala Gudang menyetujui PO Internal dengan nomor GR: {$noGR} - Barang siap dikirim dari Gudang ke Apotik";
+                $deskripsi = "Gudang menyetujui PO Internal dengan nomor GR: {$noGR} - Barang siap dikirim dari Gudang ke Apotik";
 
                 Log::info('PO Internal Approved with GR', [
                     'po_id' => $po->id_po,
@@ -799,7 +799,7 @@ class PurchaseOrderController extends Controller
 
             $message = $po->tipe_po === 'internal' 
                 ? "Approval Gudang berhasil. Nomor GR: {$po->no_gr}. Barang siap dikirim ke Apotik."
-                : 'Approval Gudang berhasil';
+                : 'Approval Kepala Gudang berhasil';
 
             return response()->json([
                 'message' => $message,
@@ -1255,11 +1255,11 @@ class PurchaseOrderController extends Controller
                 }
 
                 // Validasi: Hanya PO yang sudah ada invoice yang bisa upload bukti
-                if (!$po->hasInvoice()) {
-                    return response()->json([
-                        'error' => 'Invoice belum diinput. Silakan input invoice terlebih dahulu.'
-                    ], 400);
-                }
+                // if (!$po->hasInvoice()) {
+                //     return response()->json([
+                //         'error' => 'Invoice belum diinput. Silakan input invoice terlebih dahulu.'
+                //     ], 400);
+                // }
 
                 DB::beginTransaction();
                 try {
