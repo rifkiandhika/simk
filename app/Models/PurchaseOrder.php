@@ -94,6 +94,54 @@ class PurchaseOrder extends Model
     {
         return !empty($this->bukti_invoice);
     }
+
+    public function proofs()
+    {
+        return $this->hasMany(PoProof::class, 'id_po', 'id_po');
+    }
+
+    public function activeProofs()
+    {
+        return $this->hasMany(PoProof::class, 'id_po', 'id_po')->where('is_active', true);
+    }
+
+    public function invoiceProofs()
+    {
+        return $this->hasMany(PoProof::class, 'id_po', 'id_po')
+            ->where('tipe_bukti', 'invoice')
+            ->where('is_active', true)
+            ->latest('tanggal_upload');
+    }
+
+    public function barangProofs()
+    {
+        return $this->hasMany(PoProof::class, 'id_po', 'id_po')
+            ->where('tipe_bukti', 'barang')
+            ->where('is_active', true)
+            ->latest('tanggal_upload');
+    }
+
+    // Helper methods
+    public function hasInvoiceProof()
+    {
+        return $this->invoiceProofs()->exists();
+    }
+
+    public function hasBarangProof()
+    {
+        return $this->barangProofs()->exists();
+    }
+
+    public function getLatestInvoiceProof()
+    {
+        return $this->invoiceProofs()->first();
+    }
+
+    public function getLatestBarangProof()
+    {
+        return $this->barangProofs()->first();
+    }
+
     public function needsReceiptConfirmation()
     {
         // Internal: selesai tapi belum diterima

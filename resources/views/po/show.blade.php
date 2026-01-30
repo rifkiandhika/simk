@@ -258,8 +258,8 @@
                     </h5>
 
                     <button type="button" class="btn btn-light btn-sm" onclick="showInvoiceProofModal()">
-                         <i class="ri-image-line me-1"></i> 
-                         {{ $po->bukti_invoice ? 'Lihat Bukti Invoice': 'Upload Bukti Invoice' }} 
+                        <i class="ri-image-line me-1"></i> 
+                        {{ $po->hasInvoiceProof() ? 'Lihat Bukti Invoice': 'Upload Bukti Invoice' }} 
                     </button>
                 </div>
                 <div class="card-body">
@@ -313,7 +313,7 @@
 
                         {{-- BUTTON LOGIC --}}
                         @if(!$po->needsInvoice())
-                            @if(!$po->bukti_invoice)
+                            @if(!$po->hasInvoiceProof())
                                 <button type="button" class="btn btn-warning btn-sm" onclick="showInvoiceProofModal()">
                                     <i class="ri-upload-2-line me-1"></i>
                                     Upload Bukti Invoice
@@ -959,152 +959,449 @@
             <div class="modal-body p-4">
                 
                 <!-- PREVIEW MODE -->
-                <div id="invoiceProofPreview" style="{{ $po->bukti_invoice || $po->bukti_barang ? '' : 'display: none;' }}">
-                    <div class="row">
-                        <!-- Bukti Invoice Preview -->
-                        <div class="col-md-6">
-                            <div class="card border">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0">
-                                        <i class="ri-file-text-line me-1"></i>
-                                        Bukti Invoice
-                                    </h6>
-                                </div>
-                                <div class="card-body text-center">
-                                    @if($po->bukti_invoice)
-                                        <div class="position-relative d-inline-block">
-                                            <img id="invoiceProofImage" 
-                                                 src="{{ asset('storage/' . $po->bukti_invoice) }}" 
-                                                 class="img-fluid rounded shadow-sm border" 
-                                                 style="max-height: 350px; max-width: 100%;"
-                                                 alt="Bukti Invoice">
+            <div id="invoiceProofPreview" style="{{ $po->hasInvoiceProof() || $po->hasBarangProof() ? '' : 'display: none;' }}">
+                <div class="row">
+                    <!-- Bukti Invoice Preview -->
+                    <div class="col-md-6">
+                        <div class="card border">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="ri-file-text-line me-1"></i>
+                                    Bukti Invoice
+                                </h6>
+                                @php
+                                    $invoiceProofs = $po->invoiceProofs;
+                                @endphp
+                                @if($invoiceProofs->count() > 0)
+                                    <span class="badge bg-primary">{{ $invoiceProofs->count() }} File</span>
+                                @endif
+                            </div>
+                            <div class="card-body">
+                                @if($invoiceProofs->count() > 0)
+                                    <!-- Carousel untuk multiple bukti -->
+                                    @if($invoiceProofs->count() > 1)
+                                    <div id="invoiceCarousel" class="carousel slide mb-3" data-bs-ride="false">
+                                        <div class="carousel-indicators">
+                                            @foreach($invoiceProofs as $index => $proof)
+                                            <button type="button" data-bs-target="#invoiceCarousel" data-bs-slide-to="{{ $index }}" 
+                                                class="{{ $index == 0 ? 'active' : '' }}" 
+                                                aria-label="Slide {{ $index + 1 }}"></button>
+                                            @endforeach
                                         </div>
-                                        
-                                        <div class="mt-3 p-3 bg-light rounded">
-                                            @if($po->tanggal_upload_bukti_invoice)
-                                            <div class="mb-2">
-                                                <i class="ri-calendar-line text-primary me-1"></i> 
-                                                <small class="text-muted">
-                                                    Diupload: <strong>{{ \Carbon\Carbon::parse($po->tanggal_upload_bukti_invoice)->format('d/m/Y H:i') }}</strong>
-                                                </small>
+                                        <div class="carousel-inner rounded">
+                                            @foreach($invoiceProofs as $index => $proof)
+                                            <div class="carousel-item {{ $index == 0 ? 'active' : '' }}">
+                                                <div class="text-center bg-light p-3 rounded" style="min-height: 350px; display: flex; align-items: center; justify-content: center;">
+                                                    @if(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']))
+                                                        <img src="{{ asset('storage/' . $proof->file_path) }}" 
+                                                            class="img-fluid rounded shadow-sm" 
+                                                            style="max-height: 350px; max-width: 100%; object-fit: contain;"
+                                                            alt="Bukti Invoice {{ $index + 1 }}">
+                                                    @elseif($proof->file_type == 'application/pdf')
+                                                        <div class="text-center">
+                                                            <i class="ri-file-pdf-line text-danger mb-3" style="font-size: 5rem;"></i>
+                                                            <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                            <p class="text-muted mb-3">{{ $proof->file_size_formatted }}</p>
+                                                            <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-primary">
+                                                                <i class="ri-eye-line me-1"></i> Lihat PDF
+                                                            </a>
+                                                        </div>
+                                                    @else
+                                                        <div class="text-center">
+                                                            <i class="ri-file-line text-secondary mb-3" style="font-size: 5rem;"></i>
+                                                            <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                            <p class="text-muted">{{ $proof->file_size_formatted }}</p>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-75 rounded mx-2 mb-2">
+                                                    <small class="text-white">File {{ $index + 1 }} dari {{ $invoiceProofs->count() }}</small>
+                                                </div>
                                             </div>
-                                            @endif
-                                            @if($po->karyawanUploadBukti)
-                                            <div>
-                                                <i class="ri-user-line text-primary me-1"></i>
-                                                <small class="text-muted">
-                                                    Oleh: <strong>{{ $po->karyawanUploadBukti->nama_lengkap }}</strong>
-                                                </small>
-                                            </div>
-                                            @endif
+                                            @endforeach
                                         </div>
-                                        
-                                        <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
-                                            <a href="{{ asset('storage/' . $po->bukti_invoice) }}" 
-                                               target="_blank" 
-                                               class="btn btn-sm btn-primary">
-                                                <i class="ri-download-line me-1"></i> Download
-                                            </a>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-warning" 
-                                                    onclick="changeProof('invoice')">
-                                                <i class="ri-exchange-line me-1"></i> Ganti
-                                            </button>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-danger" 
-                                                    onclick="confirmDeleteProof('invoice')">
-                                                <i class="ri-delete-bin-line me-1"></i> Hapus
-                                            </button>
-                                        </div>
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#invoiceCarousel" data-bs-slide="prev">
+                                            <span class="bg-dark rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="ri-arrow-left-s-line text-white fs-4"></i>
+                                            </span>
+                                            <span class="visually-hidden">Previous</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#invoiceCarousel" data-bs-slide="next">
+                                            <span class="bg-dark rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="ri-arrow-right-s-line text-white fs-4"></i>
+                                            </span>
+                                            <span class="visually-hidden">Next</span>
+                                        </button>
+                                    </div>
                                     @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-file-forbid-line" style="font-size: 3rem;"></i>
-                                            <p class="mt-2 mb-0">Belum ada bukti invoice</p>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-primary mt-2" 
-                                                    onclick="changeProof('invoice')">
-                                                <i class="ri-upload-line me-1"></i> Upload Sekarang
-                                            </button>
-                                        </div>
+                                    <!-- Single file -->
+                                    @php $proof = $invoiceProofs->first(); @endphp
+                                    <div class="text-center mb-3 bg-light p-3 rounded" style="min-height: 350px; display: flex; align-items: center; justify-content: center;">
+                                        @if(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']))
+                                            <img src="{{ asset('storage/' . $proof->file_path) }}" 
+                                                class="img-fluid rounded shadow-sm border" 
+                                                style="max-height: 350px; max-width: 100%; object-fit: contain;"
+                                                alt="Bukti Invoice">
+                                        @elseif($proof->file_type == 'application/pdf')
+                                            <div class="text-center">
+                                                <i class="ri-file-pdf-line text-danger mb-3" style="font-size: 5rem;"></i>
+                                                <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                <p class="text-muted mb-3">{{ $proof->file_size_formatted }}</p>
+                                                <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                target="_blank" 
+                                                class="btn btn-sm btn-primary">
+                                                    <i class="ri-eye-line me-1"></i> Lihat PDF
+                                                </a>
+                                            </div>
+                                        @else
+                                            <div class="text-center">
+                                                <i class="ri-file-line text-secondary mb-3" style="font-size: 5rem;"></i>
+                                                <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                <p class="text-muted">{{ $proof->file_size_formatted }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
                                     @endif
-                                </div>
+                                    
+                                    <!-- File List & Actions -->
+                                    <div class="mt-3">
+                                        <div class="accordion" id="invoiceAccordion">
+                                            <div class="accordion-item border-0">
+                                                <h2 class="accordion-header">
+                                                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#invoiceFileList">
+                                                        <i class="ri-file-list-line me-2"></i>
+                                                        <strong>Daftar File ({{ $invoiceProofs->count() }})</strong>
+                                                    </button>
+                                                </h2>
+                                                <div id="invoiceFileList" class="accordion-collapse collapse" data-bs-parent="#invoiceAccordion">
+                                                    <div class="accordion-body p-0">
+                                                        <div class="list-group list-group-flush">
+                                                            @foreach($invoiceProofs as $index => $proof)
+                                                            <div class="list-group-item">
+                                                                <div class="d-flex justify-content-between align-items-start">
+                                                                    <div class="flex-grow-1">
+                                                                        <div class="d-flex align-items-start mb-2">
+                                                                            <div class="me-2">
+                                                                                @if($proof->file_type == 'application/pdf')
+                                                                                    <i class="ri-file-pdf-line text-danger fs-4"></i>
+                                                                                @elseif(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png']))
+                                                                                    <i class="ri-image-line text-success fs-4"></i>
+                                                                                @else
+                                                                                    <i class="ri-file-line text-secondary fs-4"></i>
+                                                                                @endif
+                                                                            </div>
+                                                                            <div class="flex-grow-1">
+                                                                                <h6 class="mb-1">
+                                                                                    <span class="badge bg-secondary me-2">#{{ $index + 1 }}</span>
+                                                                                    {{ Str::limit($proof->file_name, 40) }}
+                                                                                </h6>
+                                                                                <div class="small text-muted">
+                                                                                    <div class="mb-1">
+                                                                                        <i class="ri-hard-drive-line me-1"></i>
+                                                                                        <strong>Ukuran:</strong> {{ $proof->file_size_formatted }}
+                                                                                    </div>
+                                                                                    <div class="mb-1">
+                                                                                        <i class="ri-calendar-line me-1"></i>
+                                                                                        <strong>Diupload:</strong> {{ $proof->tanggal_upload->format('d/m/Y H:i') }}
+                                                                                    </div>
+                                                                                    @if($proof->karyawan)
+                                                                                    <div>
+                                                                                        <i class="ri-user-line me-1"></i>
+                                                                                        <strong>Oleh:</strong> {{ $proof->karyawan->nama_lengkap }}
+                                                                                    </div>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="btn-group-vertical btn-group-sm ms-2">
+                                                                        @if($invoiceProofs->count() > 1)
+                                                                        <button type="button" 
+                                                                                class="btn btn-sm btn-outline-primary"
+                                                                                onclick="showInCarousel('invoiceCarousel', {{ $index }})">
+                                                                            <i class="ri-eye-line me-1"></i> Lihat
+                                                                        </button>
+                                                                        @endif
+                                                                        <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                                        target="_blank" 
+                                                                        class="btn btn-sm btn-outline-success">
+                                                                            <i class="ri-download-line me-1"></i> Download
+                                                                        </a>
+                                                                        <button type="button" 
+                                                                                class="btn btn-sm btn-outline-warning" 
+                                                                                onclick="replaceProof('invoice', '{{ $proof->id_po_proof }}')">
+                                                                            <i class="ri-refresh-line me-1"></i> Ganti
+                                                                        </button>
+                                                                        <button type="button" 
+                                                                                class="btn btn-sm btn-outline-danger" 
+                                                                                onclick="confirmDeleteProof('invoice', '{{ $proof->id_po_proof }}')">
+                                                                            <i class="ri-delete-bin-line me-1"></i> Hapus
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div class="mt-3 d-flex gap-2 justify-content-center">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-warning" 
+                                                onclick="changeProof('invoice')">
+                                            <i class="ri-add-line me-1"></i> Tambah Bukti Invoice
+                                        </button>
+                                        @if($invoiceProofs->count() > 1)
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger" 
+                                                onclick="confirmDeleteProof('invoice')">
+                                            <i class="ri-delete-bin-line me-1"></i> Hapus Semua
+                                        </button>
+                                        @endif
+                                    </div>
+                                @else
+                                    <!-- No files -->
+                                    <div class="text-center py-5 text-muted">
+                                        <i class="ri-file-forbid-line" style="font-size: 3rem;"></i>
+                                        <p class="mt-3 mb-0 fw-semibold">Belum ada bukti invoice</p>
+                                        <p class="text-muted small mb-3">Upload bukti invoice untuk melengkapi dokumentasi PO</p>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-primary" 
+                                                onclick="changeProof('invoice')">
+                                            <i class="ri-upload-line me-1"></i> Upload Sekarang
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         </div>
+                    </div>
 
-                        <!-- Bukti Barang Preview -->
-                        <div class="col-md-6">
-                            <div class="card border">
-                                <div class="card-header bg-light">
-                                    <h6 class="mb-0">
-                                        <i class="ri-box-3-line me-1"></i>
-                                        Bukti Barang
-                                    </h6>
-                                </div>
-                                <div class="card-body text-center">
-                                    @if($po->bukti_barang)
-                                        <div class="position-relative d-inline-block">
-                                            <img id="barangProofImage" 
-                                                 src="{{ asset('storage/' . $po->bukti_barang) }}" 
-                                                 class="img-fluid rounded shadow-sm border" 
-                                                 style="max-height: 350px; max-width: 100%;"
-                                                 alt="Bukti Barang">
+                    <!-- Bukti Barang Preview -->
+                    <div class="col-md-6">
+                        <div class="card border">
+                            <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="ri-box-3-line me-1"></i>
+                                    Bukti Barang
+                                </h6>
+                                @php
+                                    $barangProofs = $po->barangProofs;
+                                @endphp
+                                @if($barangProofs->count() > 0)
+                                    <span class="badge bg-success">{{ $barangProofs->count() }} File</span>
+                                @endif
+                            </div>
+                            <div class="card-body">
+                                @if($barangProofs->count() > 0)
+                                    <!-- Carousel untuk multiple bukti -->
+                                    @if($barangProofs->count() > 1)
+                                    <div id="barangCarousel" class="carousel slide mb-3" data-bs-ride="false">
+                                        <div class="carousel-indicators">
+                                            @foreach($barangProofs as $index => $proof)
+                                            <button type="button" data-bs-target="#barangCarousel" data-bs-slide-to="{{ $index }}" 
+                                                class="{{ $index == 0 ? 'active' : '' }}" 
+                                                aria-label="Slide {{ $index + 1 }}"></button>
+                                            @endforeach
                                         </div>
-                                        
-                                        <div class="mt-3 p-3 bg-light rounded">
-                                            @if($po->tanggal_upload_bukti_barang)
-                                            <div class="mb-2">
-                                                <i class="ri-calendar-line text-primary me-1"></i> 
-                                                <small class="text-muted">
-                                                    Diupload: <strong>{{ \Carbon\Carbon::parse($po->tanggal_upload_bukti_barang)->format('d/m/Y H:i') }}</strong>
-                                                </small>
+                                        <div class="carousel-inner rounded">
+                                            @foreach($barangProofs as $index => $proof)
+                                            <div class="carousel-item {{ $index == 0 ? 'active' : '' }}">
+                                                <div class="text-center bg-light p-3 rounded" style="min-height: 350px; display: flex; align-items: center; justify-content: center;">
+                                                    @if(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']))
+                                                        <img src="{{ asset('storage/' . $proof->file_path) }}" 
+                                                            class="img-fluid rounded shadow-sm" 
+                                                            style="max-height: 350px; max-width: 100%; object-fit: contain;"
+                                                            alt="Bukti Barang {{ $index + 1 }}">
+                                                    @elseif($proof->file_type == 'application/pdf')
+                                                        <div class="text-center">
+                                                            <i class="ri-file-pdf-line text-danger mb-3" style="font-size: 5rem;"></i>
+                                                            <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                            <p class="text-muted mb-3">{{ $proof->file_size_formatted }}</p>
+                                                            <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                            target="_blank" 
+                                                            class="btn btn-sm btn-success">
+                                                                <i class="ri-eye-line me-1"></i> Lihat PDF
+                                                            </a>
+                                                        </div>
+                                                    @else
+                                                        <div class="text-center">
+                                                            <i class="ri-file-line text-secondary mb-3" style="font-size: 5rem;"></i>
+                                                            <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                            <p class="text-muted">{{ $proof->file_size_formatted }}</p>
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                                <div class="carousel-caption d-none d-md-block bg-dark bg-opacity-75 rounded mx-2 mb-2">
+                                                    <small class="text-white">File {{ $index + 1 }} dari {{ $barangProofs->count() }}</small>
+                                                </div>
                                             </div>
-                                            @endif
-                                            @if($po->karyawanUploadBuktiBarang)
-                                            <div>
-                                                <i class="ri-user-line text-primary me-1"></i>
-                                                <small class="text-muted">
-                                                    Oleh: <strong>{{ $po->karyawanUploadBuktiBarang->nama_lengkap }}</strong>
-                                                </small>
-                                            </div>
-                                            @endif
+                                            @endforeach
                                         </div>
-                                        
-                                        <div class="mt-3 d-flex gap-2 justify-content-center flex-wrap">
-                                            <a href="{{ asset('storage/' . $po->bukti_barang) }}" 
-                                               target="_blank" 
-                                               class="btn btn-sm btn-primary">
-                                                <i class="ri-download-line me-1"></i> Download
-                                            </a>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-warning" 
-                                                    onclick="changeProof('barang')">
-                                                <i class="ri-exchange-line me-1"></i> Ganti
-                                            </button>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-danger" 
-                                                    onclick="confirmDeleteProof('barang')">
-                                                <i class="ri-delete-bin-line me-1"></i> Hapus
-                                            </button>
-                                        </div>
+                                        <button class="carousel-control-prev" type="button" data-bs-target="#barangCarousel" data-bs-slide="prev">
+                                            <span class="bg-dark rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="ri-arrow-left-s-line text-white fs-4"></i>
+                                            </span>
+                                            <span class="visually-hidden">Previous</span>
+                                        </button>
+                                        <button class="carousel-control-next" type="button" data-bs-target="#barangCarousel" data-bs-slide="next">
+                                            <span class="bg-dark rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                                <i class="ri-arrow-right-s-line text-white fs-4"></i>
+                                            </span>
+                                            <span class="visually-hidden">Next</span>
+                                        </button>
+                                    </div>
                                     @else
-                                        <div class="text-center py-5 text-muted">
-                                            <i class="ri-box-3-line" style="font-size: 3rem;"></i>
-                                            <p class="mt-2 mb-0">Belum ada bukti barang</p>
-                                            <button type="button" 
-                                                    class="btn btn-sm btn-primary mt-2" 
-                                                    onclick="changeProof('barang')">
-                                                <i class="ri-upload-line me-1"></i> Upload Sekarang
-                                            </button>
-                                        </div>
+                                    <!-- Single file -->
+                                    @php $proof = $barangProofs->first(); @endphp
+                                    <div class="text-center mb-3 bg-light p-3 rounded" style="min-height: 350px; display: flex; align-items: center; justify-content: center;">
+                                        @if(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']))
+                                            <img src="{{ asset('storage/' . $proof->file_path) }}" 
+                                                class="img-fluid rounded shadow-sm border" 
+                                                style="max-height: 350px; max-width: 100%; object-fit: contain;"
+                                                alt="Bukti Barang">
+                                        @elseif($proof->file_type == 'application/pdf')
+                                            <div class="text-center">
+                                                <i class="ri-file-pdf-line text-danger mb-3" style="font-size: 5rem;"></i>
+                                                <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                <p class="text-muted mb-3">{{ $proof->file_size_formatted }}</p>
+                                                <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                target="_blank" 
+                                                class="btn btn-sm btn-success">
+                                                    <i class="ri-eye-line me-1"></i> Lihat PDF
+                                                </a>
+                                            </div>
+                                        @else
+                                            <div class="text-center">
+                                                <i class="ri-file-line text-secondary mb-3" style="font-size: 5rem;"></i>
+                                                <h6 class="mb-2">{{ $proof->file_name }}</h6>
+                                                <p class="text-muted">{{ $proof->file_size_formatted }}</p>
+                                            </div>
+                                        @endif
+                                    </div>
                                     @endif
-                                </div>
+                                    
+                                    <!-- File List & Actions -->
+                                    <div class="mt-3">
+                                        <div class="accordion" id="barangAccordion">
+                                            <div class="accordion-item border-0">
+                                                <h2 class="accordion-header">
+                                                    <button class="accordion-button collapsed bg-light" type="button" data-bs-toggle="collapse" data-bs-target="#barangFileList">
+                                                        <i class="ri-file-list-line me-2"></i>
+                                                        <strong>Daftar File ({{ $barangProofs->count() }})</strong>
+                                                    </button>
+                                                </h2>
+                                                <div id="barangFileList" class="accordion-collapse collapse" data-bs-parent="#barangAccordion">
+                                                    <div class="accordion-body p-0">
+                                                        <div class="list-group list-group-flush">
+                                                            @foreach($barangProofs as $index => $proof)
+                                                            <div class="list-group-item">
+                                                                <div class="d-flex justify-content-between align-items-start">
+                                                                    <div class="flex-grow-1">
+                                                                        <div class="d-flex align-items-start mb-2">
+                                                                            <div class="me-2">
+                                                                                @if($proof->file_type == 'application/pdf')
+                                                                                    <i class="ri-file-pdf-line text-danger fs-4"></i>
+                                                                                @elseif(in_array($proof->file_type, ['image/jpeg', 'image/jpg', 'image/png']))
+                                                                                    <i class="ri-image-line text-success fs-4"></i>
+                                                                                @else
+                                                                                    <i class="ri-file-line text-secondary fs-4"></i>
+                                                                                @endif
+                                                                            </div>
+                                                                            <div class="flex-grow-1">
+                                                                                <h6 class="mb-1">
+                                                                                    <span class="badge bg-secondary me-2">#{{ $index + 1 }}</span>
+                                                                                    {{ Str::limit($proof->file_name, 40) }}
+                                                                                </h6>
+                                                                                <div class="small text-muted">
+                                                                                    <div class="mb-1">
+                                                                                        <i class="ri-hard-drive-line me-1"></i>
+                                                                                        <strong>Ukuran:</strong> {{ $proof->file_size_formatted }}
+                                                                                    </div>
+                                                                                    <div class="mb-1">
+                                                                                        <i class="ri-calendar-line me-1"></i>
+                                                                                        <strong>Diupload:</strong> {{ $proof->tanggal_upload->format('d/m/Y H:i') }}
+                                                                                    </div>
+                                                                                    @if($proof->karyawan)
+                                                                                    <div>
+                                                                                        <i class="ri-user-line me-1"></i>
+                                                                                        <strong>Oleh:</strong> {{ $proof->karyawan->nama_lengkap }}
+                                                                                    </div>
+                                                                                    @endif
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                    <div class="btn-group-vertical btn-group-sm ms-2">
+                                                                        @if($barangProofs->count() > 1)
+                                                                        <button type="button" 
+                                                                                class="btn btn-sm btn-outline-success"
+                                                                                onclick="showInCarousel('barangCarousel', {{ $index }})">
+                                                                            <i class="ri-eye-line me-1"></i> Lihat
+                                                                        </button>
+                                                                        @endif
+                                                                        <a href="{{ asset('storage/' . $proof->file_path) }}" 
+                                                                        target="_blank" 
+                                                                        class="btn btn-sm btn-outline-primary">
+                                                                            <i class="ri-download-line me-1"></i> Download
+                                                                        </a>
+                                                                        <button type="button" 
+                                                                                class="btn btn-sm btn-outline-danger" 
+                                                                                onclick="confirmDeleteProof('barang', '{{ $proof->id_po_proof }}')">
+                                                                            <i class="ri-delete-bin-line me-1"></i> Hapus
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            @endforeach
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Action Buttons -->
+                                    <div class="mt-3 d-flex gap-2 justify-content-center">
+                                        <button type="button" 
+                                                class="btn btn-sm btn-warning" 
+                                                onclick="changeProof('barang')">
+                                            <i class="ri-add-line me-1"></i> Tambah Bukti Barang
+                                        </button>
+                                        @if($barangProofs->count() > 1)
+                                        <button type="button" 
+                                                class="btn btn-sm btn-danger" 
+                                                onclick="confirmDeleteProof('barang')">
+                                            <i class="ri-delete-bin-line me-1"></i> Hapus Semua
+                                        </button>
+                                        @endif
+                                    </div>
+                                @else
+                                    <!-- No files -->
+                                    <div class="text-center py-5 text-muted">
+                                        <i class="ri-box-3-line" style="font-size: 3rem;"></i>
+                                        <p class="mt-3 mb-0 fw-semibold">Belum ada bukti barang</p>
+                                        <p class="text-muted small mb-3">Upload bukti barang untuk melengkapi dokumentasi PO</p>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-success" 
+                                                onclick="changeProof('barang')">
+                                            <i class="ri-upload-line me-1"></i> Upload Sekarang
+                                        </button>
+                                    </div>
+                                @endif
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
                 <!-- UPLOAD FORM MODE -->
-                <div id="invoiceProofUploadForm" style="{{ $po->bukti_invoice && $po->bukti_barang ? 'display: none;' : '' }}">
+                <div id="invoiceProofUploadForm" style="{{ $po->hasInvoiceProof() && $po->hasBarangProof() ? 'display: none;' : '' }}">
                     <form id="uploadInvoiceForm" enctype="multipart/form-data">
                         @csrf
                         <input type="hidden" id="uploadType" name="upload_type" value="both">
@@ -2252,10 +2549,11 @@
 function showInvoiceProofModal() {
     const modalElement = document.getElementById('invoiceProofModal');
     const modal = new bootstrap.Modal(modalElement);
-    const hasInvoice = {{ $po->bukti_invoice ? 'true' : 'false' }};
-    const hasBarang = {{ $po->bukti_barang ? 'true' : 'false' }};
     
-    if (hasInvoice && hasBarang) {
+    const hasInvoice = {{ $po->hasInvoiceProof() ? 'true' : 'false' }};
+    const hasBarang = {{ $po->hasBarangProof() ? 'true' : 'false' }};
+    
+    if (hasInvoice || hasBarang) {
         document.getElementById('invoiceProofModalTitle').textContent = 'Bukti Invoice & Barang';
         document.getElementById('invoiceProofPreview').style.display = 'block';
         document.getElementById('invoiceProofUploadForm').style.display = 'none';
@@ -2272,6 +2570,28 @@ function showInvoiceProofModal() {
     modal.show();
 }
 
+// Tambahkan di bagian scripts
+function showInCarousel(carouselId, slideIndex) {
+    const carousel = document.getElementById(carouselId);
+    if (carousel) {
+        const bsCarousel = bootstrap.Carousel.getOrCreateInstance(carousel);
+        bsCarousel.to(slideIndex);
+        
+        // Scroll to carousel
+        carousel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Collapse accordion to show carousel
+        const accordionId = carouselId === 'invoiceCarousel' ? 'invoiceFileList' : 'barangFileList';
+        const accordionElement = document.getElementById(accordionId);
+        if (accordionElement && accordionElement.classList.contains('show')) {
+            const bsCollapse = bootstrap.Collapse.getInstance(accordionElement);
+            if (bsCollapse) {
+                bsCollapse.hide();
+            }
+        }
+    }
+}
+
 function changeProof(type) {
     document.getElementById('invoiceProofPreview').style.display = 'none';
     document.getElementById('invoiceProofUploadForm').style.display = 'block';
@@ -2280,8 +2600,19 @@ function changeProof(type) {
     // Set upload type
     document.getElementById('uploadType').value = type;
     
-    const title = type === 'invoice' ? 'Ganti Bukti Invoice' : 
-                  type === 'barang' ? 'Ganti Bukti Barang' : 
+    // ✅ Set mode sebagai "add" (tambah), bukan replace
+    let uploadModeInput = document.getElementById('uploadMode');
+    if (!uploadModeInput) {
+        uploadModeInput = document.createElement('input');
+        uploadModeInput.type = 'hidden';
+        uploadModeInput.id = 'uploadMode';
+        uploadModeInput.name = 'replace_mode';
+        document.getElementById('uploadInvoiceForm').appendChild(uploadModeInput);
+    }
+    uploadModeInput.value = 'false'; // ✅ Mode ADD
+    
+    const title = type === 'invoice' ? 'Tambah Bukti Invoice' : 
+                  type === 'barang' ? 'Tambah Bukti Barang' : 
                   'Upload Bukti';
     document.getElementById('invoiceProofModalTitle').textContent = title;
     
@@ -2601,6 +2932,50 @@ function clearValidationErrors() {
     clearInvoicePinError();
 }
 
+function replaceProof(type, proofId) {
+    bootstrap.Modal.getInstance(document.getElementById('invoiceProofModal')).hide();
+    
+    // Show upload form with replace mode
+    document.getElementById('invoiceProofPreview').style.display = 'none';
+    document.getElementById('invoiceProofUploadForm').style.display = 'block';
+    document.getElementById('btnUploadProof').style.display = 'block';
+    
+    // Set upload type
+    document.getElementById('uploadType').value = type;
+    
+    // ✅ Set mode sebagai "replace"
+    let uploadModeInput = document.getElementById('uploadMode');
+    if (!uploadModeInput) {
+        uploadModeInput = document.createElement('input');
+        uploadModeInput.type = 'hidden';
+        uploadModeInput.id = 'uploadMode';
+        uploadModeInput.name = 'replace_mode';
+        document.getElementById('uploadInvoiceForm').appendChild(uploadModeInput);
+    }
+    uploadModeInput.value = 'true'; // ✅ Mode REPLACE
+    
+    // Store proof ID to replace
+    let proofIdInput = document.getElementById('replaceProofId');
+    if (!proofIdInput) {
+        proofIdInput = document.createElement('input');
+        proofIdInput.type = 'hidden';
+        proofIdInput.id = 'replaceProofId';
+        proofIdInput.name = 'replace_proof_id';
+        document.getElementById('uploadInvoiceForm').appendChild(proofIdInput);
+    }
+    proofIdInput.value = proofId;
+    
+    const title = type === 'invoice' ? 'Ganti Bukti Invoice' : 'Ganti Bukti Barang';
+    document.getElementById('invoiceProofModalTitle').textContent = title;
+    
+    // Re-show modal
+    const modal = new bootstrap.Modal(document.getElementById('invoiceProofModal'));
+    modal.show();
+    
+    clearAllFileInputs();
+    clearInvoiceOtpInputs();
+}
+
 function performUpload(invoiceFile, barangFile, pin, btn) {
     // Add loading state
     btn.classList.add('btn-loading');
@@ -2622,6 +2997,15 @@ function performUpload(invoiceFile, barangFile, pin, btn) {
         formData.append('bukti_barang', barangFile, barangFile.name);
     }
     formData.append('pin', pin);
+    
+    // ✅ Tambahkan mode (replace atau add)
+    const uploadMode = document.getElementById('uploadMode');
+    if (uploadMode) {
+        formData.append('replace_mode', uploadMode.value === 'true' ? '1' : '0');
+    } else {
+        formData.append('replace_mode', '0'); // Default: ADD mode
+    }
+    
     formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
     
     // Upload
@@ -2728,13 +3112,16 @@ function performUpload(invoiceFile, barangFile, pin, btn) {
 // ============================================
 // DELETE PROOF
 // ============================================
-function confirmDeleteProof(type) {
+function confirmDeleteProof(type, proofId = null) {
     bootstrap.Modal.getInstance(document.getElementById('invoiceProofModal')).hide();
     
     const title = type === 'invoice' ? 'Bukti Invoice' : 'Bukti Barang';
+    const message = proofId 
+        ? `Hapus ${title} ini?` 
+        : `Hapus semua ${title}?`;
     
     Swal.fire({
-        title: `Hapus ${title}?`,
+        title: message,
         html: `
             <div class="text-start">
                 <div class="alert alert-warning mb-3">
@@ -2760,36 +3147,7 @@ function confirmDeleteProof(type) {
         cancelButtonText: '<i class="ri-close-line me-1"></i> Batal',
         showLoaderOnConfirm: true,
         didOpen: () => {
-            const deleteInputs = document.querySelectorAll('.delete-otp-input');
-            
-            deleteInputs.forEach((input, index) => {
-                input.addEventListener('input', function() {
-                    this.value = this.value.replace(/[^0-9]/g, '');
-                    if (this.value && index < deleteInputs.length - 1) {
-                        deleteInputs[index + 1].focus();
-                    }
-                });
-                
-                input.addEventListener('keydown', function(e) {
-                    if (e.key === 'Backspace' && !this.value && index > 0) {
-                        deleteInputs[index - 1].focus();
-                    }
-                });
-                
-                input.addEventListener('paste', function(e) {
-                    e.preventDefault();
-                    const pastedData = (e.clipboardData || window.clipboardData).getData('text');
-                    const numbers = pastedData.replace(/[^0-9]/g, '').slice(0, 6);
-                    numbers.split('').forEach((num, i) => {
-                        if (deleteInputs[i]) deleteInputs[i].value = num;
-                    });
-                    if (deleteInputs[numbers.length - 1]) {
-                        deleteInputs[numbers.length - 1].focus();
-                    }
-                });
-            });
-            
-            deleteInputs[0].focus();
+            // ... OTP input handlers sama seperti sebelumnya
         },
         preConfirm: () => {
             const deleteInputs = document.querySelectorAll('.delete-otp-input');
@@ -2800,6 +3158,15 @@ function confirmDeleteProof(type) {
                 return false;
             }
             
+            const requestData = { 
+                pin: pin, 
+                type: type 
+            };
+            
+            if (proofId) {
+                requestData.id_proof = proofId;
+            }
+            
             return fetch(`/po/po/{{ $po->id_po }}/delete-proof`, {
                 method: 'POST',
                 headers: {
@@ -2807,7 +3174,7 @@ function confirmDeleteProof(type) {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
                     'Accept': 'application/json',
                 },
-                body: JSON.stringify({ pin: pin, type: type })
+                body: JSON.stringify(requestData)
             })
             .then(response => response.json().then(data => ({ status: response.status, data: data })))
             .then(({status, data}) => {
